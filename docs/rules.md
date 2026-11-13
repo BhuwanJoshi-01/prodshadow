@@ -71,6 +71,7 @@ and is lowered when only client-side evidence exists.
 | `QUAL005` | sampler-starved | warning | Telemetry samples were more than five intervals apart, or failed. |
 | `QUAL006` | connect-failures | warning | Workload sessions failed to connect. |
 | `QUAL007` | no-experiment | inconclusive | No workload or no fixture; only static analysis ran. |
+| `QUAL008` | no-blocker-modelled | info | No session holds a transaction open when the migration starts, so the most common outage pattern — a lock queue behind a long transaction — is not exercised. |
 
 ## Suppressions
 
