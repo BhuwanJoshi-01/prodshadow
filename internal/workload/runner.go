@@ -89,15 +89,17 @@ type runner struct {
 	connFailures int
 }
 
+// index returns the result index of c. Validation caps the number of
+// scenarios at MaxScenarios, well inside uint16.
 func (r *runner) index(c *compiled) uint16 {
 	for i, f := range r.fg {
 		if f == c {
-			return uint16(i)
+			return uint16(i) //nolint:gosec // bounded by MaxScenarios
 		}
 	}
 	for i, b := range r.bg {
 		if b == c {
-			return uint16(len(r.fg) + i)
+			return uint16(len(r.fg) + i) //nolint:gosec // bounded by MaxScenarios
 		}
 	}
 	return math.MaxUint16
@@ -132,7 +134,7 @@ func (r *runner) run(parent context.Context) (*Result, error) {
 			wg.Add(1)
 			go func(c *compiled, i int) {
 				defer wg.Done()
-				r.backgroundSession(stopCtx, killCtx, c, i)
+				r.backgroundSession(stopCtx, c, i)
 			}(c, i)
 		}
 	}
@@ -357,8 +359,10 @@ func (r *runner) startOpenLoop(stopCtx, killCtx context.Context, wg *sync.WaitGr
 	}()
 }
 
-// backgroundSession runs a blocker transaction, optionally repeatedly.
-func (r *runner) backgroundSession(stopCtx, killCtx context.Context, c *compiled, i int) {
+// backgroundSession runs a blocker transaction, optionally repeatedly. It
+// stops with the run rather than after the grace period: a held blocker is
+// rolled back as soon as the measurement ends.
+func (r *runner) backgroundSession(stopCtx context.Context, c *compiled, i int) {
 	if !sleepUntil(stopCtx, r.measureStart.Add(c.startAfter)) {
 		return
 	}
