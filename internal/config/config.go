@@ -28,6 +28,8 @@ type Config struct {
 	baseDir string
 	// path is the file the configuration was loaded from, if any.
 	path string
+	// lines maps dotted key paths to source lines for diagnostics.
+	lines map[string]int
 }
 
 // PostgresConfig selects the PostgreSQL server used for disposable databases.
