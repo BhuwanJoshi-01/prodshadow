@@ -21,6 +21,8 @@ func runSchema(_ context.Context, env *Env, args []string) int {
 		fmt.Fprintln(env.Stderr, err)
 		return ExitInvalid
 	}
-	env.Stdout.Write(raw)
+	if _, err := env.Stdout.Write(raw); err != nil {
+		return ExitInternal
+	}
 	return ExitOK
 }

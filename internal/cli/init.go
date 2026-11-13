@@ -57,12 +57,13 @@ func runInit(_ context.Context, env *Env, args []string) int {
 		if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 			return err
 		}
-		f, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
+		// Project files are meant to be committed and read by teammates.
+		f, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644) //nolint:gosec // see comment above
 		if err != nil {
 			return err
 		}
 		if err := tpl.Execute(f, struct{ Project string }{project}); err != nil {
-			f.Close()
+			_ = f.Close()
 			return err
 		}
 		created = append(created, display(env.Dir, dst))

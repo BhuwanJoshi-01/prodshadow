@@ -20,8 +20,9 @@ type ruleInfo struct {
 }
 
 func allRules() []ruleInfo {
-	var out []ruleInfo
-	for _, r := range sqlinspect.Rules() {
+	static := sqlinspect.Rules()
+	out := make([]ruleInfo, 0, len(static)+len(risk.ObservedRules))
+	for _, r := range static {
 		out = append(out, ruleInfo{r.ID, r.Name, "static", string(r.Severity), r.Summary, r.DocsURL})
 	}
 	for _, r := range risk.ObservedRules {
@@ -51,6 +52,8 @@ func runRules(_ context.Context, env *Env, args []string) int {
 	for _, r := range rules {
 		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", r.ID, r.Kind, r.Severity, r.Name, r.Summary)
 	}
-	tw.Flush()
+	if err := tw.Flush(); err != nil {
+		return ExitInternal
+	}
 	return ExitOK
 }

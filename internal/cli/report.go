@@ -42,7 +42,9 @@ func runReport(_ context.Context, env *Env, args []string) int {
 		return ExitInvalid
 	}
 	if *output == "" {
-		env.Stdout.Write(out)
+		if _, err := env.Stdout.Write(out); err != nil {
+			return ExitInternal
+		}
 		return ExitOK
 	}
 	if err := os.WriteFile(env.abs(*output), out, 0o644); err != nil {
