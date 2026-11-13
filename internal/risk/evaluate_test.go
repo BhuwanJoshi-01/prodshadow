@@ -167,3 +167,16 @@ func TestResponsibleStatementPrefersBlockingStatements(t *testing.T) {
 		t.Fatalf("got %s, want the blocking CREATE INDEX (1.2)", got)
 	}
 }
+
+func TestInlineAnnotationSuppressesObservedFinding(t *testing.T) {
+	stmts, err := sqlinspect.ParseSources([]sqlinspect.Source{{Path: "m.sql",
+		Content: "-- prodshadow:ignore OBS002 reason=\"deployed during the maintenance window\"\nALTER TABLE orders ADD COLUMN note text;"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := Evaluate(Input{Config: testConfig(), Result: blockingResult(), Statements: stmts, Now: time.Date(2026, 11, 13, 0, 0, 0, 0, time.UTC)})
+	f := byRule(a, "OBS002")
+	if f == nil || !f.Suppressed || f.SuppressionReason != "deployed during the maintenance window" {
+		t.Fatalf("inline annotation did not apply to the observed finding: %+v", f)
+	}
+}

@@ -77,6 +77,7 @@ func Evaluate(in Input) Assessment {
 	findings = append(findings, qualityFindings(cfg, a.Quality, in.NoExperiment)...)
 
 	findings = applyOverrides(findings, cfg.Policy.Rules)
+	applyInlineAnnotations(findings, in.Statements, now)
 	expired := applySuppressions(findings, in.Suppressions, now)
 	sortFindings(findings)
 	a.Findings = findings
@@ -123,6 +124,27 @@ func qualityFindings(cfg *config.Config, q Quality, noExperiment string) []Findi
 			fmt.Sprintf("%d workload connection attempt(s) failed; check max_connections and container memory.", q.ConnectFailures)))
 	}
 	return out
+}
+
+// applyInlineAnnotations lets a `prodshadow:ignore` comment above a
+// statement suppress observed findings attributed to that statement, just
+// as it does for static findings.
+func applyInlineAnnotations(fs []Finding, stmts []*sqlinspect.Statement, now time.Time) {
+	byID := map[string]*sqlinspect.Statement{}
+	for _, s := range stmts {
+		byID[s.ID] = s
+	}
+	for i := range fs {
+		f := &fs[i]
+		if f.Suppressed || f.StatementID == "" || f.Evidence == evidence.Static || f.Evidence == evidence.Heuristic {
+			continue
+		}
+		if s := byID[f.StatementID]; s != nil {
+			if a, ok := s.Suppresses(f.RuleID, now); ok {
+				f.Suppressed, f.SuppressionReason, f.SuppressionExpiry = true, a.Reason, a.Expires
+			}
+		}
+	}
 }
 
 // applyOverrides applies policy.rules severity settings; "off" removes the
