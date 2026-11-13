@@ -308,3 +308,14 @@ func TestInspectExpandsGlobsInOrder(t *testing.T) {
 		t.Fatalf("empty glob: %+v", r)
 	}
 }
+
+func TestKeepWarnsInCI(t *testing.T) {
+	dir := initProject(t)
+	cfg := filepath.Join(dir, "prodshadow.yaml")
+	raw, _ := os.ReadFile(cfg)
+	writeFile(t, cfg, strings.Replace(string(raw), "  file: ./workloads/workload.yaml\n", "", 1))
+	r := run(t, dir, map[string]string{"CI": "true"}, "verify", "--keep", "--quiet")
+	if !strings.Contains(r.stderr, "do not use it in CI") {
+		t.Fatalf("expected a CI warning for --keep: %+v", r)
+	}
+}

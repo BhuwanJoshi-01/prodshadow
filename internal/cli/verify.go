@@ -45,6 +45,11 @@ func runVerify(ctx context.Context, env *Env, args []string) int {
 		return code
 	}
 	started := time.Now()
+	if vf.keep {
+		if ci, ok := env.Getenv("CI"); ok && ci != "" && ci != "false" {
+			fmt.Fprintln(env.Stderr, "prodshadow: warning: --keep leaves the disposable server running; do not use it in CI")
+		}
+	}
 
 	p, err := loadProject(env, vf.config)
 	if err != nil {
