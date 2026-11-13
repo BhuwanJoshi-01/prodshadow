@@ -1,0 +1,23 @@
+version: 1
+name: orders-api
+scenarios:
+  - id: get_order
+    weight: 50
+    mode: read
+    sql: "SELECT status, amount FROM orders WHERE id = $1"
+    parameters:
+      - {generator: int_range, min: 1, max: 800000}
+  - id: update_status
+    weight: 40
+    mode: write
+    sql: "UPDATE orders SET status = $1 WHERE id = $2"
+    parameters:
+      - {generator: choice, values: [paid, shipped]}
+      - {generator: int_range, min: 1, max: 800000}
+  - id: create_order
+    weight: 10
+    mode: write
+    sql: "INSERT INTO orders (id, customer_id, status, amount, created_at) VALUES ($1, $2, 'pending', 10, now()) ON CONFLICT (id) DO NOTHING"
+    parameters:
+      - {generator: int_range, min: 800001, max: 5000000}
+      - {generator: int_range, min: 1, max: 50000}

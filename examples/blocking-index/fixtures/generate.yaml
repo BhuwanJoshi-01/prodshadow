@@ -1,0 +1,25 @@
+# Deterministic synthetic rows: the same seed always produces the same data.
+version: 1
+tables:
+  - name: orders
+    rows: 800000
+    columns:
+      - name: id
+        generator: sequence
+      - name: customer_id
+        generator: zipf
+        min: 1
+        max: 50000
+        s: 1.1
+      - name: status
+        generator: choice
+        values: [pending, paid, shipped, refunded]
+        weights: [20, 50, 28, 2]
+      - name: amount
+        generator: float_range
+        min: 1
+        max: 900
+      - name: created_at
+        generator: timestamp_range
+        from: "2025-01-01T00:00:00Z"
+        to: "2026-01-01T00:00:00Z"

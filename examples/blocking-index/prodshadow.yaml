@@ -1,0 +1,32 @@
+# CREATE INDEX without CONCURRENTLY holds a SHARE lock for the whole build,
+# so writers stall. Expected decision: block (OBS001).
+version: 1
+project: blocking-index
+postgres:
+  version: "17"
+  image: postgres:17-alpine
+  isolation:
+    memory_mb: 2048
+    cpus: 2
+fixture:
+  schema: ./fixtures/schema.sql
+  generator:
+    path: ./fixtures/generate.yaml
+    seed: 90210
+  representation: synthetic
+workload:
+  file: ./workloads/workload.yaml
+  warmup_seconds: 3
+  measurement_seconds: 15
+  concurrency: 8
+  repeats: 3
+migration:
+  files: [./migrations/0012_index_orders_by_status.sql]
+  lock_timeout_ms: 2000
+  start_after_seconds: 4
+policy:
+  fail_on: [critical]
+  # Writers may stall for at most 250 ms.
+  max_lock_wait_ms: 250
+report:
+  formats: [json, markdown, html]
