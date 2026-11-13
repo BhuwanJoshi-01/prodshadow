@@ -1,0 +1,22 @@
+name: Feature request
+description: Suggest an improvement.
+labels: [needs-design]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What migration risk or workflow problem are you trying to solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety
+      options:
+        - label: This does not require ProdShadow to connect to a database it did not create.
+          required: true
