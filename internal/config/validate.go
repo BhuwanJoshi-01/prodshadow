@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"slices"
@@ -265,7 +266,18 @@ func (c *Config) validateWorkload(ps *Problems) {
 func (c *Config) validateMigration(ps *Problems) {
 	m := c.Migration
 	for i, f := range m.Files {
-		c.checkFile(ps, fmt.Sprintf("migration.files[%d]", i), f)
+		path := fmt.Sprintf("migration.files[%d]", i)
+		if !strings.ContainsAny(f, "*?[") {
+			c.checkFile(ps, path, f)
+			continue
+		}
+		matches, err := filepath.Glob(c.Resolve(f))
+		switch {
+		case err != nil:
+			ps.errorf(path, "invalid pattern %q: %v", f, err)
+		case len(matches) == 0:
+			ps.errorf(path, "pattern %q matches no files", f)
+		}
 	}
 	if m.LockTimeoutMS < 1 || m.LockTimeoutMS > 600_000 {
 		ps.errorf("migration.lock_timeout_ms", "lock_timeout_ms %d must be between 1 and 600000", m.LockTimeoutMS)

@@ -151,3 +151,19 @@ func TestNetworkNoneWarnsOutsideLinux(t *testing.T) {
 		t.Fatalf("no warning expected on linux: %+v", p)
 	}
 }
+
+func TestMigrationGlobs(t *testing.T) {
+	c := validConfig(t)
+	c.Migration.Files = []string{"m*.sql"}
+	if p := problemAt(c.Validate(), "migration.files[0]"); p != nil {
+		t.Fatalf("matching glob reported: %+v", p)
+	}
+	c.Migration.Files = []string{"migrations/*.sql"}
+	if p := problemAt(c.Validate(), "migration.files[0]"); p == nil || !strings.Contains(p.Message, "matches no files") {
+		t.Fatalf("empty glob not reported: %+v", p)
+	}
+	c.Migration.Files = []string{"[.sql"}
+	if p := problemAt(c.Validate(), "migration.files[0]"); p == nil {
+		t.Fatal("malformed pattern not reported")
+	}
+}
