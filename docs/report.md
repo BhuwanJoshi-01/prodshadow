@@ -6,7 +6,12 @@
   [`schemas/report.v1.schema.json`](../schemas/report.v1.schema.json);
 * `report.md` – for pull request comments and CI job summaries;
 * `report.html` – a single self-contained page (no external resources) with
-  a timeline chart, suitable as a CI artifact.
+  a timeline chart, suitable as a CI artifact;
+* `report.sarif` – SARIF 2.1.0, so findings appear as code scanning alerts
+  and pull request annotations on the migration lines. Findings without a
+  line (for example a scenario's latency) are anchored to the first line of
+  the first migration file. Paths are relative to the configuration
+  directory; run from the repository root for correct annotations.
 
 `prodshadow report` re-renders a JSON report in any format.
 

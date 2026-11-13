@@ -63,6 +63,23 @@ Outputs: `exit-code`, `decision` (`pass`, `block`, `inconclusive`,
 Older migrations should already be part of `fixture.schema`, so that the new
 migration runs against the schema it will meet in production.
 
+### Code scanning annotations
+
+Add `sarif` to `report.formats` and upload the file:
+
+```yaml
+      - uses: BhuwanJoshi-01/Open-Source-1@main
+        id: prodshadow
+        with:
+          fail: "false"
+      - uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: ${{ steps.prodshadow.outputs.report-directory }}/report.sarif
+      - run: exit ${{ steps.prodshadow.outputs.exit-code }}
+```
+
+The upload step needs `permissions: security-events: write`.
+
 ### Inconclusive results
 
 Exit code 5 means the experiment could not decide (missing inputs, too few

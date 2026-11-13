@@ -51,7 +51,7 @@ Static analysis only; needs no database or container engine.
 | `--migration` | — | Migration file; repeat for several, executed in order. |
 | `--config` | — | Use rule overrides, transaction mode and `migration.files` from a configuration. |
 | `--transaction` | `auto` | `auto`, `per-file` or `none`. |
-| `--format` | `text` | `text`, `json` or `markdown`. |
+| `--format` | `text` | `text`, `json`, `markdown` or `sarif`. |
 | `--fail-on` | — | Exit 2 if an unsuppressed finding is at least this severe (`info`, `warning`, `critical`; inconclusive findings count as more severe than critical). |
 
 ## `prodshadow verify`
@@ -63,7 +63,7 @@ Runs the experiment and writes reports.
 | `--config` | `prodshadow.yaml` | Configuration file. |
 | `--migration` | `migration.files` | Override the migration files (repeatable). |
 | `--output` | `report.directory` | Report directory. |
-| `--format` | `report.formats` | Comma-separated: `json`, `markdown`, `html`. |
+| `--format` | `report.formats` | Comma-separated: `json`, `markdown`, `html`, `sarif`. |
 | `--repeats` | `workload.repeats` | Number of baseline/candidate pairs. |
 | `--keep` | `false` | Keep the server after the run for local debugging. Never use in CI. |
 | `--quiet` | `false` | No progress output. |
@@ -79,7 +79,7 @@ Re-renders a JSON report written by `verify`.
 | Flag | Default | |
 |---|---|---|
 | `--input` | `prodshadow-results/report.json` | Report to read. Reports with a newer major schema version are rejected. |
-| `--format` | `markdown` | `markdown`, `html` or `json`. |
+| `--format` | `markdown` | `markdown`, `html`, `json` or `sarif`. |
 | `--output` | stdout | Output file. |
 
 ## `prodshadow doctor`

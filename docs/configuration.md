@@ -96,7 +96,7 @@ inconclusive.
 | Key | Default | Description |
 |---|---|---|
 | `directory` | `./prodshadow-results` | Output directory (`--output` overrides). |
-| `formats` | `[json, markdown]` | Any of `json`, `markdown`, `html` (`--format` overrides). |
+| `formats` | `[json, markdown]` | Any of `json`, `markdown`, `html`, `sarif` (`--format` overrides). |
 
 ## `privacy`
 
