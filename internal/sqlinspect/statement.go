@@ -1,0 +1,140 @@
+// Package sqlinspect statically analyses PostgreSQL migration files.
+//
+// It splits each file into statements with exact line numbers, parses every
+// statement with the PostgreSQL grammar (libpg_query through pg_query_go),
+// derives the table-level locks a statement acquires, and evaluates a small
+// set of hazard rules. The analysis is advisory: the disposable database is
+// the source of truth, and statements the parser cannot handle are still
+// executed there and reported as an analysis limitation.
+package sqlinspect
+
+import (
+	"github.com/BhuwanJoshi-01/Open-Source-1/internal/pglock"
+
+	pg_query "github.com/pganalyze/pg_query_go/v6"
+)
+
+// Kind is a coarse statement classification.
+type Kind string
+
+const (
+	KindCreateIndex     Kind = "create_index"
+	KindAlterTable      Kind = "alter_table"
+	KindRename          Kind = "rename"
+	KindDropTable       Kind = "drop_table"
+	KindDropIndex       Kind = "drop_index"
+	KindDropOther       Kind = "drop_other"
+	KindCreateTable     Kind = "create_table"
+	KindInsert          Kind = "insert"
+	KindUpdate          Kind = "update"
+	KindDelete          Kind = "delete"
+	KindSelect          Kind = "select"
+	KindTruncate        Kind = "truncate"
+	KindVacuum          Kind = "vacuum"
+	KindCluster         Kind = "cluster"
+	KindReindex         Kind = "reindex"
+	KindRefreshMatView  Kind = "refresh_materialized_view"
+	KindLockTable       Kind = "lock_table"
+	KindCreateTrigger   Kind = "create_trigger"
+	KindTransaction     Kind = "transaction_control"
+	KindSet             Kind = "set"
+	KindProcedural      Kind = "procedural"
+	KindCreateExtension Kind = "create_extension"
+	KindCopy            Kind = "copy"
+	KindComment         Kind = "comment"
+	KindOtherDDL        Kind = "other_ddl"
+	KindUnknown         Kind = "unknown"
+)
+
+// TxnRequirement states how a statement interacts with transaction blocks.
+type TxnRequirement string
+
+const (
+	// TxnAny statements may run inside or outside a transaction block.
+	TxnAny TxnRequirement = "any"
+	// TxnNotInBlock statements fail inside a transaction block, for
+	// example CREATE INDEX CONCURRENTLY.
+	TxnNotInBlock TxnRequirement = "no_transaction_block"
+	// TxnControl statements begin or end transactions themselves.
+	TxnControl TxnRequirement = "transaction_control"
+)
+
+// TableLock is a lock a statement acquires on one relation.
+type TableLock struct {
+	Table string      `json:"table"`
+	Mode  pglock.Mode `json:"mode"`
+}
+
+// Statement is one analysed migration statement.
+type Statement struct {
+	// ID is "<file number>.<statement number>", both 1-based.
+	ID        string `json:"id"`
+	File      string `json:"file"`
+	StartLine int    `json:"start_line"`
+	EndLine   int    `json:"end_line"`
+	// SQL is the statement text. Reports omit it unless raw text
+	// persistence is enabled; Fingerprint identifies it instead.
+	SQL         string         `json:"-"`
+	Fingerprint string         `json:"fingerprint,omitempty"`
+	Kind        Kind           `json:"kind"`
+	Tag         string         `json:"tag"`
+	Locks       []TableLock    `json:"locks,omitempty"`
+	Txn         TxnRequirement `json:"transaction_requirement"`
+	Subcommands []string       `json:"subcommands,omitempty"`
+	Parsed      bool           `json:"parsed"`
+	ParseError  string         `json:"parse_error,omitempty"`
+	// Annotations are inline "prodshadow:" directives from leading
+	// comments.
+	Annotations []Annotation `json:"annotations,omitempty"`
+
+	node *pg_query.Node
+}
+
+// StrongestLock returns the strongest lock mode the statement acquires.
+func (s *Statement) StrongestLock() pglock.Mode {
+	best := pglock.None
+	for _, l := range s.Locks {
+		best = pglock.Strongest(best, l.Mode)
+	}
+	return best
+}
+
+// LockOn returns the mode acquired on table, or pglock.None.
+func (s *Statement) LockOn(table string) pglock.Mode {
+	best := pglock.None
+	for _, l := range s.Locks {
+		if l.Table == table {
+			best = pglock.Strongest(best, l.Mode)
+		}
+	}
+	return best
+}
+
+// Tables returns the distinct relations the statement locks, in order.
+func (s *Statement) Tables() []string {
+	var out []string
+	seen := map[string]bool{}
+	for _, l := range s.Locks {
+		if !seen[l.Table] {
+			seen[l.Table] = true
+			out = append(out, l.Table)
+		}
+	}
+	return out
+}
+
+// Node exposes the parse tree to rules. It is nil when parsing failed.
+func (s *Statement) Node() *pg_query.Node { return s.node }
+
+func (s *Statement) addLock(table string, mode pglock.Mode) {
+	if table == "" || mode == pglock.None {
+		return
+	}
+	for i, l := range s.Locks {
+		if l.Table == table {
+			s.Locks[i].Mode = pglock.Strongest(l.Mode, mode)
+			return
+		}
+	}
+	s.Locks = append(s.Locks, TableLock{Table: table, Mode: mode})
+}
