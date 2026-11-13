@@ -7,6 +7,8 @@ import (
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/fixture"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/isolation"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/postgres"
+
+	"github.com/jackc/pgx/v5"
 )
 
 // seedTemplate creates and fills the template database. Extensions are
@@ -20,7 +22,7 @@ func seedTemplate(ctx context.Context, plan Plan, srv *isolation.Server, res *Re
 	if err != nil {
 		return err
 	}
-	defer admin.Close(ctx)
+	defer isolation.Close(admin)
 	if err := postgres.CreateDatabase(ctx, admin, TemplateDatabase, app.User, ""); err != nil {
 		return err
 	}
@@ -31,52 +33,52 @@ func seedTemplate(ctx context.Context, plan Plan, srv *isolation.Server, res *Re
 	}
 	for _, ext := range cfg.Postgres.Extensions {
 		if err := postgres.CreateExtension(ctx, tplAdmin, ext); err != nil {
-			tplAdmin.Close(ctx)
+			isolation.Close(tplAdmin)
 			return err
 		}
 	}
 
 	owner, err := srv.Connect(ctx, app, isolation.ConnOptions{Database: TemplateDatabase, ApplicationName: "prodshadow/fixture"})
 	if err != nil {
-		tplAdmin.Close(ctx)
+		isolation.Close(tplAdmin)
 		return err
 	}
 	if plan.Schema != nil {
 		if _, err := fixture.ApplySQL(ctx, owner, *plan.Schema); err != nil {
-			return closeBoth(ctx, owner, tplAdmin, err)
+			return closeBoth(owner, tplAdmin, err)
 		}
 	}
 	if plan.Seed != nil {
 		if _, err := fixture.ApplySQL(ctx, owner, *plan.Seed); err != nil {
-			return closeBoth(ctx, owner, tplAdmin, err)
+			return closeBoth(owner, tplAdmin, err)
 		}
 	}
 	if plan.Generator != nil {
 		rows, err := fixture.Generate(ctx, owner, plan.Generator, cfg.Fixture.Generator.Seed)
 		res.FixtureRows = rows
 		if err != nil {
-			return closeBoth(ctx, owner, tplAdmin, err)
+			return closeBoth(owner, tplAdmin, err)
 		}
 	}
 	if _, err := owner.Exec(ctx, "ANALYZE"); err != nil {
-		return closeBoth(ctx, owner, tplAdmin, fmt.Errorf("analyze fixture: %w", err))
+		return closeBoth(owner, tplAdmin, fmt.Errorf("analyze fixture: %w", err))
 	}
-	owner.Close(ctx)
+	isolation.Close(owner)
 
 	if res.Server, err = postgres.Introspect(ctx, tplAdmin); err != nil {
-		tplAdmin.Close(ctx)
+		isolation.Close(tplAdmin)
 		return err
 	}
 	if res.Tables, err = postgres.TableSizes(ctx, tplAdmin); err != nil {
-		tplAdmin.Close(ctx)
+		isolation.Close(tplAdmin)
 		return err
 	}
 	// A template cannot be copied while sessions are connected to it.
 	return tplAdmin.Close(ctx)
 }
 
-func closeBoth(ctx context.Context, a, b interface{ Close(context.Context) error }, err error) error {
-	a.Close(ctx)
-	b.Close(ctx)
+func closeBoth(a, b *pgx.Conn, err error) error {
+	isolation.Close(a)
+	isolation.Close(b)
 	return err
 }

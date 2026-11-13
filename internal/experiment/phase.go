@@ -31,7 +31,7 @@ func runPhase(ctx context.Context, plan Plan, srv *isolation.Server, step Step) 
 	if err != nil {
 		return nil, err
 	}
-	defer admin.Close(ctx)
+	defer isolation.Close(admin)
 	if err := postgres.DropDatabase(ctx, admin, db); err != nil {
 		return nil, err
 	}
@@ -48,7 +48,7 @@ func runPhase(ctx context.Context, plan Plan, srv *isolation.Server, step Step) 
 	if err != nil {
 		return nil, err
 	}
-	defer monitor.Close(ctx)
+	defer isolation.Close(monitor)
 	if err := postgres.Checkpoint(ctx, monitor); err != nil {
 		return nil, fmt.Errorf("checkpoint: %w", err)
 	}
@@ -175,7 +175,7 @@ func runMigration(ctx context.Context, plan Plan, srv *isolation.Server, db stri
 	if err != nil {
 		return nil, err
 	}
-	defer conn.Close(context.Background())
+	defer isolation.Close(conn)
 	return migrate.Execute(ctx, conn, plan.Migration, migrate.Options{
 		LockTimeout:      time.Duration(cfg.Migration.LockTimeoutMS) * time.Millisecond,
 		StatementTimeout: time.Duration(cfg.Migration.StatementTimeoutMS) * time.Millisecond,
