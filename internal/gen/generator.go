@@ -205,4 +205,3 @@ func (g nullable) Next(r *rand.Rand) any {
 	}
 	return v
 }
-

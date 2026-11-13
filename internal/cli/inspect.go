@@ -154,4 +154,3 @@ func printInspectMarkdown(w io.Writer, stmts []*sqlinspect.Statement, findings [
 	}
 	fmt.Fprintln(w)
 }
-

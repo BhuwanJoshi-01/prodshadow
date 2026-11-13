@@ -14,21 +14,21 @@ const UnstableCV = 0.5
 
 // Quality describes how much the experiment can be trusted.
 type Quality struct {
-	Representation     string   `json:"representation"`
-	FixtureRows        int64    `json:"fixture_rows"`
-	DatabaseBytes      int64    `json:"database_bytes"`
-	RepeatsRequested   int      `json:"repeats_requested"`
-	PairsCompleted     int      `json:"pairs_completed"`
-	MinSamples         int      `json:"min_samples"`
-	MinSamplesRequired int      `json:"min_samples_required"`
+	Representation        string   `json:"representation"`
+	FixtureRows           int64    `json:"fixture_rows"`
+	DatabaseBytes         int64    `json:"database_bytes"`
+	RepeatsRequested      int      `json:"repeats_requested"`
+	PairsCompleted        int      `json:"pairs_completed"`
+	MinSamples            int      `json:"min_samples"`
+	MinSamplesRequired    int      `json:"min_samples_required"`
 	UndersampledScenarios []string `json:"undersampled_scenarios,omitempty"`
-	MaxBaselineNoiseCV *float64 `json:"max_baseline_noise_cv,omitempty"`
-	NoisyScenarios     []string `json:"noisy_scenarios,omitempty"`
-	SampleIntervalMS   int      `json:"sample_interval_ms"`
-	SamplerMaxGapMS    float64  `json:"sampler_max_gap_ms"`
-	SamplerFailures    int      `json:"sampler_failures"`
-	ConnectFailures    int      `json:"connect_failures"`
-	Limitations        []string `json:"limitations"`
+	MaxBaselineNoiseCV    *float64 `json:"max_baseline_noise_cv,omitempty"`
+	NoisyScenarios        []string `json:"noisy_scenarios,omitempty"`
+	SampleIntervalMS      int      `json:"sample_interval_ms"`
+	SamplerMaxGapMS       float64  `json:"sampler_max_gap_ms"`
+	SamplerFailures       int      `json:"sampler_failures"`
+	ConnectFailures       int      `json:"connect_failures"`
+	Limitations           []string `json:"limitations"`
 }
 
 func assessQuality(res *experiment.Result, comps []Comparison, representation string, minSamples, repeats, interval int) Quality {

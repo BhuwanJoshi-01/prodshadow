@@ -59,18 +59,18 @@ func TestParseBlueprintWorkload(t *testing.T) {
 
 func TestWorkloadValidationErrors(t *testing.T) {
 	cases := map[string]string{
-		"unknown key":      strings.Replace(blueprintWorkload, "    mode: read\n", "    mode: read\n    moed: x\n", 1),
-		"missing param":    strings.Replace(blueprintWorkload, "WHERE id = $2", "WHERE id = $3", 1),
-		"ddl":              strings.Replace(blueprintWorkload, `"SELECT count(*) FROM orders"`, `"DROP TABLE orders"`, 1),
-		"duplicate id":     strings.Replace(blueprintWorkload, "id: held_transaction", "id: recent_orders", 1),
-		"bad weight":       strings.Replace(blueprintWorkload, "weight: 60", "weight: 0", 1),
-		"bad mode":         strings.Replace(blueprintWorkload, "mode: read", "mode: both", 1),
-		"bad generator":    strings.Replace(blueprintWorkload, "generator: choice", "generator: pick", 1),
-		"sessions":         strings.Replace(blueprintWorkload, "sessions: 1", "sessions: 0", 1),
-		"syntax":           strings.Replace(blueprintWorkload, "SELECT id, status", "SELEC id, status", 1),
-		"multi statement":  strings.Replace(blueprintWorkload, `"UPDATE orders SET status = $1 WHERE id = $2"`, `"UPDATE orders SET status = $1 WHERE id = $2; DELETE FROM orders"`, 1),
-		"hold":             strings.Replace(blueprintWorkload, "hold_ms: 1000", "hold_ms: -1", 1),
-		"version":          strings.Replace(blueprintWorkload, "version: 1", "version: 3", 1),
+		"unknown key":     strings.Replace(blueprintWorkload, "    mode: read\n", "    mode: read\n    moed: x\n", 1),
+		"missing param":   strings.Replace(blueprintWorkload, "WHERE id = $2", "WHERE id = $3", 1),
+		"ddl":             strings.Replace(blueprintWorkload, `"SELECT count(*) FROM orders"`, `"DROP TABLE orders"`, 1),
+		"duplicate id":    strings.Replace(blueprintWorkload, "id: held_transaction", "id: recent_orders", 1),
+		"bad weight":      strings.Replace(blueprintWorkload, "weight: 60", "weight: 0", 1),
+		"bad mode":        strings.Replace(blueprintWorkload, "mode: read", "mode: both", 1),
+		"bad generator":   strings.Replace(blueprintWorkload, "generator: choice", "generator: pick", 1),
+		"sessions":        strings.Replace(blueprintWorkload, "sessions: 1", "sessions: 0", 1),
+		"syntax":          strings.Replace(blueprintWorkload, "SELECT id, status", "SELEC id, status", 1),
+		"multi statement": strings.Replace(blueprintWorkload, `"UPDATE orders SET status = $1 WHERE id = $2"`, `"UPDATE orders SET status = $1 WHERE id = $2; DELETE FROM orders"`, 1),
+		"hold":            strings.Replace(blueprintWorkload, "hold_ms: 1000", "hold_ms: -1", 1),
+		"version":         strings.Replace(blueprintWorkload, "version: 1", "version: 3", 1),
 	}
 	for name, doc := range cases {
 		if _, err := Parse([]byte(doc)); err == nil {
