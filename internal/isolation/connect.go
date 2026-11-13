@@ -117,7 +117,7 @@ func checkDialTarget(network, addr string) error {
 	case "tcp", "tcp4", "tcp6":
 		host, port, err := net.SplitHostPort(addr)
 		if err != nil {
-			return fmt.Errorf("%w: %v", security.ErrUnmanagedTarget, err)
+			return fmt.Errorf("%w: %w", security.ErrUnmanagedTarget, err)
 		}
 		if _, err := strconv.Atoi(port); err != nil {
 			return fmt.Errorf("%w: invalid port %q", security.ErrUnmanagedTarget, port)

@@ -178,16 +178,16 @@ func (p *localProvider) Start(ctx context.Context, spec Spec) (*Server, error) {
 	for {
 		conn, err := srv.Connect(waitCtx, srv.admin, ConnOptions{ApplicationName: "prodshadow/ready", ConnectTimeout: 2 * time.Second})
 		if err == nil {
-			conn.Close(waitCtx)
+			_ = conn.Close(waitCtx)
 			srv.started = time.Now()
-			go func() { <-exited }()
+			// exited is buffered, so the waiting goroutine never leaks.
 			return srv, nil
 		}
 		select {
 		case werr := <-exited:
 			p.forget(srv)
 			logs, _ := p.Logs(context.Background(), srv)
-			return fail(fmt.Errorf("postgres exited during start-up: %v\n%s", werr, lastLines(logs, 20)))
+			return fail(fmt.Errorf("postgres exited during start-up: %w\n%s", werr, lastLines(logs, 20)))
 		case <-waitCtx.Done():
 			logs, _ := p.Logs(context.Background(), srv)
 			return fail(fmt.Errorf("server did not become ready: %w\n%s", waitCtx.Err(), lastLines(logs, 20)))

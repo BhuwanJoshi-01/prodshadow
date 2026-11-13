@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"regexp"
@@ -385,7 +386,8 @@ func (c *Config) checkFile(ps *Problems, path, ref string) {
 }
 
 func unwrapPathError(err error) error {
-	if pe, ok := err.(*os.PathError); ok {
+	var pe *os.PathError
+	if errors.As(err, &pe) {
 		return pe.Err
 	}
 	return err
