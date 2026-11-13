@@ -20,7 +20,8 @@ prodshadow verify --config examples/blocking-index/prodshadow.yaml \
   --migration examples/blocking-index/alternatives/0012_index_orders_by_status_concurrently.sql
 ```
 
-**Expected result:** no lock-wait finding. `PS121` reminds you that
+**Expected result:** no lock-wait finding (compare the two runs with
+`prodshadow diff`). `PS121` reminds you that
 `CONCURRENTLY` waits for older transactions and can leave an invalid index if
 it fails.
 
