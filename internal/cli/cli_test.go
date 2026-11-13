@@ -292,7 +292,9 @@ func TestDiffRequiresBothReports(t *testing.T) {
 
 func TestInspectExpandsGlobsInOrder(t *testing.T) {
 	dir := t.TempDir()
-	os.MkdirAll(filepath.Join(dir, "migrations"), 0o755)
+	if err := os.MkdirAll(filepath.Join(dir, "migrations"), 0o755); err != nil {
+		t.Fatal(err)
+	}
 	writeFile(t, filepath.Join(dir, "migrations", "0002_b.sql"), "CREATE INDEX b ON t (b);\n")
 	writeFile(t, filepath.Join(dir, "migrations", "0001_a.sql"), "CREATE INDEX a ON t (a);\n")
 	r := run(t, dir, nil, "inspect", "--migration", "migrations/*.sql", "--format", "json")

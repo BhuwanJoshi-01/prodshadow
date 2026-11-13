@@ -165,7 +165,7 @@ func printPlan(w io.Writer, p planOutput) {
 	fmt.Fprintf(w, "Isolation  %s\n", p.Isolation)
 	fmt.Fprintf(w, "Fixture    %s\n", strings.Join(p.Fixture, "; "))
 	fmt.Fprintf(w, "Workload   %s\n", p.Workload)
-	var order []string
+	order := make([]string, 0, len(p.Schedule))
 	for _, s := range p.Schedule {
 		order = append(order, fmt.Sprintf("%s%d", strings.ToUpper(string(s.Kind[:1])), s.Repeat+1))
 	}
