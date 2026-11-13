@@ -61,7 +61,7 @@ func runVerify(ctx context.Context, env *Env, args []string) int {
 	if vf.formats != "" {
 		cfg.Report.Formats = strings.Split(vf.formats, ",")
 	}
-	files, base := []string(cfg.Migration.Files), cfg.BaseDir()
+	files, base := cfg.Migration.Files, cfg.BaseDir()
 	if len(vf.migrations) > 0 {
 		files, base = vf.migrations, env.Dir
 		cfg.Migration.Files = nil
@@ -78,7 +78,7 @@ func runVerify(ctx context.Context, env *Env, args []string) int {
 		printProblems(env.Stderr, dedupe(problems).Warnings())
 	}
 
-	_, stmts, err := loadMigrations(base, files)
+	stmts, err := loadMigrations(base, files)
 	if err != nil {
 		fmt.Fprintf(env.Stderr, "prodshadow: %v\n", err)
 		return ExitInvalid
@@ -280,12 +280,24 @@ func writeReports(env *Env, cfg *config.Config, rep *report.Report) ([]string, e
 		written = append(written, display(env.Dir, path))
 	}
 	if summary, ok := env.Getenv("GITHUB_STEP_SUMMARY"); ok && summary != "" {
-		if f, err := os.OpenFile(summary, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644); err == nil {
-			f.WriteString(rep.Markdown())
-			f.Close()
+		if err := appendFile(summary, rep.Markdown()); err != nil {
+			fmt.Fprintf(env.Stderr, "prodshadow: could not write the job summary: %v\n", err)
 		}
 	}
 	return written, nil
+}
+
+// appendFile appends text, creating the file privately if needed.
+func appendFile(path, text string) error {
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	if err != nil {
+		return err
+	}
+	if _, err := f.WriteString(text); err != nil {
+		_ = f.Close()
+		return err
+	}
+	return f.Close()
 }
 
 func printSummary(env *Env, rep *report.Report, written []string) {
