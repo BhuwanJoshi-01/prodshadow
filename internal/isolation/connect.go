@@ -64,6 +64,9 @@ func (s *Server) connConfig(cred Credential, opts ConnOptions) (*pgx.ConnConfig,
 	if cred.User == "" {
 		return nil, errors.New("isolation: credential has no user")
 	}
+	if s.port < 1 || s.port > 65535 {
+		return nil, fmt.Errorf("isolation: invalid port %d", s.port)
+	}
 	db := opts.Database
 	if db == "" {
 		db = "postgres"
@@ -78,7 +81,7 @@ func (s *Server) connConfig(cred Credential, opts ConnOptions) (*pgx.ConnConfig,
 		return nil, err
 	}
 	cfg.Host = s.host
-	cfg.Port = uint16(s.port)
+	cfg.Port = uint16(s.port) //nolint:gosec // range checked above
 	cfg.User = cred.User
 	cfg.Password = cred.password
 	cfg.Database = db

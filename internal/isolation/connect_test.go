@@ -72,3 +72,10 @@ func TestGuardedDialRejectsRemoteAddresses(t *testing.T) {
 		}
 	}
 }
+
+func TestConnConfigRejectsInvalidPort(t *testing.T) {
+	s := &Server{host: "127.0.0.1", port: 70000, managed: true}
+	if _, err := s.connConfig(Credential{User: "x"}, ConnOptions{}); err == nil {
+		t.Fatal("out-of-range port must be rejected")
+	}
+}
