@@ -1,0 +1,59 @@
+name: Integration
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: integration-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  postgres:
+    name: PostgreSQL ${{ matrix.postgres }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        postgres: ["15", "16", "17", "18"]
+    env:
+      PRODSHADOW_IT_IMAGE: postgres:${{ matrix.postgres }}-alpine
+      PRODSHADOW_IT_MAJOR: ${{ matrix.postgres }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Pull image
+        run: docker pull "$PRODSHADOW_IT_IMAGE"
+      - name: Integration tests
+        run: go test -tags integration -count=1 -timeout 25m ./internal/...
+      - name: Leftover containers
+        if: always()
+        run: |
+          left="$(docker ps -aq --filter label=io.prodshadow.managed=true)"
+          if [ -n "$left" ]; then echo "::error::containers left behind: $left"; exit 1; fi
+
+  local-provider:
+    name: Local provider (installed PostgreSQL)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Install PostgreSQL server binaries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-16
+      - name: Local provider test
+        env:
+          PRODSHADOW_IT_LOCAL_MAJOR: "16"
+        run: go test -tags integration -count=1 -run TestLocalServerLifecycle ./internal/isolation/
