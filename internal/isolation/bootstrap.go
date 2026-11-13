@@ -29,7 +29,7 @@ func (s *Server) Bootstrap(ctx context.Context, redactor *security.Redactor) err
 	if err != nil {
 		return err
 	}
-	defer conn.Close(ctx)
+	defer Close(conn)
 	stmt := fmt.Sprintf("CREATE ROLE %s LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD %s",
 		pgx.Identifier{AppUser}.Sanitize(), quoteLiteral(password))
 	if _, err := conn.Exec(ctx, stmt); err != nil {

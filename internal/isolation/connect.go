@@ -44,7 +44,7 @@ func (s *Server) Connect(ctx context.Context, cred Credential, opts ConnOptions)
 		return nil, fmt.Errorf("connect to disposable server: %w", err)
 	}
 	if err := s.verifyOwnership(ctx, conn); err != nil {
-		conn.Close(context.Background())
+		Close(conn)
 		return nil, err
 	}
 	return conn, nil
@@ -141,4 +141,15 @@ func (s *Server) verifyOwnership(ctx context.Context, conn *pgx.Conn) error {
 		return ErrOwnership
 	}
 	return nil
+}
+
+// Close terminates a session with a fresh, short deadline, so connections
+// are closed gracefully even after the run's context was cancelled.
+func Close(conn *pgx.Conn) {
+	if conn == nil {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_ = conn.Close(ctx)
 }
