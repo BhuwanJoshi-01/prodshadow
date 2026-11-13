@@ -44,11 +44,11 @@ Executed with `lock_timeout = 1500 ms`, `statement_timeout = 60000 ms`, transact
 
 Sampled every 100 ms from `pg_stat_activity` and `pg_locks`; waits shorter than the interval can be missed. *Logged* waits come from the server log (`log_lock_waits`), which records every wait longer than `deadlock_timeout` exactly.
 
-| Repeat | Migration waited | Migration blocked by | Sessions queued behind migration | Longest workload lock wait | Logged waits | Samples |
-|---|---|---|---|---|---|---|
-| 1 | 1490 ms | prodshadow/background/report/0 | 4 | 1450 ms | – | 50 |
-| 2 | 1490 ms | prodshadow/background/report/0 | 4 | 1450 ms | – | 50 |
-| 3 | 1490 ms | prodshadow/background/report/0 | 4 | 1450 ms | – | 50 |
+| Repeat | Migration waited | Migration blocked by | Sessions queued behind migration | Longest workload lock wait | Logged waits | Longest open transaction | Samples |
+|---|---|---|---|---|---|---|---|
+| 1 | 1490 ms | prodshadow/background/report/0 | 4 | 1450 ms | – | 0.00 ms | 50 |
+| 2 | 1490 ms | prodshadow/background/report/0 | 4 | 1450 ms | – | 0.00 ms | 50 |
+| 3 | 1490 ms | prodshadow/background/report/0 | 4 | 1450 ms | – | 0.00 ms | 50 |
 
 ## Timeline (candidate repeat 1)
 
