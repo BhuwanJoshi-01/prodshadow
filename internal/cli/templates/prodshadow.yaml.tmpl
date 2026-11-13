@@ -1,0 +1,49 @@
+# ProdShadow configuration. Reference: docs/configuration.md
+version: 1
+project: {{.Project}}
+
+postgres:
+  version: "17"
+  # Pin a digest in CI for reproducible results, e.g. postgres:17-alpine@sha256:...
+  image: postgres:17-alpine
+  database: app_test
+  isolation:
+    provider: docker      # docker, podman or local
+    network: none         # none (unix socket, Linux) or loopback (127.0.0.1)
+    memory_mb: 2048
+    cpus: 2
+    ephemeral_disk_mb: 4096
+
+fixture:
+  schema: ./fixtures/schema.sql
+  seed_sql: ./fixtures/seed.sql
+  representation: manual-fixture
+
+workload:
+  file: ./workloads/workload.yaml
+  warmup_seconds: 5
+  measurement_seconds: 30
+  concurrency: 8
+  repeats: 3
+
+migration:
+  files:
+    - ./migrations/0001_add_order_note.sql
+  lock_timeout_ms: 1500
+  statement_timeout_ms: 60000
+  start_after_seconds: 5
+
+policy:
+  fail_on: [critical]
+  inconclusive: fail
+  max_error_rate_increase_pct_points: 1
+  max_p95_latency_ratio: 1.5
+  max_lock_wait_ms: 2000
+
+report:
+  directory: ./prodshadow-results
+  formats: [json, markdown, html]
+
+privacy:
+  persist_raw_query_text: false
+  persist_query_parameters: false

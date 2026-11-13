@@ -1,0 +1,13 @@
+-- Deterministic seed data. Row counts here are tiny compared to production;
+-- ProdShadow reports this as a limitation and never claims durations match.
+INSERT INTO customers (id, email, created_at)
+SELECT g, 'customer' || g || '@example.test', timestamptz '2025-01-01' + g * interval '1 minute'
+FROM generate_series(1, 10000) AS g;
+
+INSERT INTO orders (id, customer_id, status, amount, created_at)
+SELECT g,
+       1 + (g * 7919) % 10000,
+       (ARRAY['pending', 'paid', 'shipped'])[1 + g % 3],
+       (g % 500) + 0.99,
+       timestamptz '2025-01-01' + g * interval '10 seconds'
+FROM generate_series(1, 200000) AS g;

@@ -1,0 +1,48 @@
+# Workload applied to both the baseline and the candidate database.
+# Reference: docs/workload.md
+version: 1
+name: orders-api
+scenarios:
+  - id: recent_orders
+    weight: 60
+    mode: read
+    sql: "SELECT id, status FROM orders WHERE customer_id = $1 ORDER BY created_at DESC LIMIT 20"
+    parameters:
+      - generator: zipf          # a few customers are much busier than others
+        min: 1
+        max: 10000
+        s: 1.1
+  - id: update_status
+    weight: 35
+    mode: write
+    sql: "UPDATE orders SET status = $1 WHERE id = $2"
+    parameters:
+      - generator: choice
+        values: [paid, shipped]
+      - generator: int_range
+        min: 1
+        max: 200000
+  - id: create_order
+    weight: 5
+    mode: write
+    sql: "INSERT INTO orders (id, customer_id, status, amount) VALUES ($1, $2, 'pending', 10) ON CONFLICT (id) DO NOTHING"
+    parameters:
+      - generator: int_range
+        min: 200001
+        max: 900000
+      - generator: int_range
+        min: 1
+        max: 10000
+
+# Background sessions model the long transactions that real outages need:
+# a reporting query holding ACCESS SHARE makes any ACCESS EXCLUSIVE request
+# queue, and every later query queues behind that request.
+background:
+  - id: nightly_report
+    sessions: 1
+    start_after_seconds: 3
+    repeat: true
+    transaction:
+      statements:
+        - "SELECT status, count(*) FROM orders GROUP BY status"
+      hold_ms: 4000

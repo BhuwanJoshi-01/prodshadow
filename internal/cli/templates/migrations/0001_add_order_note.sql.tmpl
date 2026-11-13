@@ -1,0 +1,4 @@
+-- Example migration: adding a nullable column is a metadata-only change, but
+-- it still needs ACCESS EXCLUSIVE on orders for an instant. Run
+-- `prodshadow verify` to see what that means next to a long transaction.
+ALTER TABLE orders ADD COLUMN note text;
