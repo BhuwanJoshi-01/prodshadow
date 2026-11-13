@@ -127,3 +127,15 @@ func TestNewProvider(t *testing.T) {
 		t.Fatal("unknown provider must fail")
 	}
 }
+
+func TestUserSettingsOverrideDefaults(t *testing.T) {
+	spec := testSpec()
+	spec.Settings = map[string]string{"deadlock_timeout": "1s"}
+	got := serverSettings(spec, "tok", "")
+	if got[0] != "deadlock_timeout=200ms" || !slices.Contains(got, "deadlock_timeout=1s") {
+		t.Fatalf("defaults must come first so user values win: %v", got)
+	}
+	if slices.Index(got, "deadlock_timeout=1s") < slices.Index(got, "deadlock_timeout=200ms") {
+		t.Fatal("user value must follow the default")
+	}
+}

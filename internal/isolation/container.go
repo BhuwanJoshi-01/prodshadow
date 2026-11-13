@@ -158,15 +158,21 @@ func (p *containerProvider) runArgs(spec Spec, srv *Server, sockDir string) []st
 	return args
 }
 
+// defaultSettings apply unless the configuration sets them. A lower
+// deadlock_timeout makes log_lock_waits record waits from 200 ms instead
+// of 1 s; in a disposable server the faster deadlock check costs nothing.
+var defaultSettings = []string{"deadlock_timeout=200ms"}
+
 // serverSettings returns the "-c name=value" parameters for the server in a
-// deterministic order. Managed parameters are applied last and win.
+// deterministic order: defaults, then user settings, then managed
+// parameters, so that later values win.
 func serverSettings(spec Spec, token, listen string) []string {
 	keys := make([]string, 0, len(spec.Settings))
 	for k := range spec.Settings {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
-	var out []string
+	out := append([]string(nil), defaultSettings...)
 	for _, k := range keys {
 		out = append(out, k+"="+spec.Settings[k])
 	}
