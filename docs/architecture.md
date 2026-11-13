@@ -59,6 +59,7 @@ flowchart TD
 |---|---|---|---|
 | Operation latency, errors, throughput | Client-side timer around every workload operation | Complete; catches short waits | Includes client and scheduling overhead |
 | Who waits for which lock, blocked by whom | `pg_stat_activity` + `pg_locks` (+ `waitstart`) + `pg_blocking_pids()` every `sample_interval_ms` | Attribution (migration vs blocker vs workers) | Sampled: short waits can be missed |
+| Lock waits longer than `deadlock_timeout` | Server log (`log_lock_waits`, `deadlock_timeout` 200 ms by default) parsed after each phase | Exact duration, no sampling gaps | Only waits above the threshold |
 | Migration outcome | Executor: per-statement duration, SQLSTATE | Exact | — |
 | WAL, deadlocks, temp files | `pg_stat_database`, `pg_current_wal_lsn()` before/after | Cheap, cumulative | Includes workload activity |
 

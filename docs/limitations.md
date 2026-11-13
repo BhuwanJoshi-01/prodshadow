@@ -31,8 +31,10 @@ ProdShadow measures a model of your system. Read this before trusting a
 ## Measurement limits
 
 * Server-side lock sampling runs every `telemetry.sample_interval_ms`
-  (100 ms by default). Shorter waits can be missed; client-side latency is
-  the complementary signal. The report states the interval and any gaps.
+  (100 ms by default). Shorter waits can be missed; client-side latency and
+  the server log (every wait above `deadlock_timeout`, 200 ms by default in
+  the disposable server) are the complementary signals. The report states
+  the interval and any gaps.
 * Latency on shared CI runners is noisy. ProdShadow repeats pairs, alternates
   their order and treats regressions within three times the baseline's
   variation as inconclusive. Increase `repeats` or `measurement_seconds`, or

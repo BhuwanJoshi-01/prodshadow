@@ -55,8 +55,8 @@ ProdShadow to the blocker-injection rehearsal rather than broadening it.
    first.
 2. **Application-version compatibility probes**: declare queries per
    release and report which versions break.
-3. **Lock-wait events from the server log** (`log_lock_waits`) to
-   corroborate sampled waits.
+3. ~~Lock-wait events from the server log~~ — done: `log_lock_waits` is
+   parsed after each phase and reported as *logged waits*.
 4. **SQL rendering helpers** for Django, Rails, Alembic and Prisma.
 5. **PostgreSQL 19** in the matrix once a parser binding for the newer
    grammar is released.
