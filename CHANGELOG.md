@@ -45,6 +45,6 @@ versioning; the report schema (`schema_version`) is versioned separately.
 
 ### Verified
 
-- Integration tests pass on PostgreSQL 15, 17 and 18 (`postgres:*-alpine`).
+- Integration tests pass on PostgreSQL 15, 16, 17 and 18 (`postgres:*-alpine`).
 - Every example reproduces its documented decision; see
   [docs/benchmarks.md](docs/benchmarks.md).
