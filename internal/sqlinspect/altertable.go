@@ -48,6 +48,14 @@ func objectWord(t pg_query.ObjectType) string {
 func alterTableCmd(s *Statement, cmd *pg_query.AlterTableCmd) (string, pglock.Mode) {
 	switch cmd.Subtype {
 	case pg_query.AlterTableType_AT_AddColumn:
+		// An inline REFERENCES clause also locks the referenced table.
+		if col := cmd.Def.GetColumnDef(); col != nil {
+			for _, c := range col.Constraints {
+				if con := c.GetConstraint(); con != nil && con.Contype == pg_query.ConstrType_CONSTR_FOREIGN {
+					s.addLock(relName(con.Pktable), pglock.ShareRowExclusive)
+				}
+			}
+		}
 		return "add_column", pglock.AccessExclusive
 	case pg_query.AlterTableType_AT_DropColumn:
 		return "drop_column", pglock.AccessExclusive
