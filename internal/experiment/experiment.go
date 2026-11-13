@@ -48,6 +48,7 @@ type PhaseResult struct {
 	DuringMigration []workload.ScenarioStats `json:"during_migration,omitempty"`
 	Timeline        []workload.Bucket        `json:"timeline"`
 	Locks           telemetry.Summary        `json:"locks"`
+	LoggedWaits     telemetry.LogSummary     `json:"logged_waits"`
 	Counters        telemetry.Counters       `json:"counters"`
 	Migration       *migrate.Outcome         `json:"migration,omitempty"`
 	Sessions        int                      `json:"sessions"`

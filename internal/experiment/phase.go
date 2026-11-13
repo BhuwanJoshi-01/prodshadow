@@ -144,6 +144,12 @@ func runPhase(ctx context.Context, plan Plan, srv *isolation.Server, step Step) 
 	pr.Scenarios = workload.Summarize(res, workload.Window{})
 	pr.Timeline = workload.Timeline(res, time.Second)
 	pr.Locks = telemetry.Summarize(samples, failed, interval, measureStart, time.Second)
+	// The server logs every lock wait longer than deadlock_timeout; this
+	// corroborates the sampler without its gaps.
+	if logs, err := plan.Provider.LogsSince(ctx, srv, measureStart.Add(-time.Second)); err == nil {
+		waits := telemetry.ParseLockWaits(logs, measureStart, time.Now())
+		pr.LoggedWaits = telemetry.SummarizeLogWaits(waits, telemetry.ApplicationsByPID(samples))
+	}
 	if migrationOut != nil {
 		redactOutcome(plan, migrationOut)
 		pr.Migration = migrationOut
