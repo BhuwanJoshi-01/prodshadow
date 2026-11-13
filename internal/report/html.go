@@ -83,5 +83,7 @@ func (r *Report) timelineSVG() template.HTML {
 	fmt.Fprintf(&sb, `<polyline class="lat" points="%s"/>`, strings.Join(pts, " "))
 	fmt.Fprintf(&sb, `<text x="%.0f" y="%.0f">0 s</text><text x="%.0f" y="%.0f" text-anchor="end">%.0f s</text>`, pad, h-8, w-pad, h-8, n)
 	fmt.Fprintf(&sb, `<text x="%.0f" y="14">max %s</text></svg>`, pad, fmtMS(maxLat))
-	return template.HTML(sb.String())
+	// The SVG is assembled only from numbers and fixed strings; no report
+	// text reaches it.
+	return template.HTML(sb.String()) //nolint:gosec // see comment above
 }
