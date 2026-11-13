@@ -252,6 +252,17 @@ func (p *containerProvider) Logs(ctx context.Context, srv *Server) (string, erro
 	return string(out) + string(stderr), nil
 }
 
+func (p *containerProvider) LogsSince(ctx context.Context, srv *Server, since time.Time) (string, error) {
+	if srv == nil || srv.id == "" {
+		return "", errors.New("no container")
+	}
+	out, stderr, err := p.run(ctx, p.binary, "logs", "--since", since.UTC().Format(time.RFC3339Nano), srv.id)
+	if err != nil {
+		return "", commandError(p.binary, "logs", stderr, err)
+	}
+	return string(out) + string(stderr), nil
+}
+
 func (p *containerProvider) Destroy(ctx context.Context, srv *Server) error {
 	if srv == nil || !srv.managed {
 		return ErrNotManaged

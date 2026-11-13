@@ -236,6 +236,11 @@ func (p *localProvider) Logs(_ context.Context, srv *Server) (string, error) {
 	return string(b), nil
 }
 
+// LogsSince returns the whole log; callers filter by timestamp.
+func (p *localProvider) LogsSince(ctx context.Context, srv *Server, _ time.Time) (string, error) {
+	return p.Logs(ctx, srv)
+}
+
 func (p *localProvider) Destroy(_ context.Context, srv *Server) error {
 	if srv == nil || !srv.managed {
 		return ErrNotManaged

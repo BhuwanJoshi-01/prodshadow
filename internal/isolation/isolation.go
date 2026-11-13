@@ -128,6 +128,9 @@ type Provider interface {
 	Start(ctx context.Context, spec Spec) (*Server, error)
 	// Logs returns recent server log output for diagnostics.
 	Logs(ctx context.Context, s *Server) (string, error)
+	// LogsSince returns server log output written after since. Lines may
+	// still need filtering by their own timestamps.
+	LogsSince(ctx context.Context, s *Server, since time.Time) (string, error)
 	// Destroy removes the server and all of its data.
 	Destroy(ctx context.Context, s *Server) error
 }

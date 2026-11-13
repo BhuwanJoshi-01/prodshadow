@@ -139,3 +139,20 @@ func TestUserSettingsOverrideDefaults(t *testing.T) {
 		t.Fatal("user value must follow the default")
 	}
 }
+
+func TestLogsSinceUsesTimestamp(t *testing.T) {
+	p := newContainerProvider("docker", "")
+	var got []string
+	p.run = func(ctx context.Context, name string, args ...string) ([]byte, []byte, error) {
+		got = args
+		return []byte("out"), []byte("err"), nil
+	}
+	since := time.Date(2026, 11, 13, 15, 0, 0, 0, time.UTC)
+	logs, err := p.LogsSince(context.Background(), &Server{id: "abc"}, since)
+	if err != nil || logs != "outerr" {
+		t.Fatalf("logs = %q, %v", logs, err)
+	}
+	if strings.Join(got, " ") != "logs --since 2026-11-13T15:00:00Z abc" {
+		t.Fatalf("args = %v", got)
+	}
+}
