@@ -34,7 +34,7 @@ func runDoctor(ctx context.Context, env *Env, args []string) int {
 			path = DefaultConfig
 		}
 	}
-	provider, binary, network := "docker", "", "none"
+	provider, binary, network, image := "docker", "", "none", ""
 	if path != "" {
 		p, err := loadProject(env, path)
 		switch {
@@ -45,6 +45,7 @@ func runDoctor(ctx context.Context, env *Env, args []string) int {
 		default:
 			add(check{name: "configuration", ok: true, detail: display(env.Dir, p.cfg.Path())})
 			provider, binary, network = p.cfg.Postgres.Isolation.Provider, p.cfg.Postgres.Isolation.Binary, p.cfg.Postgres.Isolation.Network
+			image = p.cfg.Postgres.Image
 		}
 	} else {
 		add(check{name: "configuration", ok: true, warn: true, detail: "no prodshadow.yaml found; checking the docker provider"})
@@ -61,6 +62,13 @@ func runDoctor(ctx context.Context, env *Env, args []string) int {
 			add(check{name: provider, detail: err.Error()})
 		} else {
 			add(check{name: provider, ok: true, detail: "available"})
+		}
+		if image != "" && err == nil {
+			if ok, ierr := isolation.ImagePresent(ctx, prov, image); ierr == nil && ok {
+				add(check{name: "image", ok: true, detail: image + " is available locally"})
+			} else if ierr == nil {
+				add(check{name: "image", ok: true, warn: true, detail: image + " will be pulled on first run (needs registry access)"})
+			}
 		}
 		if orphans, err := isolation.Orphans(ctx, prov, ""); err == nil && len(orphans) > 0 {
 			add(check{name: "orphaned servers", ok: true, warn: true, detail: fmt.Sprintf("%d left behind by interrupted runs; run 'prodshadow cleanup'", len(orphans))})
