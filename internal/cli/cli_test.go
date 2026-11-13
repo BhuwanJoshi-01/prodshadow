@@ -99,7 +99,7 @@ func TestValidate(t *testing.T) {
 	if r := run(t, dir, nil, "validate", "--strict"); r.code != ExitInvalid {
 		t.Fatalf("strict mode should fail on the unpinned image warning: %+v", r)
 	}
-	os.WriteFile(filepath.Join(dir, "workloads/workload.yaml"), []byte("version: 1\nscenarios: []\n"), 0o644)
+	writeFile(t, filepath.Join(dir, "workloads/workload.yaml"), "version: 1\nscenarios: []\n")
 	r := run(t, dir, nil, "validate", "--json")
 	if r.code != ExitInvalid || !strings.Contains(r.stdout, `"valid": false`) || !strings.Contains(r.stdout, "workload.file") {
 		t.Fatalf("broken workload not reported: %+v", r)
@@ -119,7 +119,7 @@ func TestValidateRejectsEnvOverrideErrors(t *testing.T) {
 
 func TestInspect(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "m.sql"), []byte("CREATE INDEX idx ON orders (customer_id);\nALTER TABLE orders ADD COLUMN x int;\n"), 0o644)
+	writeFile(t, filepath.Join(dir, "m.sql"), "CREATE INDEX idx ON orders (customer_id);\nALTER TABLE orders ADD COLUMN x int;\n")
 	r := run(t, dir, nil, "inspect", "--migration", "m.sql")
 	if r.code != ExitOK || !strings.Contains(r.stdout, "PS101") || !strings.Contains(r.stdout, "m.sql:1") {
 		t.Fatalf("inspect text: %+v", r)
@@ -156,7 +156,7 @@ func TestInspectUsesConfigOverrides(t *testing.T) {
 	dir := initProject(t)
 	cfg := filepath.Join(dir, "prodshadow.yaml")
 	raw, _ := os.ReadFile(cfg)
-	os.WriteFile(cfg, []byte(strings.Replace(string(raw), "  fail_on: [critical]\n", "  fail_on: [critical]\n  rules:\n    PS114: off\n", 1)), 0o644)
+	writeFile(t, cfg, strings.Replace(string(raw), "  fail_on: [critical]\n", "  fail_on: [critical]\n  rules:\n    PS114: off\n", 1))
 	r := run(t, dir, nil, "inspect", "--config", "prodshadow.yaml")
 	if r.code != ExitOK || strings.Contains(r.stdout, "PS114") {
 		t.Fatalf("rule override not applied: %+v", r)
@@ -167,7 +167,7 @@ func TestVerifyWithoutWorkloadIsInconclusive(t *testing.T) {
 	dir := initProject(t)
 	cfg := filepath.Join(dir, "prodshadow.yaml")
 	raw, _ := os.ReadFile(cfg)
-	os.WriteFile(cfg, []byte(strings.Replace(string(raw), "  file: ./workloads/workload.yaml\n", "", 1)), 0o644)
+	writeFile(t, cfg, strings.Replace(string(raw), "  file: ./workloads/workload.yaml\n", "", 1))
 	r := run(t, dir, nil, "verify", "--quiet")
 	if r.code != ExitInconclusive || !strings.Contains(r.stdout, "INCONCLUSIVE") {
 		t.Fatalf("verify without workload: %+v", r)
@@ -182,7 +182,7 @@ func TestVerifyInvalidConfig(t *testing.T) {
 	dir := initProject(t)
 	cfg := filepath.Join(dir, "prodshadow.yaml")
 	raw, _ := os.ReadFile(cfg)
-	os.WriteFile(cfg, []byte(strings.Replace(string(raw), "provider: docker", "provider: vm", 1)), 0o644)
+	writeFile(t, cfg, strings.Replace(string(raw), "provider: docker", "provider: vm", 1))
 	if r := run(t, dir, nil, "verify", "--quiet"); r.code != ExitInvalid {
 		t.Fatalf("invalid config should exit 3: %+v", r)
 	}
@@ -204,7 +204,7 @@ func TestReportRerender(t *testing.T) {
 	dir := initProject(t)
 	cfg := filepath.Join(dir, "prodshadow.yaml")
 	raw, _ := os.ReadFile(cfg)
-	os.WriteFile(cfg, []byte(strings.Replace(string(raw), "  file: ./workloads/workload.yaml\n", "", 1)), 0o644)
+	writeFile(t, cfg, strings.Replace(string(raw), "  file: ./workloads/workload.yaml\n", "", 1))
 	run(t, dir, nil, "verify", "--quiet")
 	if r := run(t, dir, nil, "report", "--format", "markdown"); r.code != ExitOK || !strings.Contains(r.stdout, "# ProdShadow report: demo") {
 		t.Fatalf("report markdown: %+v", r)
@@ -224,10 +224,17 @@ func TestStepSummaryIsWritten(t *testing.T) {
 	dir := initProject(t)
 	cfg := filepath.Join(dir, "prodshadow.yaml")
 	raw, _ := os.ReadFile(cfg)
-	os.WriteFile(cfg, []byte(strings.Replace(string(raw), "  file: ./workloads/workload.yaml\n", "", 1)), 0o644)
+	writeFile(t, cfg, strings.Replace(string(raw), "  file: ./workloads/workload.yaml\n", "", 1))
 	summary := filepath.Join(dir, "summary.md")
 	run(t, dir, map[string]string{"GITHUB_STEP_SUMMARY": summary}, "verify", "--quiet")
 	if b, err := os.ReadFile(summary); err != nil || !strings.Contains(string(b), "ProdShadow report") {
 		t.Fatalf("step summary not written: %v", err)
+	}
+}
+
+func writeFile(t *testing.T, path, content string) {
+	t.Helper()
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
 	}
 }

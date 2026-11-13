@@ -20,7 +20,8 @@ func indexFor(t *testing.T, doc string) *keyIndex {
 }
 
 func TestUnknownKeyWithSuggestion(t *testing.T) {
-	k := indexFor(t, "version: 1\npostgres:\n  verison: \"17\"\n")
+	// The misspelling is the point of this test.
+	k := indexFor(t, "version: 1\npostgres:\n  verison: \"17\"\n") //nolint:misspell
 	if len(k.unknown) != 1 {
 		t.Fatalf("expected one unknown key, got %v", k.unknown)
 	}
