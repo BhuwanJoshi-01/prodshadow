@@ -81,6 +81,9 @@ Suppressions must explain themselves and should expire.
 CREATE INDEX countries_name_idx ON countries (name);
 ```
 
+Inline annotations also apply to observed findings that ProdShadow
+attributes to the statement (for example `OBS001` or `OBS002`).
+
 **In a file**, referenced by `policy.suppressions`:
 
 ```yaml
