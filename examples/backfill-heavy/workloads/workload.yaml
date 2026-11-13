@@ -1,0 +1,15 @@
+version: 1
+name: newsletter-api
+scenarios:
+  - id: get_subscriber
+    weight: 50
+    mode: read
+    sql: "SELECT email, opted_in FROM subscribers WHERE id = $1"
+    parameters:
+      - {generator: int_range, min: 1, max: 400000}
+  - id: toggle_opt_in
+    weight: 50
+    mode: write
+    sql: "UPDATE subscribers SET opted_in = NOT opted_in, updated_at = now() WHERE id = $1"
+    parameters:
+      - {generator: int_range, min: 1, max: 400000}

@@ -1,0 +1,29 @@
+# A single-statement backfill locks every row until it commits; concurrent
+# writers to those rows wait. Expected decision: block (OBS001).
+version: 1
+project: backfill-heavy
+postgres:
+  version: "17"
+  image: postgres:17-alpine
+  isolation:
+    memory_mb: 2048
+    cpus: 2
+fixture:
+  schema: ./fixtures/schema.sql
+  seed_sql: ./fixtures/seed.sql
+workload:
+  file: ./workloads/workload.yaml
+  warmup_seconds: 3
+  measurement_seconds: 15
+  concurrency: 8
+  repeats: 3
+migration:
+  files: [./migrations/0021_backfill_normalized_email.sql]
+  lock_timeout_ms: 2000
+  statement_timeout_ms: 120000
+  start_after_seconds: 4
+policy:
+  fail_on: [critical]
+  max_lock_wait_ms: 500
+report:
+  formats: [json, markdown, html]
