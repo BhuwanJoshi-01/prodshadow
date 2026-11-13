@@ -12,6 +12,7 @@ import (
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/config"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/isolation"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/migrate"
+	"github.com/BhuwanJoshi-01/Open-Source-1/internal/pgtest"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/security"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/sqlinspect"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/workload"
@@ -45,11 +46,9 @@ background:
 
 func plan(t *testing.T, migration string) Plan {
 	t.Helper()
-	p, _ := isolation.New("docker", "")
-	if err := p.Check(context.Background()); err != nil {
-		t.Skip(err)
-	}
-	cfg := &config.Config{Project: "it"}
+	p := pgtest.Provider(t)
+	image, major := pgtest.Image()
+	cfg := &config.Config{Project: "it", Postgres: config.PostgresConfig{Version: major, Image: image}}
 	cfg.ApplyDefaults()
 	cfg.Postgres.Isolation.MemoryMB = 1024
 	cfg.Workload.WarmupSeconds = 1

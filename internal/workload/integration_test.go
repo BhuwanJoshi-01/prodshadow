@@ -8,24 +8,14 @@ import (
 	"time"
 
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/isolation"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/security"
+	"github.com/BhuwanJoshi-01/Open-Source-1/internal/pgtest"
 
 	"github.com/jackc/pgx/v5"
 )
 
 func TestRunAgainstPostgres(t *testing.T) {
 	ctx := context.Background()
-	p, _ := isolation.New("docker", "")
-	if err := p.Check(ctx); err != nil {
-		t.Skip(err)
-	}
-	runID, _ := security.RunID()
-	srv, err := p.Start(ctx, isolation.Spec{RunID: runID, PostgresMajor: "17", Image: "postgres:17-alpine", Network: "none",
-		MemoryMB: 1024, CPUs: 2, DiskMB: 1024, PidsLimit: 256, StartupTimeout: time.Minute})
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer p.Destroy(ctx, srv)
+	_, srv := pgtest.Start(t)
 	admin, err := srv.Connect(ctx, srv.Admin(), isolation.ConnOptions{})
 	if err != nil {
 		t.Fatal(err)
