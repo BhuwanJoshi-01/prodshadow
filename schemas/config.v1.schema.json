@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/BhuwanJoshi-01/Open-Source-1/schemas/config.v1.schema.json",
+  "title": "ProdShadow configuration (prodshadow.yaml)",
+  "description": "There is intentionally no field for a database connection string: every database is created by the isolation manager.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "project"],
+  "properties": {
+    "version": {"const": 1},
+    "project": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"},
+    "postgres": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "version": {"type": "string", "pattern": "^[0-9]{2}$", "default": "17"},
+        "image": {"type": "string", "description": "Container image; pin a digest in CI."},
+        "database": {"type": "string", "pattern": "^[a-z_][a-z0-9_]{0,62}$", "default": "app_test"},
+        "extensions": {"type": "array", "items": {"type": "string"}},
+        "settings": {"type": "object", "additionalProperties": {"type": "string"}},
+        "isolation": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "provider": {"enum": ["docker", "podman", "local"], "default": "docker"},
+            "network": {"enum": ["none", "loopback"], "default": "none"},
+            "memory_mb": {"type": "integer", "minimum": 256, "default": 2048},
+            "cpus": {"type": "number", "exclusiveMinimum": 0, "default": 2},
+            "ephemeral_disk_mb": {"type": "integer", "minimum": 256, "default": 4096},
+            "pids_limit": {"type": "integer", "minimum": 64, "default": 512},
+            "startup_timeout_seconds": {"type": "integer", "minimum": 5, "maximum": 1800, "default": 120},
+            "binary": {"type": "string"}
+          }
+        }
+      }
+    },
+    "fixture": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema": {"type": "string"},
+        "seed_sql": {"type": "string"},
+        "generator": {"type": "object", "additionalProperties": false, "required": ["path"], "properties": {"path": {"type": "string"}, "seed": {"type": "integer"}}},
+        "representation": {"enum": ["manual-fixture", "synthetic"], "default": "manual-fixture"},
+        "max_rows": {"type": "integer", "minimum": 0}
+      }
+    },
+    "workload": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "file": {"type": "string"},
+        "warmup_seconds": {"type": "number", "minimum": 0, "maximum": 3600, "default": 10},
+        "measurement_seconds": {"type": "number", "minimum": 5, "maximum": 3600, "default": 45},
+        "concurrency": {"type": "integer", "minimum": 1, "maximum": 512, "default": 16},
+        "arrival_rate": {"type": "number", "minimum": 0},
+        "repeats": {"type": "integer", "minimum": 1, "maximum": 50, "default": 3},
+        "seed": {"type": "integer"},
+        "min_samples_per_scenario": {"type": "integer", "minimum": 1, "default": 200}
+      }
+    },
+    "migration": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "files": {"type": "array", "items": {"type": "string"}},
+        "lock_timeout_ms": {"type": "integer", "minimum": 1, "maximum": 600000, "default": 1500},
+        "statement_timeout_ms": {"type": "integer", "minimum": 1, "maximum": 86400000, "default": 60000},
+        "start_after_seconds": {"type": "number", "minimum": 0, "default": 5},
+        "run_as": {"enum": ["owner", "superuser"], "default": "owner"},
+        "transaction": {"enum": ["auto", "per-file", "none"], "default": "auto"}
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "fail_on": {"type": "array", "items": {"enum": ["info", "warning", "critical"]}, "default": ["critical"]},
+        "inconclusive": {"enum": ["fail", "pass"], "default": "fail"},
+        "max_error_rate_increase_pct_points": {"type": "number", "minimum": 0, "default": 1},
+        "max_p95_latency_ratio": {"type": "number", "minimum": 1, "default": 1.5},
+        "max_p99_latency_ratio": {"type": "number", "minimum": 1},
+        "max_lock_wait_ms": {"type": "number", "minimum": 0, "default": 2000},
+        "max_throughput_drop_pct": {"type": "number", "minimum": 0, "maximum": 100},
+        "max_migration_seconds": {"type": "number", "minimum": 0},
+        "rules": {"type": "object", "propertyNames": {"pattern": "^[A-Z]{2,5}[0-9]{3}$"}, "additionalProperties": {"enum": ["off", "info", "warning", "critical"]}},
+        "suppressions": {"type": "string"}
+      }
+    },
+    "report": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "directory": {"type": "string", "default": "./prodshadow-results"},
+        "formats": {"type": "array", "items": {"enum": ["json", "markdown", "html"]}, "default": ["json", "markdown"]}
+      }
+    },
+    "privacy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "persist_raw_query_text": {"type": "boolean", "default": false},
+        "persist_query_parameters": {"type": "boolean", "default": false},
+        "redact_patterns": {"type": "array", "items": {"type": "string", "format": "regex"}}
+      }
+    },
+    "telemetry": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {"sample_interval_ms": {"type": "integer", "minimum": 10, "maximum": 5000, "default": 100}}
+    }
+  }
+}
