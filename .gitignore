@@ -1,0 +1,23 @@
+# Build output
+/bin/
+/dist/
+*.exe
+*.test
+*.out
+
+# Go tooling
+/vendor/
+coverage.*
+*.coverprofile
+
+# ProdShadow run artifacts
+/prodshadow-results/
+**/prodshadow-results/
+*.prodshadow.tmp
+
+# Editors and OS files
+.idea/
+.vscode/
+*.swp
+*~
+.DS_Store
