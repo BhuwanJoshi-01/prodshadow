@@ -65,13 +65,16 @@ func runPhase(ctx context.Context, plan Plan, srv *isolation.Server, step Step) 
 		wg           sync.WaitGroup
 		samples      []telemetry.Sample
 		failed       int
-		samplerStop  context.CancelFunc
 		migrationOut *migrate.Outcome
 		migrationErr error
 		measureStart time.Time
 	)
 	runCtx, cancelRun := context.WithCancel(ctx)
 	defer cancelRun()
+	// The sampler starts with the measurement window and stops as soon as
+	// the workload returns.
+	samplerCtx, samplerStop := context.WithCancel(runCtx)
+	defer samplerStop()
 	var extend chan struct{}
 	if step.Kind == Candidate {
 		extend = make(chan struct{})
@@ -91,12 +94,10 @@ func runPhase(ctx context.Context, plan Plan, srv *isolation.Server, step Step) 
 		},
 		MeasureStarted: func(at time.Time) {
 			measureStart = at
-			sctx, stop := context.WithCancel(runCtx)
-			samplerStop = stop
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				samples, failed = sampler.Run(sctx)
+				samples, failed = sampler.Run(samplerCtx)
 			}()
 			if step.Kind != Candidate {
 				return
@@ -117,9 +118,7 @@ func runPhase(ctx context.Context, plan Plan, srv *isolation.Server, step Step) 
 	}
 
 	res, err := workload.Run(runCtx, plan.Workload, opts)
-	if samplerStop != nil {
-		samplerStop()
-	}
+	samplerStop()
 	if err != nil {
 		cancelRun()
 		wg.Wait()
