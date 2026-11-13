@@ -238,3 +238,12 @@ func writeFile(t *testing.T, path, content string) {
 		t.Fatal(err)
 	}
 }
+
+func TestInspectSARIF(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "m.sql"), "\nCREATE INDEX idx ON orders (customer_id);\n")
+	r := run(t, dir, nil, "inspect", "--migration", "m.sql", "--format", "sarif")
+	if r.code != ExitOK || !strings.Contains(r.stdout, `"ruleId": "PS101"`) || !strings.Contains(r.stdout, `"startLine": 2`) {
+		t.Fatalf("inspect sarif: %+v", r)
+	}
+}

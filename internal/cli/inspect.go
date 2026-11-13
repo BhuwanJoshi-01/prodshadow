@@ -8,7 +8,10 @@ import (
 	"strings"
 
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/evidence"
+	"github.com/BhuwanJoshi-01/Open-Source-1/internal/report"
+	"github.com/BhuwanJoshi-01/Open-Source-1/internal/risk"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/sqlinspect"
+	"github.com/BhuwanJoshi-01/Open-Source-1/internal/version"
 )
 
 func runInspect(_ context.Context, env *Env, args []string) int {
@@ -17,7 +20,7 @@ func runInspect(_ context.Context, env *Env, args []string) int {
 	fs.Var(&files, "migration", "migration file (repeatable, executed in order)")
 	cfgPath := fs.String("config", "", "optional configuration for rule overrides and transaction mode")
 	txn := fs.String("transaction", "", "transaction mode: auto, per-file or none (default from config, else auto)")
-	format := fs.String("format", "text", "output format: text, json or markdown")
+	format := fs.String("format", "text", "output format: text, json, markdown or sarif")
 	failOn := fs.String("fail-on", "", "exit 2 if an unsuppressed finding has at least this severity (info, warning, critical)")
 	if code := parseFlags(fs, args); code >= 0 {
 		return code
@@ -73,6 +76,19 @@ func runInspect(_ context.Context, env *Env, args []string) int {
 		printInspectText(env.Stdout, stmts, findings)
 	case "markdown":
 		printInspectMarkdown(env.Stdout, stmts, findings)
+	case "sarif":
+		fallback := ""
+		if len(stmts) > 0 {
+			fallback = stmts[0].File
+		}
+		out, err := report.SARIF(risk.FromStatic(findings), version.Get().Version, fallback)
+		if err != nil {
+			fmt.Fprintf(env.Stderr, "prodshadow: %v\n", err)
+			return ExitInternal
+		}
+		if _, err := env.Stdout.Write(out); err != nil {
+			return ExitInternal
+		}
 	case "json":
 		out := struct {
 			Parser     string                  `json:"parser_grammar"`
