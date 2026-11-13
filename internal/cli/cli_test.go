@@ -255,3 +255,21 @@ func TestValidateChecksConnectionBudget(t *testing.T) {
 		t.Fatalf("connection budget not checked: %+v", r)
 	}
 }
+
+func TestPlan(t *testing.T) {
+	dir := initProject(t)
+	r := run(t, dir, nil, "plan")
+	for _, want := range []string{"Schedule   B1 C1 C2 B2 B3 C3", "group 1: wrapped in one transaction", "ACCESS EXCLUSIVE on orders", "8 sessions + 1 background", "Estimate   about 3m48s"} {
+		if !strings.Contains(r.stdout, want) {
+			t.Errorf("plan output lacks %q:\n%s", want, r.stdout)
+		}
+	}
+	r = run(t, dir, nil, "plan", "--json")
+	var out struct {
+		Sessions         int     `json:"sessions"`
+		EstimatedSeconds float64 `json:"estimated_seconds"`
+	}
+	if r.code != ExitOK || json.Unmarshal([]byte(r.stdout), &out) != nil || out.Sessions != 9 || out.EstimatedSeconds != 228 {
+		t.Fatalf("plan json: %+v %s", out, r.stdout)
+	}
+}

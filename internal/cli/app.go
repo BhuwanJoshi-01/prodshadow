@@ -42,6 +42,7 @@ func commands() []command {
 		{"init", "Create a starter prodshadow.yaml, fixture, workload and migration", runInit},
 		{"validate", "Validate the configuration and every file it references", runValidate},
 		{"inspect", "Statically analyse migration files (no database needed)", runInspect},
+		{"plan", "Show what verify would run, without starting anything", runPlan},
 		{"verify", "Run the paired baseline/candidate experiment in a disposable database", runVerify},
 		{"report", "Re-render a JSON report as Markdown, HTML or JSON", runReport},
 		{"doctor", "Check that this machine can run experiments", runDoctor},
