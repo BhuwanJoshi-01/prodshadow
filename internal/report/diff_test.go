@@ -1,0 +1,50 @@
+package report
+
+import (
+	"strings"
+	"testing"
+
+	"github.com/BhuwanJoshi-01/Open-Source-1/internal/risk"
+)
+
+func TestCompareReports(t *testing.T) {
+	base := Build(sampleInput(t))
+	head := Build(sampleInput(t))
+	head.RunID = "run-2"
+	head.Decision.Outcome = "pass"
+	// The alternative resolves the lock timeout and introduces a caveat.
+	var kept []risk.Finding
+	for _, f := range head.Findings {
+		if f.RuleID != "OBS002" {
+			kept = append(kept, f)
+		}
+	}
+	head.Findings = append(kept, risk.Finding{RuleID: "PS121", Rule: "concurrent-index-caveats", Severity: "info", File: "m.sql", Line: 1})
+	head.Comparisons[0].StallMS = 12
+
+	d := Compare(base, head)
+	if !d.Comparable || d.BaseDecision != "block" || d.HeadDecision != "pass" {
+		t.Fatalf("unexpected header %+v", d)
+	}
+	if len(d.Resolved) != 1 || d.Resolved[0].RuleID != "OBS002" || len(d.Introduced) != 1 || d.Introduced[0].RuleID != "PS121" {
+		t.Fatalf("resolved %v introduced %v", d.Resolved, d.Introduced)
+	}
+	if d.Scenarios[0].BaseStallMS <= d.Scenarios[0].HeadStallMS {
+		t.Fatalf("stall should have dropped: %+v", d.Scenarios[0])
+	}
+	md := d.Markdown()
+	for _, want := range []string{"BLOCK → PASS", "**Resolved (1)**", "OBS002", "**Introduced (1)**"} {
+		if !strings.Contains(md, want) {
+			t.Errorf("markdown lacks %q:\n%s", want, md)
+		}
+	}
+}
+
+func TestCompareFlagsDifferentInputs(t *testing.T) {
+	base := Build(sampleInput(t))
+	head := Build(sampleInput(t))
+	head.Fixture.Hash = "sha256:other"
+	if d := Compare(base, head); d.Comparable || !strings.Contains(strings.Join(d.Caveats, ","), "fixtures differ") {
+		t.Fatalf("different fixtures must be flagged: %+v", d)
+	}
+}
