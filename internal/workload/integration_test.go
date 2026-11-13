@@ -93,3 +93,39 @@ background:
 	}
 	t.Logf("read p50=%.2fms max=%.1fms ops=%d; write ops=%d", stats[0].Latency.P50MS, stats[0].MaxObservedMS, stats[0].Ops, stats[1].Ops)
 }
+
+func TestOpenLoopArrivals(t *testing.T) {
+	ctx := context.Background()
+	_, srv := pgtest.Start(t)
+	admin, err := srv.Connect(ctx, srv.Admin(), isolation.ConnOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := admin.Exec(ctx, "CREATE TABLE kv (k int PRIMARY KEY, v int); INSERT INTO kv SELECT g, g FROM generate_series(1, 1000) g"); err != nil {
+		t.Fatal(err)
+	}
+	spec, err := Parse([]byte("version: 1\nscenarios:\n  - {id: get, weight: 1, mode: read, sql: \"SELECT v FROM kv WHERE k = $1\", parameters: [{generator: int_range, min: 1, max: 1000}]}\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := Run(ctx, spec, Options{
+		Concurrency: 4, ArrivalRate: 200, Warmup: 200 * time.Millisecond, Measurement: 3 * time.Second, Seed: 1, Stream: "open",
+		Connect: func(ctx context.Context, app string) (*pgx.Conn, error) {
+			return srv.Connect(ctx, srv.Admin(), isolation.ConnOptions{ApplicationName: app})
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	st := Summarize(res, Window{})[0]
+	if res.Mode != "open-loop" {
+		t.Fatalf("mode = %s", res.Mode)
+	}
+	// Poisson arrivals at 200/s for 3 s: about 600 operations.
+	if st.Ops < 480 || st.Ops > 720 || st.Errors != 0 {
+		t.Fatalf("expected ~600 operations without errors, got %+v", st)
+	}
+	if st.Throughput < 160 || st.Throughput > 240 {
+		t.Fatalf("throughput %.1f/s far from the arrival rate", st.Throughput)
+	}
+}
