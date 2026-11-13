@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ProdShadow report: {{.Project}}</title>
+<style>
+:root { --bg:#fff; --fg:#1d232a; --muted:#5b6570; --line:#dde2e7; --card:#f6f8fa; --crit:#b42318; --warn:#9a6700; --ok:#1a7f37; --inc:#6639ba; --bar:#8aa4c8; --mig:rgba(180,35,24,.12); }
+@media (prefers-color-scheme: dark) { :root { --bg:#0f1419; --fg:#e6edf3; --muted:#9aa5b1; --line:#2d3640; --card:#161b22; --crit:#ff7b72; --warn:#d29922; --ok:#3fb950; --inc:#bc8cff; --bar:#3b5b85; --mig:rgba(255,123,114,.15); } }
+body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif; }
+main { max-width:1100px; margin:0 auto; padding:24px 16px 64px; }
+h1 { font-size:1.5rem; margin:0 0 4px; } h2 { font-size:1.15rem; margin:32px 0 8px; border-bottom:1px solid var(--line); padding-bottom:4px; }
+.decision { display:inline-block; padding:4px 10px; border-radius:6px; font-weight:600; color:#fff; }
+.block { background:var(--crit); } .pass { background:var(--ok); } .inconclusive { background:var(--inc); } .error { background:var(--warn); }
+.note { color:var(--muted); background:var(--card); border-left:3px solid var(--line); padding:8px 12px; margin:12px 0; }
+.scroll { overflow-x:auto; } table { border-collapse:collapse; width:100%; font-size:.9rem; }
+th, td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+th { color:var(--muted); font-weight:600; white-space:nowrap; }
+.sev-critical { color:var(--crit); font-weight:600; } .sev-warning { color:var(--warn); } .sev-inconclusive { color:var(--inc); font-style:italic; }
+code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.85em; }
+svg { width:100%; height:auto; background:var(--card); border-radius:6px; }
+svg .ops { fill:var(--bar); } svg .lat { fill:none; stroke:var(--crit); stroke-width:2; } svg .mig { fill:var(--mig); } svg text { fill:var(--muted); font-size:11px; }
+ul { padding-left:20px; }
+</style>
+</head>
+<body>
+<main>
+<h1>ProdShadow report: {{.Project}}</h1>
+<p><span class="decision {{.Decision.Outcome}}">{{upper .Decision.Outcome}}</span> exit code {{.Decision.ExitCode}} · status <code>{{.Status}}</code> · run <code>{{.RunID}}</code></p>
+<p>{{.Decision.Message}}</p>
+<p class="note">{{.Disclaimer}}</p>
+
+{{if .Errors}}<h2>Errors</h2><ul>{{range .Errors}}<li>{{.}}</li>{{end}}</ul>{{end}}
+
+<h2>Findings</h2>
+{{if .Findings}}<div class="scroll"><table>
+<tr><th>Severity</th><th>Rule</th><th>Confidence</th><th>Evidence</th><th>Where</th><th>Finding</th></tr>
+{{range .Findings}}<tr{{if .Suppressed}} style="opacity:.55"{{end}}>
+<td class="sev-{{.Severity}}">{{.Severity}}{{if .Suppressed}} (suppressed){{end}}</td>
+<td><code>{{.RuleID}}</code> {{.Rule}}</td>
+<td>{{.Confidence}}{{if .ConfidenceReason}}<br><small>{{.ConfidenceReason}}</small>{{end}}</td>
+<td>{{.Evidence}}</td>
+<td>{{if .Scenario}}scenario <code>{{.Scenario}}</code>{{else}}{{loc .File .Line}}{{end}}</td>
+<td>{{.Message}}{{if .Remediation}}<br><small><strong>Remediation:</strong> {{.Remediation}}</small>{{end}}{{if .DocsURL}} <small><a href="{{.DocsURL}}">docs</a></small>{{end}}{{if .Suppressed}}<br><small>Suppressed: {{.SuppressionReason}}</small>{{end}}</td>
+</tr>{{end}}
+</table></div>{{else}}<p>No findings.</p>{{end}}
+
+{{if .Chart}}<h2>Candidate timeline</h2><p class="note">Bars: operations per second. Line: longest operation per second (log scale). Shaded: migration running.</p>{{.Chart}}{{end}}
+
+{{if .Comparisons}}<h2>Scenario comparison</h2><div class="scroll"><table>
+<tr><th>Scenario</th><th>Mode</th><th>p95 baseline</th><th>p95 candidate</th><th>Ratio</th><th>Max during migration</th><th>Error Δ (pp)</th><th>Throughput Δ</th><th>Noise</th></tr>
+{{range .Comparisons}}<tr><td><code>{{.Scenario}}</code></td><td>{{.Mode}}</td><td>{{ms .Baseline.P95MS}}</td><td>{{ms .Candidate.P95MS}}</td><td>{{ratio .P95Ratio}}</td><td>{{if .During}}{{ms .During.MaxObservedMS}}{{else}}–{{end}}</td><td>{{printf "%+.2f" .ErrorRateDeltaPP}}</td><td>{{pct .ThroughputChangePct}}</td><td>{{cv .BaselineNoiseCV}}</td></tr>{{end}}
+</table></div>{{end}}
+
+<h2>Migration</h2>
+<p><code>lock_timeout = {{.Migration.LockTimeoutMS}} ms</code>, <code>statement_timeout = {{.Migration.StatementTimeoutMS}} ms</code>, transaction mode <code>{{.Migration.Transaction}}</code>, run as <code>{{.Migration.RunAs}}</code>.</p>
+<div class="scroll"><table><tr><th>ID</th><th>Location</th><th>Statement</th><th>Predicted locks</th></tr>
+{{range .Migration.Statements}}<tr><td>{{.ID}}</td><td>{{loc .File .StartLine}}</td><td>{{.Tag}}</td><td>{{if .Parsed}}{{range .Locks}}{{.Mode}} on <code>{{.Table}}</code><br>{{else}}–{{end}}{{else}}not analysed{{end}}</td></tr>{{end}}
+</table></div>
+
+{{if .Phases}}<h2>Phases</h2><div class="scroll"><table>
+<tr><th>Phase</th><th>Measured</th><th>Migration</th><th>Migration waited</th><th>Blocked by</th><th>Queued behind migration</th><th>WAL</th></tr>
+{{range .Phases}}<tr><td>{{.Kind}} #{{inc .Repeat}}</td><td>{{printf "%.1f" .MeasuredSec}} s</td><td>{{if .Migration}}{{.Migration.Status}}{{if .Migration.SQLState}} ({{.Migration.SQLState}}){{end}}, {{ms .Migration.DurationMS}}{{else}}–{{end}}</td><td>{{ms .Locks.MigrationMaxWaitMS}}</td><td>{{join .Locks.MigrationBlockedBy ", "}}</td><td>{{.Locks.MaxBlockedByMigration}}</td><td>{{int64 .Counters.WALBytes}} B</td></tr>{{end}}
+</table></div>{{end}}
+
+<h2>Experiment quality</h2>
+<ul>
+<li>Representativeness: <strong>{{.Representativeness.Level}}</strong></li>
+<li>Pairs completed: {{.Quality.PairsCompleted}} of {{.Quality.RepeatsRequested}}</li>
+<li>Minimum successful operations per scenario and phase: {{int .Quality.MinSamples}} (required {{int .Quality.MinSamplesRequired}})</li>
+<li>Largest baseline noise: {{cv .Quality.MaxBaselineNoiseCV}}</li>
+<li>Telemetry interval {{.Quality.SampleIntervalMS}} ms, largest gap {{ms .Quality.SamplerMaxGapMS}}</li>
+</ul>
+<p><strong>Limitations</strong></p>
+<ul>{{range .Representativeness.Limitations}}<li>{{.}}</li>{{end}}</ul>
+
+<h2>Reproduction</h2>
+<ul>
+<li>Tool: {{.Tool.String}}</li>
+<li>Report schema: {{.SchemaVersion}}</li>
+{{if .GitSHA}}<li>Git commit: <code>{{.GitSHA}}</code></li>{{end}}
+<li>Image: <code>{{.Engine.Image}}</code>{{if .Engine.ServerVersion}} ({{.Engine.ServerVersion}}){{end}}</li>
+<li>Fixture hash: <code>{{.Fixture.Hash}}</code> · Workload hash: <code>{{.Workload.Hash}}</code> · Seed {{.Workload.Seed}}</li>
+<li>Parser: {{.Engine.ParserGrammar}}</li>
+</ul>
+</main>
+</body>
+</html>
