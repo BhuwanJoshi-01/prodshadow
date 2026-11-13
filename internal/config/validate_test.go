@@ -66,6 +66,7 @@ func TestValidateReportsEachInvalidField(t *testing.T) {
 		{"database reserved", func(c *Config) { c.Postgres.Database = "postgres" }, "postgres.database", LevelError},
 		{"unsafe extension", func(c *Config) { c.Postgres.Extensions = []string{"dblink"} }, "postgres.extensions[0]", LevelError},
 		{"reserved setting", func(c *Config) { c.Postgres.Settings = map[string]string{"archive_command": "x"} }, "postgres.settings.archive_command", LevelError},
+		{"control chars", func(c *Config) { c.Postgres.Settings = map[string]string{"work_mem": "4MB\nfsync=off"} }, "postgres.settings.work_mem", LevelError},
 		{"provider", func(c *Config) { c.Postgres.Isolation.Provider = "kubernetes" }, "postgres.isolation.provider", LevelError},
 		{"local provider", func(c *Config) { c.Postgres.Isolation.Provider = "local" }, "postgres.isolation.provider", LevelWarning},
 		{"network", func(c *Config) { c.Postgres.Isolation.Network = "host" }, "postgres.isolation.network", LevelError},
@@ -130,5 +131,20 @@ func TestValidateAttachesLineNumbers(t *testing.T) {
 	p := problemAt(cfg.Validate(), "workload.concurrency")
 	if p == nil || p.Line != 4 {
 		t.Fatalf("expected line 4, got %+v", p)
+	}
+}
+
+func TestNetworkNoneWarnsOutsideLinux(t *testing.T) {
+	old := hostOS
+	t.Cleanup(func() { hostOS = old })
+	hostOS = "darwin"
+	c := validConfig(t)
+	p := problemAt(c.Validate(), "postgres.isolation.network")
+	if p == nil || p.Level != LevelWarning {
+		t.Fatalf("expected a warning on darwin, got %+v", p)
+	}
+	hostOS = "linux"
+	if p := problemAt(c.Validate(), "postgres.isolation.network"); p != nil {
+		t.Fatalf("no warning expected on linux: %+v", p)
 	}
 }

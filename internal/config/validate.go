@@ -4,9 +4,13 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"runtime"
 	"slices"
 	"strings"
 )
+
+// hostOS is the operating system validation assumes; tests override it.
+var hostOS = runtime.GOOS
 
 // SupportedPostgresMajors is the compatibility matrix exercised in CI.
 var SupportedPostgresMajors = []string{"15", "16", "17", "18"}
@@ -151,6 +155,9 @@ func (c *Config) validatePostgres(ps *Problems) {
 		if why, reserved := reservedSettings[key]; reserved {
 			ps.errorf(path, "setting %q cannot be configured: %s", key, why)
 		}
+		if strings.ContainsFunc(pg.Settings[key], func(r rune) bool { return r < 0x20 || r == 0x7f }) {
+			ps.errorf(path, "setting values must not contain control characters")
+		}
 	}
 
 	iso := pg.Isolation
@@ -177,6 +184,9 @@ func (c *Config) validatePostgres(ps *Problems) {
 	}
 	if iso.Provider == "local" {
 		ps.warnf("postgres.isolation.provider", "the local provider cannot enforce memory, CPU or disk caps; prefer docker or podman in CI")
+	}
+	if iso.Provider != "local" && iso.Network == "none" && hostOS != "linux" {
+		ps.warnf("postgres.isolation.network", "network \"none\" shares a unix socket with the container and only works on Linux; use \"loopback\" on %s", hostOS)
 	}
 }
 
