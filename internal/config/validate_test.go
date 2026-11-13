@@ -11,6 +11,11 @@ import (
 // referenced files created in a temporary directory.
 func validConfig(t *testing.T) *Config {
 	t.Helper()
+	// Validation of network: none depends on the host OS; pin it so the
+	// tests behave the same on every CI platform.
+	old := hostOS
+	hostOS = "linux"
+	t.Cleanup(func() { hostOS = old })
 	dir := t.TempDir()
 	for _, f := range []string{"schema.sql", "seed.sql", "workload.yaml", "m1.sql"} {
 		if err := os.WriteFile(filepath.Join(dir, f), []byte("-- test\n"), 0o600); err != nil {
@@ -135,10 +140,8 @@ func TestValidateAttachesLineNumbers(t *testing.T) {
 }
 
 func TestNetworkNoneWarnsOutsideLinux(t *testing.T) {
-	old := hostOS
-	t.Cleanup(func() { hostOS = old })
-	hostOS = "darwin"
 	c := validConfig(t)
+	hostOS = "darwin"
 	p := problemAt(c.Validate(), "postgres.isolation.network")
 	if p == nil || p.Level != LevelWarning {
 		t.Fatalf("expected a warning on darwin, got %+v", p)
