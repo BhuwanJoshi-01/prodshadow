@@ -50,6 +50,20 @@ Each phase costs roughly warm-up + measurement + 3 s (database copy,
 checkpoint, statistics flush). Server start-up and seeding took 2–4 s for
 these fixtures; generating 800,000 rows through `COPY` took 1.7 s.
 
+### Client-side cost per operation
+
+Measured with `go test -bench` on the same host:
+
+| Operation | Cost |
+|---|---|
+| Record one latency sample (histogram) | ~18 ns |
+| Summarise a histogram (percentiles) | ~2 µs |
+| Draw an `int_range` / `zipf` / `uuid` parameter | ~17 / ~66 / ~314 ns |
+| Split SQL | ~180 MB/s |
+
+The measurement machinery is therefore negligible next to a round trip to
+the database (0.1–1 ms in these examples).
+
 ## Reproducing
 
 ```bash
