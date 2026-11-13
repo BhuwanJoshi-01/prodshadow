@@ -82,20 +82,24 @@ func NewSampler(conn *pgx.Conn, interval time.Duration) *Sampler {
 
 // Run samples until ctx is done and returns all samples. Individual sample
 // failures are counted rather than aborting the run.
+//
+// Queries do not inherit ctx: cancelling a query in flight makes pgx close
+// the connection, and the caller usually needs it afterwards for counter
+// snapshots. Each query is bounded by its own timeout instead.
 func (s *Sampler) Run(ctx context.Context) ([]Sample, int) {
 	var samples []Sample
 	failures := 0
 	ticker := time.NewTicker(s.interval)
 	defer ticker.Stop()
 	for {
-		qctx, cancel := context.WithTimeout(ctx, s.interval*5+time.Second)
+		qctx, cancel := context.WithTimeout(context.Background(), s.interval*5+time.Second)
 		sample, err := s.once(qctx)
 		cancel()
 		if err != nil {
-			if ctx.Err() != nil {
+			failures++
+			if s.conn.IsClosed() {
 				return samples, failures
 			}
-			failures++
 		} else {
 			samples = append(samples, sample)
 		}
