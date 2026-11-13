@@ -1,0 +1,8 @@
+ProdShadow
+Copyright 2026 The ProdShadow Authors
+
+This product is licensed under the Apache License, Version 2.0.
+See the LICENSE file for the full license text.
+
+This product depends on third-party components whose licenses are listed
+in go.mod and reproduced in their respective module distributions.
