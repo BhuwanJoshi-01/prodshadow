@@ -31,10 +31,10 @@ type Summary struct {
 	MaxBlockedByMigration int      `json:"max_blocked_by_migration"`
 	// Longest open transaction of any observed session, and its owner;
 	// usually the blocker the migration had to wait for.
-	MaxXactMS  float64 `json:"max_transaction_ms"`
-	MaxXactApp string  `json:"max_transaction_application,omitempty"`
-	Relations []RelationWait `json:"relations,omitempty"`
-	Timeline  []Point        `json:"timeline,omitempty"`
+	MaxXactMS  float64        `json:"max_transaction_ms"`
+	MaxXactApp string         `json:"max_transaction_application,omitempty"`
+	Relations  []RelationWait `json:"relations,omitempty"`
+	Timeline   []Point        `json:"timeline,omitempty"`
 }
 
 // RelationWait aggregates lock waits on one relation.
