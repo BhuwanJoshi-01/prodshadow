@@ -186,3 +186,19 @@ func TestMarkdownGolden(t *testing.T) {
 		}
 	}
 }
+
+func TestEffectiveConfigIsRecorded(t *testing.T) {
+	in := sampleInput(t)
+	in.Config.Privacy.RedactPatterns = []string{`customer-\d+`}
+	js, err := Build(in).JSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(js)
+	if !strings.Contains(s, `"effective_config"`) || !strings.Contains(s, `"lock_timeout_ms": 1500`) {
+		t.Fatal("effective configuration missing from the report")
+	}
+	if strings.Contains(s, `customer-\\d+`) {
+		t.Fatal("redaction patterns must not be echoed")
+	}
+}

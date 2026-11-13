@@ -80,12 +80,13 @@ func Build(in Input) *Report {
 			StatementTimeoutMS: cfg.Migration.StatementTimeoutMS, Transaction: cfg.Migration.Transaction,
 			RunAs: cfg.Migration.RunAs, Statements: []Statement{},
 		},
-		Comparisons: in.Assessment.Comparisons,
-		Phases:      []Phase{},
-		Quality:     in.Assessment.Quality,
-		Findings:    in.Assessment.Findings,
-		Decision:    in.Assessment.Decision,
-		Environment: Environment{OS: runtime.GOOS, Arch: runtime.GOARCH, HostCPUs: runtime.NumCPU(), EnvOverrides: in.EnvOverrides, CI: ciName(lookup)},
+		Comparisons:     in.Assessment.Comparisons,
+		Phases:          []Phase{},
+		Quality:         in.Assessment.Quality,
+		Findings:        in.Assessment.Findings,
+		Decision:        in.Assessment.Decision,
+		Environment:     Environment{OS: runtime.GOOS, Arch: runtime.GOARCH, HostCPUs: runtime.NumCPU(), EnvOverrides: in.EnvOverrides, CI: ciName(lookup)},
+		EffectiveConfig: redactedConfig(cfg, red),
 	}
 	if cfg.Workload.ArrivalRate > 0 {
 		r.Workload.Mode = "open-loop"
@@ -204,4 +205,19 @@ func ciName(lookup func(string) (string, bool)) string {
 		}
 	}
 	return ""
+}
+
+// redactedConfig copies the configuration for the report. User redaction
+// patterns are dropped (they can describe what is secret), and free-text
+// values pass through the redactor.
+func redactedConfig(cfg *config.Config, red *security.Redactor) *config.Config {
+	c := *cfg
+	c.Privacy.RedactPatterns = nil
+	if len(cfg.Postgres.Settings) > 0 {
+		c.Postgres.Settings = map[string]string{}
+		for k, v := range cfg.Postgres.Settings {
+			c.Postgres.Settings[k] = red.String(v)
+		}
+	}
+	return &c
 }

@@ -7,6 +7,7 @@ package report
 import (
 	"time"
 
+	"github.com/BhuwanJoshi-01/Open-Source-1/internal/config"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/experiment"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/migrate"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/pglock"
@@ -55,7 +56,11 @@ type Report struct {
 	Decision    risk.Decision     `json:"decision"`
 
 	Environment Environment `json:"environment"`
-	Errors      []string    `json:"errors,omitempty"`
+	// EffectiveConfig is the configuration after defaults and environment
+	// overrides; it contains no credentials because the configuration
+	// format has none.
+	EffectiveConfig *config.Config `json:"effective_config,omitempty"`
+	Errors          []string       `json:"errors,omitempty"`
 }
 
 // Engine describes the disposable server.

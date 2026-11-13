@@ -78,6 +78,7 @@
       }
     },
     "environment": {"type": "object", "required": ["os", "arch", "host_cpus"]},
+    "effective_config": {"type": "object", "description": "Configuration after defaults and environment overrides, in the shape of config.v1.schema.json."},
     "errors": {"type": "array", "items": {"type": "string"}}
   },
   "$defs": {
