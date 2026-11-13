@@ -161,7 +161,8 @@ func (p *localProvider) Start(ctx context.Context, spec Spec) (*Server, error) {
 	}
 	// The binary comes from a verified bin directory and the arguments are
 	// an argument vector, not a shell command line.
-	cmd := exec.Command(filepath.Join(bin, "postgres"), args...) //nolint:gosec // see comment above
+	// The server must outlive ctx, which only bounds start-up.
+	cmd := exec.Command(filepath.Join(bin, "postgres"), args...) //nolint:gosec,noctx // see comments above
 	cmd.Stdout, cmd.Stderr = logFile, logFile
 	startErr := cmd.Start()
 	// The child process keeps its own descriptor for the log file.

@@ -208,7 +208,7 @@ func (p *containerProvider) waitReady(ctx context.Context, srv *Server) error {
 			strings.Contains(logs[idx:], "ready to accept connections") {
 			conn, err := srv.Connect(ctx, srv.admin, ConnOptions{ApplicationName: "prodshadow/ready", ConnectTimeout: 2 * time.Second})
 			if err == nil {
-				conn.Close(ctx)
+				Close(conn)
 				return nil
 			}
 			if errors.Is(err, ErrOwnership) {
