@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/gen"
@@ -175,8 +176,20 @@ func (r *runner) run(parent context.Context) (*Result, error) {
 }
 
 // waitForEnd blocks until the measurement window (plus any extension) ends.
+// The tail is measured from the moment Extend closed, so a migration that
+// finished early does not lengthen the window.
 func (r *runner) waitForEnd(ctx context.Context) time.Time {
 	end := r.measureStart.Add(r.opts.Measurement)
+	var closedAt atomic.Int64
+	if r.opts.Extend != nil {
+		go func() {
+			select {
+			case <-r.opts.Extend:
+				closedAt.Store(time.Now().UnixNano())
+			case <-ctx.Done():
+			}
+		}()
+	}
 	sleepUntil(ctx, end)
 	if r.opts.Extend == nil {
 		return end
@@ -185,17 +198,25 @@ func (r *runner) waitForEnd(ctx context.Context) time.Time {
 	defer limit.Stop()
 	select {
 	case <-r.opts.Extend:
-		after := time.Now().Add(r.opts.Tail)
-		sleepUntil(ctx, after)
-		if after.After(end) {
-			return after
-		}
-		return end
 	case <-limit.C:
 		return time.Now()
 	case <-ctx.Done():
 		return time.Now()
 	}
+	// The watcher may not have stored the time yet; fall back to now.
+	at := time.Now()
+	for i := 0; i < 100 && closedAt.Load() == 0; i++ {
+		time.Sleep(time.Millisecond)
+	}
+	if ns := closedAt.Load(); ns != 0 {
+		at = time.Unix(0, ns)
+	}
+	after := at.Add(r.opts.Tail)
+	if !after.After(end) {
+		return end
+	}
+	sleepUntil(ctx, after)
+	return after
 }
 
 func sleepUntil(ctx context.Context, t time.Time) bool {
