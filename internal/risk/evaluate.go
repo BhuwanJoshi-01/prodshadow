@@ -11,6 +11,7 @@ import (
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/evidence"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/experiment"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/sqlinspect"
+	"github.com/BhuwanJoshi-01/Open-Source-1/internal/workload"
 )
 
 // Exit codes of the verify command.
@@ -30,6 +31,9 @@ type Input struct {
 	Statements   []*sqlinspect.Statement
 	Static       []sqlinspect.Finding
 	Suppressions []Suppression
+	// Workload is used to check whether the experiment models the long
+	// transactions that most lock-queue incidents need.
+	Workload *workload.Spec
 	// NoExperiment explains why no experiment ran (static-only runs).
 	NoExperiment string
 	Now          time.Time
@@ -75,6 +79,10 @@ func Evaluate(in Input) Assessment {
 		findings = append(findings, observedFindings(cfg, in.Result, a.Comparisons, in.Statements)...)
 	}
 	findings = append(findings, qualityFindings(cfg, a.Quality, in.NoExperiment)...)
+	if in.NoExperiment == "" && in.Workload != nil && !modelsBlocker(cfg, in.Workload) {
+		findings = append(findings, newFinding("QUAL008", evidence.High, "derived from the workload definition",
+			"No session keeps a transaction open while the migration starts. Most migration outages need one: a long transaction makes the migration's lock request wait, and every query queues behind it. Add a background session with hold_ms to rehearse that case."))
+	}
 
 	findings = applyOverrides(findings, cfg.Policy.Rules)
 	applyInlineAnnotations(findings, in.Statements, now)
@@ -124,6 +132,26 @@ func qualityFindings(cfg *config.Config, q Quality, noExperiment string) []Findi
 			fmt.Sprintf("%d workload connection attempt(s) failed; check max_connections and container memory.", q.ConnectFailures)))
 	}
 	return out
+}
+
+// modelsBlocker reports whether any session can hold a transaction open
+// when the migration starts: a background session active at that moment, or
+// a foreground scenario that holds its transaction.
+func modelsBlocker(cfg *config.Config, wl *workload.Spec) bool {
+	for _, sc := range wl.Scenarios {
+		if sc.Transaction != nil && sc.Transaction.HoldMS > 0 {
+			return true
+		}
+	}
+	start := cfg.Migration.StartAfterSeconds
+	for _, b := range wl.Background {
+		begins := b.StartAfterSeconds
+		ends := begins + float64(b.Transaction.HoldMS)/1000
+		if begins <= start && (b.Repeat || ends > start) {
+			return true
+		}
+	}
+	return false
 }
 
 // applyInlineAnnotations lets a `prodshadow:ignore` comment above a

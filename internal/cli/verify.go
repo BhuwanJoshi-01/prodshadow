@@ -134,7 +134,7 @@ func runVerify(ctx context.Context, env *Env, args []string) int {
 	}
 
 	assessment := risk.Evaluate(risk.Input{Config: cfg, Result: res, Statements: stmts, Static: static,
-		Suppressions: sups, NoExperiment: inputs.noExperiment})
+		Suppressions: sups, NoExperiment: inputs.noExperiment, Workload: inputs.workload})
 	rep := report.Build(report.Input{
 		Config: cfg, RunID: runID, Started: started, Finished: time.Now(), Statements: stmts,
 		Workload: inputs.workload, WorkloadHash: inputs.workloadHash, FixtureHash: inputs.fixtureHash,

@@ -10,6 +10,7 @@ import (
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/experiment"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/migrate"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/sqlinspect"
+	"github.com/BhuwanJoshi-01/Open-Source-1/internal/workload"
 )
 
 func testConfig() *config.Config {
@@ -178,5 +179,26 @@ func TestInlineAnnotationSuppressesObservedFinding(t *testing.T) {
 	f := byRule(a, "OBS002")
 	if f == nil || !f.Suppressed || f.SuppressionReason != "deployed during the maintenance window" {
 		t.Fatalf("inline annotation did not apply to the observed finding: %+v", f)
+	}
+}
+
+func TestNoBlockerModelled(t *testing.T) {
+	cfg := testConfig()
+	cfg.Migration.StartAfterSeconds = 5
+	plain := &workload.Spec{Scenarios: []workload.Scenario{{ID: "read", SQL: "SELECT 1"}}}
+	if f := byRule(Evaluate(Input{Config: cfg, Result: quietResult(), Workload: plain}), "QUAL008"); f == nil {
+		t.Fatal("a workload without long transactions should be flagged")
+	}
+	late := &workload.Spec{Scenarios: plain.Scenarios, Background: []workload.Background{{ID: "r", Sessions: 1, StartAfterSeconds: 8, Transaction: workload.TxnSpec{HoldMS: 1000}}}}
+	if byRule(Evaluate(Input{Config: cfg, Result: quietResult(), Workload: late}), "QUAL008") == nil {
+		t.Fatal("a blocker that starts after the migration does not count")
+	}
+	active := &workload.Spec{Scenarios: plain.Scenarios, Background: []workload.Background{{ID: "r", Sessions: 1, StartAfterSeconds: 2, Transaction: workload.TxnSpec{HoldMS: 6000}}}}
+	if byRule(Evaluate(Input{Config: cfg, Result: quietResult(), Workload: active}), "QUAL008") != nil {
+		t.Fatal("an active blocker should satisfy the check")
+	}
+	held := &workload.Spec{Scenarios: []workload.Scenario{{ID: "lock", Transaction: &workload.TxnSpec{HoldMS: 200}}}}
+	if byRule(Evaluate(Input{Config: cfg, Result: quietResult(), Workload: held}), "QUAL008") != nil {
+		t.Fatal("a held foreground transaction should satisfy the check")
 	}
 }

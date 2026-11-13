@@ -83,4 +83,5 @@ var ObservedRules = []ObservedRule{
 	{"QUAL005", "sampler-starved", "Telemetry sampling fell behind; the test host may be overloaded", evidence.Warning},
 	{"QUAL006", "connect-failures", "Workload sessions failed to connect", evidence.Warning},
 	{"QUAL007", "no-experiment", "No workload or fixture; only static analysis was performed", evidence.Inconclusive},
+	{"QUAL008", "no-blocker-modelled", "No session holds a transaction open while the migration runs, so lock queues behind long transactions are not exercised", evidence.Info},
 }
