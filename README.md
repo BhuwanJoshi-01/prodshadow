@@ -141,8 +141,15 @@ Details: [docs/threat-model.md](docs/threat-model.md).
 ## Status
 
 Pre-release (0.1 development). Interfaces may change before 1.0; the report
-schema is versioned independently (`schema_version`). PostgreSQL 15–18 are the
-tested versions.
+schema is versioned independently (`schema_version`).
+
+* The integration suite runs against real PostgreSQL 15, 16, 17 and 18
+  containers in CI.
+* Every example reproduces its documented decision; measured results are in
+  [docs/benchmarks.md](docs/benchmarks.md).
+* Not yet validated with external teams — see the validation plan in
+  [docs/roadmap.md](docs/roadmap.md). Reports of false findings are very
+  welcome.
 
 ## License
 
