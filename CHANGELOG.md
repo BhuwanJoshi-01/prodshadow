@@ -31,3 +31,20 @@ versioning; the report schema (`schema_version`) is versioned separately.
   redaction.
 - Examples: safe column addition, long-running transaction, blocking index,
   heavy backfill, rolling deploy.
+- `prodshadow plan` shows the schedule, transaction groups and an estimated
+  duration without starting anything.
+- SARIF 2.1.0 and JUnit XML report formats; GitHub Actions annotations on
+  migration lines.
+- Static rules PS120 (ineffective `lock_timeout`) and PS122 (blocking
+  `DROP INDEX`); quality rule QUAL008 (no long-running transaction modelled).
+- Connection budget check against `max_connections` in `validate`,
+  `plan` and `verify`.
+- Reports record the effective configuration.
+- Inline `prodshadow:ignore` annotations also apply to observed findings
+  attributed to the statement.
+
+### Verified
+
+- Integration tests pass on PostgreSQL 15, 17 and 18 (`postgres:*-alpine`).
+- Every example reproduces its documented decision; see
+  [docs/benchmarks.md](docs/benchmarks.md).
