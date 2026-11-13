@@ -4,6 +4,9 @@ package experiment
 
 import (
 	"context"
+	"os/exec"
+	"sort"
+	"strings"
 	"testing"
 
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/config"
@@ -113,4 +116,90 @@ func TestHarmlessMigrationDoesNotStall(t *testing.T) {
 			t.Fatalf("concurrent index build should not block the workload: %+v", ph.Locks)
 		}
 	}
+}
+
+func leftovers(t *testing.T, runID string) string {
+	t.Helper()
+	out, err := exec.Command("docker", "ps", "-aq", "--filter", "label="+isolation.LabelRun+"="+runID).Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return strings.TrimSpace(string(out))
+}
+
+// TestEqualPhasesStayWithinNoise runs a no-op migration: baseline and
+// candidate are equivalent, so latency must not differ materially.
+func TestEqualPhasesStayWithinNoise(t *testing.T) {
+	p := plan(t, "SELECT 1;")
+	p.Workload.Background = nil
+	res, err := Run(context.Background(), p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var base, cand []float64
+	for _, ph := range res.Phases {
+		v := ph.Scenarios[0].Latency.P95MS
+		if ph.Kind == Baseline {
+			base = append(base, v)
+		} else {
+			cand = append(cand, v)
+		}
+		if ph.Scenarios[0].Errors != 0 {
+			t.Fatalf("no errors expected: %+v", ph.Scenarios[0])
+		}
+	}
+	ratio := median(cand) / median(base)
+	if ratio < 0.67 || ratio > 1.5 {
+		t.Fatalf("equivalent phases differ: p95 ratio %.2f (baseline %v, candidate %v)", ratio, base, cand)
+	}
+	t.Logf("p95 ratio between equivalent phases: %.2f", ratio)
+}
+
+func TestInvalidMigrationFailsCleanly(t *testing.T) {
+	p := plan(t, "ALTER TABLE does_not_exist ADD COLUMN x int;")
+	p.Workload.Background = nil
+	p.Config.Workload.Repeats = 1
+	res, err := Run(context.Background(), p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, ph := range res.Phases {
+		if ph.Kind == Candidate && (ph.Migration.Status != migrate.Failed || ph.Migration.SQLState != "42P01") {
+			t.Fatalf("expected undefined_table failure, got %+v", ph.Migration)
+		}
+	}
+	if left := leftovers(t, p.RunID); left != "" {
+		t.Fatalf("containers left behind: %s", left)
+	}
+}
+
+func TestContainerCrashIsReportedAndCleanedUp(t *testing.T) {
+	p := plan(t, "ALTER TABLE orders ADD COLUMN note text;")
+	p.Workload.Background = nil
+	killed := make(chan struct{})
+	p.Progress = func(format string, args ...any) {
+		t.Logf(format, args...)
+		if strings.HasPrefix(format, "repeat") {
+			select {
+			case <-killed:
+			default:
+				close(killed)
+				go exec.Command("docker", "kill", "prodshadow-"+p.RunID).Run()
+			}
+		}
+	}
+	_, err := Run(context.Background(), p)
+	if err == nil {
+		t.Fatal("a crashed server must fail the run")
+	}
+	t.Logf("reported error: %v", err)
+	if left := leftovers(t, p.RunID); left != "" {
+		t.Fatalf("containers left behind after crash: %s", left)
+	}
+}
+
+func median(xs []float64) float64 {
+	s := append([]float64(nil), xs...)
+	sort.Float64s(s)
+	return s[len(s)/2]
 }
