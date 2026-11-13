@@ -1,0 +1,27 @@
+# A non-alarm example: a metadata-only column addition with no long
+# transactions in the workload. Expected decision: pass.
+version: 1
+project: safe-add-column
+postgres:
+  version: "17"
+  image: postgres:17-alpine
+  isolation:
+    memory_mb: 1024
+    cpus: 2
+fixture:
+  schema: ./fixtures/schema.sql
+  seed_sql: ./fixtures/seed.sql
+workload:
+  file: ./workloads/workload.yaml
+  warmup_seconds: 3
+  measurement_seconds: 15
+  concurrency: 8
+  repeats: 3
+migration:
+  files: [./migrations/0003_add_display_name.sql]
+  lock_timeout_ms: 2000
+  start_after_seconds: 4
+policy:
+  fail_on: [critical]
+report:
+  formats: [json, markdown]

@@ -1,0 +1,16 @@
+version: 1
+name: accounts-api
+scenarios:
+  - id: get_user
+    weight: 80
+    mode: read
+    sql: "SELECT id, email, plan FROM users WHERE id = $1"
+    parameters:
+      - {generator: int_range, min: 1, max: 50000}
+  - id: change_plan
+    weight: 20
+    mode: write
+    sql: "UPDATE users SET plan = $1 WHERE id = $2"
+    parameters:
+      - {generator: choice, values: [free, team, enterprise]}
+      - {generator: int_range, min: 1, max: 50000}
