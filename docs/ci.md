@@ -117,7 +117,19 @@ exit $status
 ```
 
 GitLab CI with Docker-in-Docker needs `network: loopback` unless the job can
-bind-mount a host directory into the service container.
+bind-mount a host directory into the service container. Add `junit` to
+`report.formats` and declare the file as a test report:
+
+```yaml
+prodshadow:
+  script:
+    - prodshadow verify --config prodshadow.yaml --format json,markdown,junit
+  artifacts:
+    when: always
+    paths: [prodshadow-results/]
+    reports:
+      junit: prodshadow-results/report.junit.xml
+```
 
 ## Runtime budget
 

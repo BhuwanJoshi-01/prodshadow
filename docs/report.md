@@ -1,6 +1,6 @@
 # Report format
 
-`verify` writes up to four files to the report directory:
+`verify` writes up to five files to the report directory:
 
 * `report.json` – the machine-readable contract, validated against
   [`schemas/report.v1.schema.json`](../schemas/report.v1.schema.json);
@@ -11,7 +11,10 @@
   and pull request annotations on the migration lines. Findings without a
   line (for example a scenario's latency) are anchored to the first line of
   the first migration file. Paths are relative to the configuration
-  directory; run from the repository root for correct annotations.
+  directory; run from the repository root for correct annotations;
+* `report.junit.xml` – JUnit XML for CI systems that display test reports
+  (GitLab, Jenkins, Buildkite). Blocking findings fail, suppressed findings
+  are skipped, and a first test case carries the overall decision.
 
 `prodshadow report` re-renders a JSON report in any format.
 
