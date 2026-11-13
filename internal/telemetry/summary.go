@@ -65,10 +65,12 @@ func Summarize(samples []Sample, failed int, interval time.Duration, measureStar
 	blockers := map[string]bool{}
 	points := map[int]*Point{}
 
-	for i, smp := range samples {
-		if i > 0 {
-			s.MaxGapMS = math.Max(s.MaxGapMS, float64(smp.At.Sub(samples[i-1].At))/float64(time.Millisecond))
+	var prev time.Time
+	for _, smp := range samples {
+		if !prev.IsZero() {
+			s.MaxGapMS = math.Max(s.MaxGapMS, float64(smp.At.Sub(prev))/float64(time.Millisecond))
 		}
+		prev = smp.At
 		appByPID := map[int32]string{}
 		var migrationPID int32 = -1
 		for _, x := range smp.Sessions {
