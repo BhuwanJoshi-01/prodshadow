@@ -32,7 +32,8 @@ make lint         # gofmt, go vet and golangci-lint (if installed)
 ```
 
 The first build compiles libpg_query and takes a minute; later builds are
-cached.
+cached. CI uses golangci-lint v2.15.0; install the same version locally with
+`go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0`.
 
 Integration tests use `postgres:17-alpine` by default. Test another version
 with:
