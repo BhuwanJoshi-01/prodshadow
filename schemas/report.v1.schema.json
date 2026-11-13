@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/BhuwanJoshi-01/Open-Source-1/schemas/report.v1.schema.json",
+  "title": "ProdShadow report",
+  "description": "Result of a ProdShadow verification run. Versioned with semantic versioning independently of the CLI: additive changes bump the minor version.",
+  "type": "object",
+  "required": ["schema_version", "run_id", "project", "status", "ci_decision", "tool", "started_at", "finished_at", "engine", "representativeness", "fixture", "workload", "migration", "comparisons", "phases", "quality", "findings", "decision", "environment"],
+  "properties": {
+    "schema_version": {"type": "string", "pattern": "^1\\.[0-9]+\\.[0-9]+$"},
+    "run_id": {"type": "string", "minLength": 1},
+    "project": {"type": "string"},
+    "status": {"enum": ["completed", "completed_with_findings", "inconclusive", "failed"]},
+    "ci_decision": {"enum": ["pass", "block", "inconclusive", "error"]},
+    "tool": {
+      "type": "object",
+      "required": ["version", "go_version", "platform"],
+      "properties": {"version": {"type": "string"}, "commit": {"type": "string"}, "date": {"type": "string"}, "go_version": {"type": "string"}, "platform": {"type": "string"}}
+    },
+    "git_sha": {"type": "string"},
+    "started_at": {"type": "string", "format": "date-time"},
+    "finished_at": {"type": "string", "format": "date-time"},
+    "duration_sec": {"type": "number", "minimum": 0},
+    "engine": {
+      "type": "object",
+      "required": ["postgres_major", "runtime", "network", "parser_grammar"],
+      "properties": {
+        "postgres_major": {"type": "string"},
+        "server_version": {"type": "string"},
+        "runtime": {"enum": ["docker", "podman", "local"]},
+        "image": {"type": "string"},
+        "network": {"enum": ["none", "loopback"]},
+        "memory_mb": {"type": "integer"},
+        "cpus": {"type": "number"},
+        "ephemeral_disk_mb": {"type": "integer"},
+        "settings_hash": {"type": "string"},
+        "settings": {"type": "object", "additionalProperties": {"type": "string"}},
+        "parser_grammar": {"type": "string"}
+      }
+    },
+    "representativeness": {
+      "type": "object",
+      "required": ["level", "limitations"],
+      "properties": {"level": {"type": "string"}, "limitations": {"type": "array", "items": {"type": "string"}}}
+    },
+    "fixture": {"type": "object", "required": ["hash"], "properties": {"hash": {"type": "string"}, "tables": {"type": "array"}, "generated_rows": {"type": "integer"}, "seed_seconds": {"type": "number"}}},
+    "workload": {
+      "type": "object",
+      "required": ["mode", "concurrency", "repeats", "seed", "scenarios"],
+      "properties": {
+        "mode": {"enum": ["closed-loop", "open-loop"]},
+        "concurrency": {"type": "integer", "minimum": 1},
+        "repeats": {"type": "integer", "minimum": 1},
+        "seed": {"type": "integer"},
+        "scenarios": {"type": "array", "items": {"type": "object", "required": ["id", "mode", "weight", "template_id"]}}
+      }
+    },
+    "migration": {
+      "type": "object",
+      "required": ["files", "lock_timeout_ms", "statement_timeout_ms", "transaction", "run_as", "statements"],
+      "properties": {
+        "files": {"type": ["array", "null"], "items": {"type": "string"}},
+        "transaction": {"enum": ["auto", "per-file", "none"]},
+        "run_as": {"enum": ["owner", "superuser"]},
+        "statements": {"type": "array", "items": {"$ref": "#/$defs/statement"}}
+      }
+    },
+    "comparisons": {"type": "array", "items": {"$ref": "#/$defs/comparison"}},
+    "phases": {"type": "array", "items": {"type": "object", "required": ["kind", "repeat", "scenarios", "locks"], "properties": {"kind": {"enum": ["baseline", "candidate"]}}}},
+    "quality": {"type": "object", "required": ["representation", "limitations"]},
+    "findings": {"type": "array", "items": {"$ref": "#/$defs/finding"}},
+    "decision": {
+      "type": "object",
+      "required": ["outcome", "exit_code", "message"],
+      "properties": {
+        "outcome": {"enum": ["pass", "block", "inconclusive", "error"]},
+        "exit_code": {"enum": [0, 1, 2, 3, 4, 5]},
+        "message": {"type": "string"}
+      }
+    },
+    "environment": {"type": "object", "required": ["os", "arch", "host_cpus"]},
+    "errors": {"type": "array", "items": {"type": "string"}}
+  },
+  "$defs": {
+    "statement": {
+      "type": "object",
+      "required": ["id", "file", "start_line", "end_line", "kind", "tag", "transaction_requirement", "parsed"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+$"},
+        "start_line": {"type": "integer", "minimum": 1},
+        "transaction_requirement": {"enum": ["any", "no_transaction_block", "transaction_control"]},
+        "locks": {"type": "array", "items": {"type": "object", "required": ["table", "mode", "impact"]}}
+      }
+    },
+    "comparison": {
+      "type": "object",
+      "required": ["scenario", "mode", "baseline", "candidate", "error_rate_delta_pct_points", "stall_ms"],
+      "properties": {"p95_ratio": {"type": "number"}, "p99_ratio": {"type": "number"}, "baseline_noise_cv": {"type": "number"}}
+    },
+    "finding": {
+      "type": "object",
+      "required": ["rule_id", "rule", "severity", "confidence", "evidence_kind", "message"],
+      "properties": {
+        "rule_id": {"type": "string", "pattern": "^[A-Z]{2,5}[0-9]{3}$"},
+        "severity": {"enum": ["info", "warning", "critical", "inconclusive"]},
+        "confidence": {"enum": ["high", "medium", "low"]},
+        "evidence_kind": {"enum": ["observed", "static", "heuristic", "experiment-quality"]},
+        "observed": {"type": "number"},
+        "threshold": {"type": "number"},
+        "line": {"type": "integer", "minimum": 0},
+        "suppressed": {"type": "boolean"}
+      }
+    }
+  }
+}
