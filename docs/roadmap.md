@@ -60,7 +60,7 @@ ProdShadow to the blocker-injection rehearsal rather than broadening it.
 4. **SQL rendering helpers** for Django, Rails, Alembic and Prisma.
 5. **PostgreSQL 19** in the matrix once a parser binding for the newer
    grammar is released.
-6. **Prebuilt release binaries** for linux/amd64, linux/arm64 and
+6. **Prebuilt release binaries** (the release workflow exists; publish the first tagged build) for linux/amd64, linux/arm64 and
    darwin/arm64 (cgo requires native builders).
 
 ## Later / research
