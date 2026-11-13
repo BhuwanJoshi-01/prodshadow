@@ -244,8 +244,8 @@ func regressionFindings(cfg *config.Config, comps []Comparison, repeats int) []F
 			// A regression must exceed both the policy and three times
 			// the baseline's own variation to count as a finding.
 			band := math.Max(*limit, 1+3*noise)
-			if *ratio <= band {
-				f := newFinding(id, evidence.Low, fmt.Sprintf("ratio within the baseline noise band (%.2f×)", band),
+			if *ratio <= band || noise > UnstableCV {
+				f := newFinding(id, evidence.Low, fmt.Sprintf("baseline noise %.0f%%; noise band %.2f×", noise*100, band),
 					fmt.Sprintf("%s latency of %s rose %.2f× (limit %.2f×), but baseline repeats varied by %.0f%%, so the change cannot be distinguished from noise.", label, c.Scenario, *ratio, *limit, noise*100))
 				f.Severity = evidence.Inconclusive
 				f.Scenario, f.Observed, f.Threshold, f.Unit = c.Scenario, ratio, limit, "ratio"
