@@ -11,7 +11,7 @@ import (
 func runReport(_ context.Context, env *Env, args []string) int {
 	fs := newFlags(env, "report", "--input report.json [--format markdown|html|json] [--output FILE]")
 	input := fs.String("input", "prodshadow-results/report.json", "JSON report to render")
-	format := fs.String("format", "markdown", "output format: markdown, html or json")
+	format := fs.String("format", "markdown", "output format: markdown, html, json or sarif")
 	output := fs.String("output", "", "write to FILE instead of stdout")
 	if code := parseFlags(fs, args); code >= 0 {
 		return code
@@ -32,6 +32,11 @@ func runReport(_ context.Context, env *Env, args []string) int {
 			return ExitInternal
 		}
 		out = []byte(h)
+	case "sarif":
+		if out, err = rep.SARIF(); err != nil {
+			fmt.Fprintf(env.Stderr, "prodshadow: %v\n", err)
+			return ExitInternal
+		}
 	case "json":
 		if out, err = rep.JSON(); err != nil {
 			fmt.Fprintf(env.Stderr, "prodshadow: %v\n", err)

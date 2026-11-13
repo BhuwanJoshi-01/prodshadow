@@ -37,7 +37,7 @@ func runVerify(ctx context.Context, env *Env, args []string) int {
 	fs.StringVar(&vf.config, "config", DefaultConfig, "configuration file")
 	fs.Var(&vf.migrations, "migration", "migration file, overriding migration.files (repeatable)")
 	fs.StringVar(&vf.output, "output", "", "report directory, overriding report.directory")
-	fs.StringVar(&vf.formats, "format", "", "comma-separated report formats, overriding report.formats")
+	fs.StringVar(&vf.formats, "format", "", "comma-separated report formats (json, markdown, html, sarif), overriding report.formats")
 	fs.IntVar(&vf.repeats, "repeats", 0, "number of baseline/candidate pairs, overriding workload.repeats")
 	fs.BoolVar(&vf.keep, "keep", false, "keep the disposable server after the run (local debugging only)")
 	fs.BoolVar(&vf.quiet, "quiet", false, "suppress progress output")
@@ -270,6 +270,12 @@ func writeReports(env *Env, cfg *config.Config, rep *report.Report) ([]string, e
 				return written, err
 			}
 			data, name = []byte(h), "report.html"
+		case "sarif":
+			s, err := rep.SARIF()
+			if err != nil {
+				return written, err
+			}
+			data, name = s, "report.sarif"
 		default:
 			return written, fmt.Errorf("unknown report format %q", format)
 		}
