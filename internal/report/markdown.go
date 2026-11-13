@@ -121,7 +121,7 @@ func (r *Report) mdFindings(w writer) {
 	}
 	if len(r.Decision.ExpiredSuppressions) > 0 {
 		w("**Expired suppressions:** ")
-		var ids []string
+		ids := make([]string, 0, len(r.Decision.ExpiredSuppressions))
 		for _, s := range r.Decision.ExpiredSuppressions {
 			ids = append(ids, fmt.Sprintf("%s (expired %s)", s.Rule, s.Expires))
 		}
