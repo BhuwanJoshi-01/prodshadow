@@ -63,6 +63,14 @@ Outputs: `exit-code`, `decision` (`pass`, `block`, `inconclusive`,
 Older migrations should already be part of `fixture.schema`, so that the new
 migration runs against the schema it will meet in production.
 
+### Inline annotations
+
+When `GITHUB_ACTIONS=true`, `verify` and `inspect` also print workflow
+commands, so critical findings appear as errors and warnings or inconclusive
+findings as warnings directly on the migration lines of the pull request.
+No extra permissions are needed. Informational and suppressed findings are
+not annotated.
+
 ### Code scanning annotations
 
 Add `sarif` to `report.formats` and upload the file:
