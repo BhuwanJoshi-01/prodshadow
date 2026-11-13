@@ -105,7 +105,7 @@ func (gf *GeneratorFile) Validate(maxRows int64) error {
 				return fmt.Errorf("%s: duplicate column %q", cw, c.Name)
 			}
 			cols[c.Name] = true
-			if err := c.Spec.Validate(); err != nil {
+			if err := c.Validate(); err != nil {
 				return fmt.Errorf("%s (%s.%s): %w", cw, t.Name, c.Name, err)
 			}
 		}

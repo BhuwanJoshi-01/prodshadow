@@ -98,7 +98,7 @@ func checkAddNotNullColumn(c *Context, s *Statement) []Finding {
 			continue
 		}
 		col := cmd.Def.GetColumnDef()
-		if col == nil || !(col.IsNotNull || hasConstraint(col, pg_query.ConstrType_CONSTR_NOTNULL)) {
+		if col == nil || (!col.IsNotNull && !hasConstraint(col, pg_query.ConstrType_CONSTR_NOTNULL)) {
 			continue
 		}
 		if col.RawDefault != nil || col.Identity != "" || col.Generated != "" ||

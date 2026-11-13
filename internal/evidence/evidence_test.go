@@ -3,7 +3,7 @@ package evidence
 import "testing"
 
 func TestSeverityRankOrder(t *testing.T) {
-	if !(Info.Rank() < Warning.Rank() && Warning.Rank() < Critical.Rank() && Critical.Rank() < Inconclusive.Rank()) {
+	if Info.Rank() >= Warning.Rank() || Warning.Rank() >= Critical.Rank() || Critical.Rank() >= Inconclusive.Rank() {
 		t.Fatal("severity ranks are out of order")
 	}
 	if Severity("bogus").Valid() {

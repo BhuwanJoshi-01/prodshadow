@@ -129,13 +129,14 @@ func checkRewriteMaintenance(c *Context, s *Statement) []Finding {
 	f := at(s, fmt.Sprintf("%s while holding %s, which %s for the full duration.", what, mode, impactPhrase(mode)))
 	f.Table, f.Lock = table, mode
 	f.Remediation = "Prefer the CONCURRENTLY variant where one exists, or schedule the operation separately from application deploys."
-	if s.Kind == KindReindex {
+	switch s.Kind {
+	case KindReindex:
 		f.DocsURL = docReindex
-	} else if s.Kind == KindCluster {
+	case KindCluster:
 		f.DocsURL = docCluster
-	} else if s.Kind == KindVacuum {
+	case KindVacuum:
 		f.DocsURL = docVacuum
-	} else if s.Kind == KindRefreshMatView {
+	case KindRefreshMatView:
 		f.DocsURL = docRefreshMatView
 	}
 	return []Finding{f}
