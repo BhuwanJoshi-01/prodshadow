@@ -1,0 +1,106 @@
+# Command line reference
+
+```text
+prodshadow <command> [flags]
+```
+
+Progress and warnings go to standard error; results go to standard output.
+
+## Exit codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Success. For `verify`: no blocking finding, or inconclusive with `policy.inconclusive: pass`. |
+| `1` | Unexpected internal error. |
+| `2` | Blocking findings (`verify`; `inspect --fail-on`). |
+| `3` | Invalid configuration, input or usage. |
+| `4` | Infrastructure failure: container engine unavailable, server start-up or cleanup failed, reports could not be written. |
+| `5` | Inconclusive: missing workload or fixture, too few samples, unstable baseline, unparsable statements (by default). |
+
+Whether code 5 fails your build is your choice (`policy.inconclusive`), but
+it is never reported as a pass.
+
+## `prodshadow init`
+
+Creates `prodshadow.yaml`, `fixtures/schema.sql`, `fixtures/seed.sql`,
+`workloads/workload.yaml` and an example migration.
+
+| Flag | Default | |
+|---|---|---|
+| `--dir` | `.` | Target directory. |
+| `--project` | directory name | Project name. |
+| `--force` | `false` | Overwrite existing files. |
+
+## `prodshadow validate`
+
+Validates the configuration and parses every referenced file (workload,
+generator, suppressions, migrations) without starting a server.
+
+| Flag | Default | |
+|---|---|---|
+| `--config` | `prodshadow.yaml` | Configuration file. |
+| `--strict` | `false` | Treat warnings (unknown keys, unpinned image, …) as errors. |
+| `--json` | `false` | Machine-readable output. |
+
+## `prodshadow inspect`
+
+Static analysis only; needs no database or container engine.
+
+| Flag | Default | |
+|---|---|---|
+| `--migration` | — | Migration file; repeat for several, executed in order. |
+| `--config` | — | Use rule overrides, transaction mode and `migration.files` from a configuration. |
+| `--transaction` | `auto` | `auto`, `per-file` or `none`. |
+| `--format` | `text` | `text`, `json` or `markdown`. |
+| `--fail-on` | — | Exit 2 if an unsuppressed finding is at least this severe (`info`, `warning`, `critical`; inconclusive findings count as more severe than critical). |
+
+## `prodshadow verify`
+
+Runs the experiment and writes reports.
+
+| Flag | Default | |
+|---|---|---|
+| `--config` | `prodshadow.yaml` | Configuration file. |
+| `--migration` | `migration.files` | Override the migration files (repeatable). |
+| `--output` | `report.directory` | Report directory. |
+| `--format` | `report.formats` | Comma-separated: `json`, `markdown`, `html`. |
+| `--repeats` | `workload.repeats` | Number of baseline/candidate pairs. |
+| `--keep` | `false` | Keep the server after the run for local debugging. Never use in CI. |
+| `--quiet` | `false` | No progress output. |
+
+In GitHub Actions the Markdown report is appended to `$GITHUB_STEP_SUMMARY`.
+Interrupting the command (Ctrl-C, SIGTERM) stops the run and removes the
+server.
+
+## `prodshadow report`
+
+Re-renders a JSON report written by `verify`.
+
+| Flag | Default | |
+|---|---|---|
+| `--input` | `prodshadow-results/report.json` | Report to read. Reports with a newer major schema version are rejected. |
+| `--format` | `markdown` | `markdown`, `html` or `json`. |
+| `--output` | stdout | Output file. |
+
+## `prodshadow doctor`
+
+Checks the platform, the configuration (if present), the container engine
+and leftovers from interrupted runs. Exits 4 if a check fails.
+
+## `prodshadow cleanup`
+
+Removes containers labelled `io.prodshadow.managed=true`. It refuses to
+remove anything else.
+
+| Flag | Default | |
+|---|---|---|
+| `--provider` | `docker` | `docker` or `podman`. |
+| `--run` | — | Only this run ID. |
+| `--dry-run` | `false` | List without removing. |
+
+## `prodshadow rules`, `schema`, `version`
+
+* `prodshadow rules [--json]` lists every rule with its default severity.
+* `prodshadow schema config|workload|report` prints a JSON Schema.
+* `prodshadow version [--json]` prints the version, commit, report schema
+  version and parser grammar.
