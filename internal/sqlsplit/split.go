@@ -93,7 +93,7 @@ func (s *scanner) skipTrivia() ([]string, error) {
 		case c == '\n':
 			s.line++
 			s.pos++
-		case c == ' ' || c == '\t' || c == '\r' || c == '\f':
+		case isSpace(c):
 			s.pos++
 		case strings.HasPrefix(s.src[s.pos:], "--"):
 			end := strings.IndexByte(s.src[s.pos:], '\n')
@@ -136,7 +136,7 @@ func (s *scanner) statement() (Statement, error) {
 			s.line++
 			s.pos++
 			continue
-		case c == ' ' || c == '\t' || c == '\r' || c == '\f':
+		case isSpace(c):
 			s.pos++
 			continue
 		case strings.HasPrefix(s.src[s.pos:], "--"):
@@ -301,6 +301,11 @@ func (s *scanner) dollarBody(tag string) error {
 	s.line += strings.Count(s.src[s.pos:s.pos+idx], "\n")
 	s.pos += idx + len(tag)
 	return nil
+}
+
+// isSpace matches the whitespace characters of the PostgreSQL lexer.
+func isSpace(c byte) bool {
+	return c == ' ' || c == '\t' || c == '\r' || c == '\f' || c == '\v'
 }
 
 func isIdentStart(c byte) bool {
