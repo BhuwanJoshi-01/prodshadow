@@ -71,7 +71,7 @@ var (
 	validTransaction    = []string{"auto", "per-file", "none"}
 	validSeverities     = []string{"info", "warning", "critical"}
 	validInconclusive   = []string{"fail", "pass"}
-	validFormats        = []string{"json", "markdown", "html"}
+	validFormats        = []string{"json", "markdown", "html", "sarif"}
 	validRuleSetting    = []string{"off", "info", "warning", "critical"}
 )
 
