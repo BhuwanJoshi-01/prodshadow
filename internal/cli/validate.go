@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/config"
+	"github.com/BhuwanJoshi-01/Open-Source-1/internal/experiment"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/fixture"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/risk"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/workload"
@@ -58,8 +59,11 @@ func validateReferences(cfg *config.Config) config.Problems {
 		ps = append(ps, config.Problem{Level: config.LevelError, Path: path, Message: err.Error(), Line: cfg.LineOf(path)})
 	}
 	if f := cfg.Workload.File; f != "" {
-		if _, err := workload.Load(cfg.Resolve(f)); err != nil {
+		wl, err := workload.Load(cfg.Resolve(f))
+		if err != nil {
 			add("workload.file", err)
+		} else if err := experiment.CheckCapacity(cfg, wl); err != nil {
+			add("workload.concurrency", err)
 		}
 	}
 	if g := cfg.Fixture.Generator; g != nil && g.Path != "" {

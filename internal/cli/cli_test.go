@@ -247,3 +247,11 @@ func TestInspectSARIF(t *testing.T) {
 		t.Fatalf("inspect sarif: %+v", r)
 	}
 }
+
+func TestValidateChecksConnectionBudget(t *testing.T) {
+	dir := initProject(t)
+	r := run(t, dir, map[string]string{"PRODSHADOW_WORKLOAD_CONCURRENCY": "200"}, "validate")
+	if r.code != ExitInvalid || !strings.Contains(r.stdout, "max_connections") {
+		t.Fatalf("connection budget not checked: %+v", r)
+	}
+}

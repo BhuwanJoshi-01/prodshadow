@@ -101,6 +101,10 @@ func runVerify(ctx context.Context, env *Env, args []string) int {
 		fmt.Fprintf(env.Stderr, "prodshadow: %v\n", err)
 		return ExitInvalid
 	}
+	if err := experiment.CheckCapacity(cfg, inputs.workload); err != nil {
+		fmt.Fprintf(env.Stderr, "prodshadow: %v\n", err)
+		return ExitInvalid
+	}
 
 	redactor, err := security.NewRedactor(cfg.Privacy.RedactPatterns)
 	if err != nil {
