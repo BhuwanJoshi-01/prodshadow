@@ -1,0 +1,26 @@
+version: 1
+name: billing-api
+scenarios:
+  - id: list_invoices
+    weight: 70
+    mode: read
+    sql: "SELECT id, total_cents, state FROM invoices WHERE account_id = $1 ORDER BY issued_at DESC LIMIT 25"
+    parameters:
+      - {generator: zipf, min: 1, max: 5000, s: 1.2}
+  - id: pay_invoice
+    weight: 30
+    mode: write
+    sql: "UPDATE invoices SET state = 'paid' WHERE id = $1"
+    parameters:
+      - {generator: int_range, min: 1, max: 100000}
+background:
+  # A monthly revenue report keeps a transaction open for six seconds. It
+  # only holds ACCESS SHARE, which never blocks the API by itself.
+  - id: revenue_report
+    sessions: 1
+    start_after_seconds: 2
+    repeat: true
+    transaction:
+      statements:
+        - "SELECT state, sum(total_cents) FROM invoices GROUP BY state"
+      hold_ms: 6000

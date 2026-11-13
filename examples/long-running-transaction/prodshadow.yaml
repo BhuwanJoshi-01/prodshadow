@@ -1,0 +1,29 @@
+# The canonical migration outage: an instant ALTER TABLE queues behind a
+# long-running report transaction, and every query on the table queues
+# behind the ALTER. Expected decision: block (OBS002).
+version: 1
+project: long-running-transaction
+postgres:
+  version: "17"
+  image: postgres:17-alpine
+  isolation:
+    memory_mb: 1024
+    cpus: 2
+fixture:
+  schema: ./fixtures/schema.sql
+  seed_sql: ./fixtures/seed.sql
+workload:
+  file: ./workloads/workload.yaml
+  warmup_seconds: 3
+  measurement_seconds: 15
+  concurrency: 8
+  repeats: 3
+migration:
+  files: [./migrations/0007_add_invoice_reference.sql]
+  lock_timeout_ms: 2000
+  start_after_seconds: 4
+policy:
+  fail_on: [critical]
+  max_lock_wait_ms: 2500
+report:
+  formats: [json, markdown, html]
