@@ -15,8 +15,8 @@ flowchart TD
     EXP --> TEL[telemetry: pg_stat_activity / pg_locks sampler, counters]
     SQL --> RISK
     EXP --> RISK[risk: comparisons, quality, findings, decision]
-    RISK --> REP[report: JSON / Markdown / HTML]
-    REP --> CI[exit code + job summary]
+    RISK --> REP[report: JSON / Markdown / HTML / SARIF / JUnit]
+    REP --> CI[exit code, job summary, PR annotations]
 ```
 
 ## Run lifecycle
@@ -48,8 +48,9 @@ flowchart TD
    overrides and suppressions, and decides `pass`, `block` or
    `inconclusive`.
 7. **Report** – `report` writes the versioned JSON contract and renders
-   Markdown and HTML; `cli` sets the exit code and appends the job summary in
-   GitHub Actions.
+   Markdown, HTML, SARIF and JUnit XML; `cli` sets the exit code, appends the
+   job summary and prints annotations in GitHub Actions. `prodshadow diff`
+   compares two reports, `prodshadow plan` previews a run.
 8. **Destroy** – the server and its scratch directory are removed; a failure
    is reported.
 
