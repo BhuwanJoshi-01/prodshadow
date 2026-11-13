@@ -77,7 +77,9 @@ prodshadow inspect --config prodshadow.yaml   # static analysis, no database
 prodshadow verify  --config prodshadow.yaml   # the full experiment
 ```
 
-`verify` writes `prodshadow-results/report.{json,md,html}` and exits with:
+`prodshadow plan` shows what `verify` will do and roughly how long it takes.
+`verify` writes `prodshadow-results/report.{json,md,html}` (plus SARIF and
+JUnit XML on request) and exits with:
 
 | Code | Meaning |
 |---|---|
@@ -106,8 +108,10 @@ prodshadow verify  --config prodshadow.yaml   # the full experiment
     config: prodshadow.yaml
 ```
 
-The action writes the Markdown report to the job summary and uploads the
-report directory as an artifact. See [docs/ci.md](docs/ci.md).
+The action writes the Markdown report to the job summary, annotates the
+migration lines of the pull request, and uploads the report directory as an
+artifact. SARIF output feeds GitHub code scanning; JUnit XML feeds GitLab and
+Jenkins test reports. See [docs/ci.md](docs/ci.md).
 
 ## Safety model
 
