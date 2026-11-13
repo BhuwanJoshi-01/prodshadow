@@ -108,9 +108,9 @@ func observedFindings(cfg *config.Config, res *experiment.Result, comps []Compar
 		}
 	}
 	observed := math.Max(worstWait, worstStall)
-	source := "server-side lock wait"
+	source := fmt.Sprintf("sampled server-side lock wait; client-side stall %.0f ms", worstStall)
 	if worstStall > worstWait {
-		source = fmt.Sprintf("client-side stall of scenario %s beyond its baseline p99", stallScenario)
+		source = fmt.Sprintf("client-side stall of scenario %s beyond its baseline p99; longest sampled lock wait %.0f ms", stallScenario, worstWait)
 	}
 
 	if p.MaxLockWaitMS != nil && observed > *p.MaxLockWaitMS {
