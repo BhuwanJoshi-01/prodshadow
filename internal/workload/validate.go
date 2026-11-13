@@ -10,6 +10,10 @@ import (
 
 var idRe = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{0,63}$`)
 
+// MaxScenarios bounds scenarios plus background definitions; results index
+// them with a 16-bit number.
+const MaxScenarios = 1000
+
 // Validate checks structure, SQL safety and parameter counts.
 func (s *Spec) Validate() error {
 	var errs []error
@@ -20,6 +24,9 @@ func (s *Spec) Validate() error {
 	}
 	if len(s.Scenarios) == 0 {
 		add("workload defines no scenarios")
+	}
+	if n := len(s.Scenarios) + len(s.Background); n > MaxScenarios {
+		add("workload defines %d scenarios and background sessions; at most %d are supported", n, MaxScenarios)
 	}
 	if s.ThinkTimeMS < 0 || s.ThinkTimeMS > 60_000 {
 		add("think_time_ms must be between 0 and 60000")

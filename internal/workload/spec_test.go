@@ -1,6 +1,7 @@
 package workload
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -89,5 +90,16 @@ func TestValidationReportsAllErrors(t *testing.T) {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error should mention %q: %v", want, err)
 		}
+	}
+}
+
+func TestTooManyScenarios(t *testing.T) {
+	var b strings.Builder
+	b.WriteString("version: 1\nscenarios:\n")
+	for i := 0; i <= MaxScenarios; i++ {
+		b.WriteString("  - {id: s" + strconv.Itoa(i) + ", weight: 1, mode: read, sql: \"SELECT 1\"}\n")
+	}
+	if _, err := Parse([]byte(b.String())); err == nil || !strings.Contains(err.Error(), "at most") {
+		t.Fatalf("expected a scenario limit error, got %v", err)
 	}
 }
