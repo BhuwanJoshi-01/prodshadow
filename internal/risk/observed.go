@@ -88,7 +88,8 @@ func observedFindings(cfg *config.Config, res *experiment.Result, comps []Compar
 	var blockers []string
 	var relation, mode string
 	for _, ph := range cands {
-		worstWait = math.Max(worstWait, ph.Locks.MaxLockWaitMS)
+		// Logged waits are exact; sampled waits are lower bounds.
+		worstWait = math.Max(worstWait, math.Max(ph.Locks.MaxLockWaitMS, ph.LoggedWaits.MaxWorkloadWaitMS))
 		if ph.Locks.MaxBlockedByMigration > 0 {
 			blockedRepeats++
 		}
@@ -108,15 +109,15 @@ func observedFindings(cfg *config.Config, res *experiment.Result, comps []Compar
 		}
 	}
 	observed := math.Max(worstWait, worstStall)
-	source := fmt.Sprintf("sampled server-side lock wait; client-side stall %.0f ms", worstStall)
+	source := fmt.Sprintf("server-side lock wait; client-side stall %.0f ms", worstStall)
 	if worstStall > worstWait {
-		source = fmt.Sprintf("client-side stall of scenario %s beyond its baseline p99; longest sampled lock wait %.0f ms", stallScenario, worstWait)
+		source = fmt.Sprintf("client-side stall of scenario %s beyond its baseline p99; longest server-side lock wait %.0f ms", stallScenario, worstWait)
 	}
 
 	if p.MaxLockWaitMS != nil && observed > *p.MaxLockWaitMS {
 		hits := 0
 		for _, ph := range cands {
-			if ph.Locks.MaxLockWaitMS > *p.MaxLockWaitMS || stallOf(ph, comps) > *p.MaxLockWaitMS {
+			if math.Max(ph.Locks.MaxLockWaitMS, ph.LoggedWaits.MaxWorkloadWaitMS) > *p.MaxLockWaitMS || stallOf(ph, comps) > *p.MaxLockWaitMS {
 				hits++
 			}
 		}
