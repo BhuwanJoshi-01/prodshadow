@@ -69,7 +69,7 @@ inconclusive.
 
 | Key | Default | Description |
 |---|---|---|
-| `files` | — | Migration files, executed in order. `--migration` overrides. |
+| `files` | — | Migration files, executed in order. Glob patterns such as `migrations/*.sql` expand in lexical order; a pattern without matches is an error. `--migration` overrides. |
 | `lock_timeout_ms` | `1500` | Session `lock_timeout` for the migration. |
 | `statement_timeout_ms` | `60000` | Session `statement_timeout` for the migration. |
 | `start_after_seconds` | `5` | Delay into the measurement window, so pre-migration samples exist. Must be shorter than `measurement_seconds`. |
