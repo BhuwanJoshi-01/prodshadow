@@ -1,0 +1,63 @@
+name: Release
+
+# Builds release binaries on native runners (the SQL parser needs cgo, so
+# cross-compiling is avoided), with checksums and embedded build metadata.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - {os: ubuntu-24.04, goos: linux, goarch: amd64}
+          - {os: ubuntu-24.04-arm, goos: linux, goarch: arm64}
+          - {os: macos-15, goos: darwin, goarch: arm64}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Test
+        run: go test ./...
+      - name: Build
+        env:
+          CGO_ENABLED: "1"
+          VERSION: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          name="prodshadow_${VERSION#v}_${{ matrix.goos }}_${{ matrix.goarch }}"
+          mkdir -p "dist/$name"
+          go build -trimpath \
+            -ldflags "-s -w -X github.com/BhuwanJoshi-01/Open-Source-1/internal/version.Version=${VERSION} -X github.com/BhuwanJoshi-01/Open-Source-1/internal/version.Commit=${GITHUB_SHA} -X github.com/BhuwanJoshi-01/Open-Source-1/internal/version.Date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            -o "dist/$name/prodshadow" ./cmd/prodshadow
+          cp LICENSE NOTICE README.md "dist/$name/"
+          go version -m "dist/$name/prodshadow" > "dist/$name/BUILDINFO.txt"
+          tar -C dist -czf "dist/$name.tar.gz" "$name"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dist-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/*.tar.gz
+
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Checksums
+        run: cd dist && sha256sum *.tar.gz > SHA256SUMS
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: gh release create "$TAG" dist/* --repo "$GITHUB_REPOSITORY" --title "$TAG" --notes "See CHANGELOG.md for details." --draft
