@@ -13,7 +13,9 @@ import (
 type runner func(ctx context.Context, name string, args ...string) (stdout, stderr []byte, err error)
 
 func execRunner(ctx context.Context, name string, args ...string) ([]byte, []byte, error) {
-	cmd := exec.CommandContext(ctx, name, args...)
+	// name is the configured container CLI or a PostgreSQL binary; args is
+	// an argument vector, so no shell ever interprets configuration values.
+	cmd := exec.CommandContext(ctx, name, args...) //nolint:gosec // see comment above
 	var out, errOut bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, &errOut
 	err := cmd.Run()

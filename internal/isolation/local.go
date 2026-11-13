@@ -143,7 +143,7 @@ func (p *localProvider) Start(ctx context.Context, spec Spec) (*Server, error) {
 		return fail(commandError("initdb", "", stderr, err))
 	}
 
-	srv.host, srv.port, err = localListen(spec.Network, sockDir)
+	srv.host, srv.port, err = localListen(ctx, spec.Network, sockDir)
 	if err != nil {
 		return fail(err)
 	}
@@ -159,13 +159,18 @@ func (p *localProvider) Start(ctx context.Context, spec Spec) (*Server, error) {
 	if err != nil {
 		return fail(err)
 	}
-	cmd := exec.Command(filepath.Join(bin, "postgres"), args...)
+	// The binary comes from a verified bin directory and the arguments are
+	// an argument vector, not a shell command line.
+	cmd := exec.Command(filepath.Join(bin, "postgres"), args...) //nolint:gosec // see comment above
 	cmd.Stdout, cmd.Stderr = logFile, logFile
-	if err := cmd.Start(); err != nil {
-		logFile.Close()
-		return fail(fmt.Errorf("start postgres: %w", err))
+	startErr := cmd.Start()
+	// The child process keeps its own descriptor for the log file.
+	if err := logFile.Close(); err != nil && startErr == nil {
+		startErr = err
 	}
-	logFile.Close()
+	if startErr != nil {
+		return fail(fmt.Errorf("start postgres: %w", startErr))
+	}
 	p.mu.Lock()
 	p.procs[srv.id] = cmd
 	p.mu.Unlock()
@@ -197,16 +202,19 @@ func (p *localProvider) Start(ctx context.Context, spec Spec) (*Server, error) {
 }
 
 // localListen chooses the address the local server listens on.
-func localListen(network, sockDir string) (string, int, error) {
+func localListen(ctx context.Context, network, sockDir string) (string, int, error) {
 	if network == "none" {
 		return sockDir, 5432, nil
 	}
-	l, err := net.Listen("tcp", "127.0.0.1:0")
+	var lc net.ListenConfig
+	l, err := lc.Listen(ctx, "tcp", "127.0.0.1:0")
 	if err != nil {
 		return "", 0, fmt.Errorf("find a free loopback port: %w", err)
 	}
 	port := l.Addr().(*net.TCPAddr).Port
-	l.Close()
+	if err := l.Close(); err != nil {
+		return "", 0, err
+	}
 	return "127.0.0.1", port, nil
 }
 
