@@ -80,12 +80,12 @@ func (p *containerProvider) Start(ctx context.Context, spec Spec) (*Server, erro
 	sockDir := filepath.Join(scratch, "sock")
 	if spec.Network == "none" {
 		if err := os.Mkdir(sockDir, 0o700); err != nil {
-			p.cleanupScratch(srv)
-			return nil, err
+			return nil, errors.Join(err, p.cleanupScratch(srv))
 		}
-		if err := os.Chmod(sockDir, 0o777); err != nil {
-			p.cleanupScratch(srv)
-			return nil, err
+		// The container's postgres user must create its socket here; the
+		// 0700 parent directory still keeps other host users out.
+		if err := os.Chmod(sockDir, 0o777); err != nil { //nolint:gosec // see comment above
+			return nil, errors.Join(err, p.cleanupScratch(srv))
 		}
 		srv.host = sockDir
 	}
@@ -93,13 +93,11 @@ func (p *containerProvider) Start(ctx context.Context, spec Spec) (*Server, erro
 	args := p.runArgs(spec, srv, sockDir)
 	out, stderr, err := p.run(ctx, p.binary, args...)
 	if err != nil {
-		p.cleanupScratch(srv)
-		return nil, commandError(p.binary, "run", stderr, err)
+		return nil, errors.Join(commandError(p.binary, "run", stderr, err), p.cleanupScratch(srv))
 	}
 	srv.id = strings.TrimSpace(string(out))
 	if srv.id == "" {
-		p.cleanupScratch(srv)
-		return nil, fmt.Errorf("%s run returned no container ID", p.binary)
+		return nil, errors.Join(fmt.Errorf("%s run returned no container ID", p.binary), p.cleanupScratch(srv))
 	}
 
 	if spec.Network == "loopback" {
