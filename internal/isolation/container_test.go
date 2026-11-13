@@ -84,7 +84,11 @@ func TestStartFailureCleansUp(t *testing.T) {
 		}
 		return nil, nil, nil
 	}
-	_, err := p.Start(context.Background(), testSpec())
+	spec := testSpec()
+	// Loopback works on every OS; network "none" is refused off Linux
+	// before the engine is called.
+	spec.Network = "loopback"
+	_, err := p.Start(context.Background(), spec)
 	if err == nil || !strings.Contains(err.Error(), "image not found") {
 		t.Fatalf("expected run failure, got %v", err)
 	}
