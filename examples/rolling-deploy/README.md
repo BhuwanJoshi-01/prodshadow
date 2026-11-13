@@ -13,5 +13,12 @@ on `v1_get_product`: once the column is gone every old-version query fails
 with `undefined_column`. The static rule `PS109` asks for an explicit review
 of the destructive change.
 
+You may also see `OBS005 p95-latency-regression` on `v2_get_product`. That is
+a real second-order effect, not noise: after the drop, old-version clients
+produce thousands of failing queries per second, and the server work spent on
+those errors slows the healthy new-version queries (in our runs p95 rose by
+about 1.7× while baseline repeats varied by 4 %). An error storm from stale
+clients is itself an availability risk.
+
 **What to change:** ship a release that stops reading `legacy_sku`, wait
 until no instance of the old version is running, then drop the column.
