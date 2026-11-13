@@ -105,6 +105,9 @@ func runInspect(_ context.Context, env *Env, args []string) int {
 		return ExitInvalid
 	}
 
+	if inGitHubActions(env) && *format == "text" {
+		writeAnnotations(env.Stdout, risk.FromStatic(findings))
+	}
 	if threshold > 0 {
 		for _, f := range findings {
 			if !f.Suppressed && f.Severity.Rank() >= threshold {

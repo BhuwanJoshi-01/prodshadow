@@ -147,6 +147,9 @@ func runVerify(ctx context.Context, env *Env, args []string) int {
 		return ExitInfra
 	}
 	printSummary(env, rep, written)
+	if inGitHubActions(env) {
+		writeAnnotations(env.Stdout, rep.Findings)
+	}
 	return rep.Decision.ExitCode
 }
 
