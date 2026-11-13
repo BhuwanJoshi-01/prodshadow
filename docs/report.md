@@ -1,6 +1,6 @@
 # Report format
 
-`verify` writes up to three files to the report directory:
+`verify` writes up to four files to the report directory:
 
 * `report.json` – the machine-readable contract, validated against
   [`schemas/report.v1.schema.json`](../schemas/report.v1.schema.json);
