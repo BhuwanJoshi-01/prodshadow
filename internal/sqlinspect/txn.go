@@ -32,7 +32,7 @@ func (g Group) InTransaction() bool { return g.Wrapped || g.Explicit }
 // migration executor and the static rules use the same plan so that a
 // finding about transaction scope matches what is actually executed.
 func Plan(stmts []*Statement, mode TransactionMode) []Group {
-	var groups []Group
+	groups := make([]Group, 0, len(stmts))
 	for _, file := range byFile(stmts) {
 		groups = append(groups, planFile(file, mode)...)
 	}

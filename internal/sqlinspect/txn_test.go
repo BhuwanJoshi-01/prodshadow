@@ -4,7 +4,7 @@ import "testing"
 
 func parse(t *testing.T, files ...string) []*Statement {
 	t.Helper()
-	var srcs []Source
+	srcs := make([]Source, 0, len(files))
 	for i, f := range files {
 		srcs = append(srcs, Source{Path: string(rune('a'+i)) + ".sql", Content: f})
 	}

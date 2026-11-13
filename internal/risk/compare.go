@@ -106,7 +106,8 @@ func Compare(res *experiment.Result) []Comparison {
 
 func side(xs []workload.ScenarioStats) Side {
 	s := Side{Repeats: len(xs)}
-	var p50, p95, p99, thr []float64
+	var p50, p95, p99 []float64
+	thr := make([]float64, 0, len(xs))
 	for _, x := range xs {
 		s.Ops += x.Ops
 		s.Errors += x.Errors
