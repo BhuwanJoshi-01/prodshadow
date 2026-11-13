@@ -1,0 +1,106 @@
+name: ProdShadow migration rehearsal
+description: Rehearse PostgreSQL migrations under concurrent load in a disposable database and gate CI on the measured evidence.
+author: BhuwanJoshi-01
+branding:
+  icon: shield
+  color: blue
+
+inputs:
+  config:
+    description: Path to prodshadow.yaml, relative to working-directory.
+    default: prodshadow.yaml
+  migrations:
+    description: Optional newline-separated migration files overriding migration.files.
+    default: ""
+  working-directory:
+    description: Directory to run in.
+    default: .
+  report-directory:
+    description: Directory for report.json, report.md and report.html.
+    default: prodshadow-results
+  version:
+    description: ProdShadow version to install (a tag, branch or commit). Defaults to the ref of this action.
+    default: ""
+  go-version:
+    description: Go toolchain used to build ProdShadow.
+    default: "1.27"
+  upload-artifact:
+    description: Upload the report directory as a workflow artifact.
+    default: "true"
+  artifact-name:
+    description: Name of the uploaded artifact.
+    default: prodshadow-report
+  fail:
+    description: Fail the step when ProdShadow exits non-zero. Set to "false" to only report.
+    default: "true"
+
+outputs:
+  exit-code:
+    description: Exit code of prodshadow verify (0 pass, 2 block, 3 invalid, 4 infrastructure, 5 inconclusive).
+    value: ${{ steps.verify.outputs.exit-code }}
+  decision:
+    description: pass, block, inconclusive or error.
+    value: ${{ steps.verify.outputs.decision }}
+  report-directory:
+    description: Absolute path of the report directory.
+    value: ${{ steps.verify.outputs.report-directory }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      with:
+        go-version: ${{ inputs.go-version }}
+        cache: false
+
+    - name: Install prodshadow
+      shell: bash
+      env:
+        PS_VERSION: ${{ inputs.version }}
+        PS_ACTION_REF: ${{ github.action_ref }}
+      run: |
+        set -euo pipefail
+        version="${PS_VERSION:-${PS_ACTION_REF:-main}}"
+        CGO_ENABLED=1 go install "github.com/BhuwanJoshi-01/Open-Source-1/cmd/prodshadow@${version}"
+        prodshadow version
+
+    - name: Run prodshadow verify
+      id: verify
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        PS_CONFIG: ${{ inputs.config }}
+        PS_MIGRATIONS: ${{ inputs.migrations }}
+        PS_REPORT_DIR: ${{ inputs.report-directory }}
+      run: |
+        set -uo pipefail
+        args=(verify --config "$PS_CONFIG" --output "$PS_REPORT_DIR")
+        while IFS= read -r m; do
+          [ -n "$m" ] && args+=(--migration "$m")
+        done <<< "$PS_MIGRATIONS"
+        prodshadow "${args[@]}"
+        code=$?
+        decision="error"
+        if [ -f "$PS_REPORT_DIR/report.json" ]; then
+          decision="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["ci_decision"])' "$PS_REPORT_DIR/report.json" 2>/dev/null || echo error)"
+        fi
+        {
+          echo "exit-code=$code"
+          echo "decision=$decision"
+          echo "report-directory=$(cd "$PS_REPORT_DIR" 2>/dev/null && pwd || echo "$PS_REPORT_DIR")"
+        } >> "$GITHUB_OUTPUT"
+
+    - name: Upload report
+      if: always() && inputs.upload-artifact == 'true' && steps.verify.outputs.report-directory != ''
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: ${{ steps.verify.outputs.report-directory }}
+        if-no-files-found: ignore
+
+    - name: Apply decision
+      if: inputs.fail == 'true'
+      shell: bash
+      env:
+        PS_EXIT: ${{ steps.verify.outputs.exit-code }}
+      run: exit "${PS_EXIT:-1}"
