@@ -1,0 +1,28 @@
+# Dropping a column while the previous application version still reads it.
+# Expected decision: block (OBS007).
+version: 1
+project: rolling-deploy
+postgres:
+  version: "17"
+  image: postgres:17-alpine
+  isolation:
+    memory_mb: 1024
+    cpus: 2
+fixture:
+  schema: ./fixtures/schema.sql
+  seed_sql: ./fixtures/seed.sql
+workload:
+  file: ./workloads/workload.yaml
+  warmup_seconds: 3
+  measurement_seconds: 15
+  concurrency: 8
+  repeats: 3
+migration:
+  files: [./migrations/0030_drop_legacy_sku.sql]
+  lock_timeout_ms: 2000
+  start_after_seconds: 4
+policy:
+  fail_on: [critical]
+  max_error_rate_increase_pct_points: 1
+report:
+  formats: [json, markdown]
