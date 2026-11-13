@@ -54,6 +54,19 @@ Static analysis only; needs no database or container engine.
 | `--format` | `text` | `text`, `json`, `markdown` or `sarif`. |
 | `--fail-on` | — | Exit 2 if an unsuppressed finding is at least this severe (`info`, `warning`, `critical`; inconclusive findings count as more severe than critical). |
 
+## `prodshadow plan`
+
+Shows what `verify` would run — server, isolation limits, fixture, workload
+sessions, the alternating phase schedule, transaction groups with predicted
+locks, and an estimated duration — without starting anything. Capacity
+problems (too many sessions for `max_connections`) are listed as warnings.
+
+| Flag | Default | |
+|---|---|---|
+| `--config` | `prodshadow.yaml` | Configuration file. |
+| `--migration` | `migration.files` | Override the migration files (repeatable). |
+| `--json` | `false` | Machine-readable output. |
+
 ## `prodshadow verify`
 
 Runs the experiment and writes reports.
