@@ -52,6 +52,25 @@ func addedConstraints(c *Context, s *Statement) (string, []*pg_query.Constraint)
 func checkValidatedConstraint(c *Context, s *Statement) []Finding {
 	table, cons := addedConstraints(c, s)
 	var out []Finding
+	// ADD COLUMN ... REFERENCES validates immediately and cannot be NOT VALID.
+	_, cmds := alterCmds(c, s)
+	for _, cmd := range cmds {
+		if cmd.Subtype != pg_query.AlterTableType_AT_AddColumn {
+			continue
+		}
+		col := cmd.Def.GetColumnDef()
+		for _, n := range col.GetConstraints() {
+			con := n.GetConstraint()
+			if con == nil || con.Contype != pg_query.ConstrType_CONSTR_FOREIGN {
+				continue
+			}
+			ref := relName(con.Pktable)
+			f := at(s, fmt.Sprintf("Adding column %s with REFERENCES %s validates every existing row of %s while holding SHARE ROW EXCLUSIVE on %s; an inline foreign key cannot be added NOT VALID.", col.Colname, ref, table, ref))
+			f.Table, f.Lock = table, pglock.AccessExclusive
+			f.Remediation = "Add the column without REFERENCES, then ADD CONSTRAINT ... FOREIGN KEY ... NOT VALID and VALIDATE CONSTRAINT in a separate transaction."
+			out = append(out, f)
+		}
+	}
 	for _, con := range cons {
 		if con.SkipValidation {
 			continue
