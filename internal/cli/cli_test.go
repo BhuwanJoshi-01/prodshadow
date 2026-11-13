@@ -289,3 +289,22 @@ func TestDiffRequiresBothReports(t *testing.T) {
 		t.Fatalf("diff of a report with itself: %+v", r)
 	}
 }
+
+func TestInspectExpandsGlobsInOrder(t *testing.T) {
+	dir := t.TempDir()
+	os.MkdirAll(filepath.Join(dir, "migrations"), 0o755)
+	writeFile(t, filepath.Join(dir, "migrations", "0002_b.sql"), "CREATE INDEX b ON t (b);\n")
+	writeFile(t, filepath.Join(dir, "migrations", "0001_a.sql"), "CREATE INDEX a ON t (a);\n")
+	r := run(t, dir, nil, "inspect", "--migration", "migrations/*.sql", "--format", "json")
+	if r.code != ExitOK {
+		t.Fatalf("inspect glob: %+v", r)
+	}
+	first := strings.Index(r.stdout, "0001_a.sql")
+	second := strings.Index(r.stdout, "0002_b.sql")
+	if first < 0 || second < 0 || first > second {
+		t.Fatalf("files not expanded in lexical order:\n%s", r.stdout)
+	}
+	if r := run(t, dir, nil, "inspect", "--migration", "nothing/*.sql"); r.code != ExitInvalid || !strings.Contains(r.stderr, "matches no files") {
+		t.Fatalf("empty glob: %+v", r)
+	}
+}
