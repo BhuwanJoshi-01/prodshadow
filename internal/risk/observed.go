@@ -10,6 +10,7 @@ import (
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/evidence"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/experiment"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/migrate"
+	"github.com/BhuwanJoshi-01/Open-Source-1/internal/pglock"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/sqlinspect"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/stats"
 )
@@ -126,7 +127,10 @@ func observedFindings(cfg *config.Config, res *experiment.Result, comps []Compar
 		}
 		f := newFinding("OBS001", conf, reason, fmt.Sprintf("Workload sessions waited up to %.0f ms while the migration ran (%s), exceeding the %.0f ms budget.", observed, source, *p.MaxLockWaitMS))
 		f.Observed, f.Threshold, f.Unit = ptr(observed), ptr(*p.MaxLockWaitMS), "ms"
-		f.Table = relation
+		locate(&f, stmts, responsibleStatement(cands, stmts))
+		if relation != "" {
+			f.Table = relation
+		}
 		f.Remediation = "Keep blocking DDL short: set a low lock_timeout with retries, avoid running it while long transactions are open, or use a non-blocking variant."
 		out = append(out, f)
 	}
@@ -142,7 +146,11 @@ func observedFindings(cfg *config.Config, res *experiment.Result, comps []Compar
 			msg += " The migration itself waited for: " + strings.Join(blockers, ", ") + "."
 		}
 		f := newFinding("OBS011", conf, reason, msg)
-		f.Observed, f.Unit, f.Table = ptr(float64(maxQueued)), "sessions", relation
+		f.Observed, f.Unit = ptr(float64(maxQueued)), "sessions"
+		locate(&f, stmts, responsibleStatement(cands, stmts))
+		if relation != "" {
+			f.Table = relation
+		}
 		out = append(out, f)
 	}
 
@@ -159,6 +167,36 @@ func observedFindings(cfg *config.Config, res *experiment.Result, comps []Compar
 		out = append(out, f)
 	}
 	return out
+}
+
+// responsibleStatement picks the migration statement most likely to have
+// caused waits: the longest-running statement whose predicted lock blocks
+// writes or reads, or else the longest-running statement overall.
+func responsibleStatement(cands []experiment.PhaseResult, stmts []*sqlinspect.Statement) string {
+	blocking := map[string]bool{}
+	for _, s := range stmts {
+		switch s.StrongestLock().Impact() {
+		case pglock.ImpactWrites, pglock.ImpactAllTraffic:
+			blocking[s.ID] = true
+		}
+	}
+	longest := map[string]float64{}
+	for _, ph := range cands {
+		if ph.Migration == nil {
+			continue
+		}
+		for _, so := range ph.Migration.Statements {
+			longest[so.StatementID] = math.Max(longest[so.StatementID], so.DurationMS)
+		}
+	}
+	best, bestBlocking, bestDur := "", false, -1.0
+	for id, d := range longest {
+		b := blocking[id]
+		if (b && !bestBlocking) || (b == bestBlocking && (d > bestDur || (d == bestDur && id < best))) {
+			best, bestBlocking, bestDur = id, b, d
+		}
+	}
+	return best
 }
 
 func stallOf(ph experiment.PhaseResult, comps []Comparison) float64 {

@@ -8,6 +8,7 @@ import (
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/config"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/evidence"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/experiment"
+	"github.com/BhuwanJoshi-01/Open-Source-1/internal/migrate"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/sqlinspect"
 )
 
@@ -67,6 +68,9 @@ func TestLockWaitBudget(t *testing.T) {
 	f := byRule(a, "OBS001")
 	if f == nil || *f.Observed != 1518 || *f.Threshold != 1000 || f.Confidence != evidence.High {
 		t.Fatalf("lock wait finding = %+v", f)
+	}
+	if f.StatementID != "1.1" || f.Line != 1 || f.Table != "orders" {
+		t.Fatalf("lock wait finding should point at the migration statement: %+v", f)
 	}
 }
 
@@ -149,3 +153,17 @@ func TestOverridesAndSuppressions(t *testing.T) {
 }
 
 var _ = experiment.Baseline
+
+func TestResponsibleStatementPrefersBlockingStatements(t *testing.T) {
+	stmts, err := sqlinspect.ParseSources([]sqlinspect.Source{{Path: "m.sql", Content: "SET lock_timeout = '1s';\nCREATE INDEX i ON orders (status);\nANALYZE orders;"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	res := quietResult()
+	res.Phases[1].Migration.Statements = []migrate.StatementOutcome{
+		{StatementID: "1.1", DurationMS: 1}, {StatementID: "1.2", DurationMS: 800}, {StatementID: "1.3", DurationMS: 900},
+	}
+	if got := responsibleStatement(candidates(res), stmts); got != "1.2" {
+		t.Fatalf("got %s, want the blocking CREATE INDEX (1.2)", got)
+	}
+}
