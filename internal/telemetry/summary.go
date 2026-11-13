@@ -29,8 +29,10 @@ type Summary struct {
 	MigrationMaxWaitMS    float64  `json:"migration_max_wait_ms"`
 	MigrationBlockedBy    []string `json:"migration_blocked_by,omitempty"`
 	MaxBlockedByMigration int      `json:"max_blocked_by_migration"`
-	// Longest open transaction of any observed session.
-	MaxXactMS float64        `json:"max_transaction_ms"`
+	// Longest open transaction of any observed session, and its owner;
+	// usually the blocker the migration had to wait for.
+	MaxXactMS  float64 `json:"max_transaction_ms"`
+	MaxXactApp string  `json:"max_transaction_application,omitempty"`
 	Relations []RelationWait `json:"relations,omitempty"`
 	Timeline  []Point        `json:"timeline,omitempty"`
 }
@@ -83,7 +85,9 @@ func Summarize(samples []Sample, failed int, interval time.Duration, measureStar
 		perRel := map[[2]string]int{}
 		sampleMax := 0.0
 		for _, x := range smp.Sessions {
-			s.MaxXactMS = math.Max(s.MaxXactMS, x.XactMS)
+			if x.XactMS > s.MaxXactMS {
+				s.MaxXactMS, s.MaxXactApp = x.XactMS, x.Application
+			}
 			if !x.WaitingOnLock() {
 				continue
 			}

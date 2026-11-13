@@ -33,7 +33,7 @@ func TestSummarizeLockQueue(t *testing.T) {
 	if s.MigrationMaxWaitMS != 500 || !reflect.DeepEqual(s.MigrationBlockedBy, []string{"pid 42", "prodshadow/background/report/0"}) {
 		t.Fatalf("migration stats wrong: %+v", s)
 	}
-	if s.MaxXactMS != 3100 || s.MaxGapMS != 1050 {
+	if s.MaxXactMS != 3100 || s.MaxXactApp != "prodshadow/background/report/0" || s.MaxGapMS != 1050 {
 		t.Fatalf("xact/gap wrong: %+v", s)
 	}
 	if s.WaitingSessionSeconds != 0.3 {
