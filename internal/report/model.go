@@ -165,6 +165,7 @@ type Phase struct {
 	DuringMigration []workload.ScenarioStats `json:"during_migration,omitempty"`
 	Timeline        []workload.Bucket        `json:"timeline"`
 	Locks           telemetry.Summary        `json:"locks"`
+	LoggedWaits     telemetry.LogSummary     `json:"logged_waits"`
 	Counters        telemetry.Counters       `json:"counters"`
 	Migration       *migrate.Outcome         `json:"migration,omitempty"`
 }
@@ -172,7 +173,7 @@ type Phase struct {
 func phaseOf(p experiment.PhaseResult) Phase {
 	return Phase{Kind: string(p.Kind), Repeat: p.Repeat, MeasuredSec: p.MeasuredSec, Sessions: p.Sessions,
 		Scenarios: p.Scenarios, DuringMigration: p.DuringMigration, Timeline: p.Timeline,
-		Locks: p.Locks, Counters: p.Counters, Migration: p.Migration}
+		Locks: p.Locks, LoggedWaits: p.LoggedWaits, Counters: p.Counters, Migration: p.Migration}
 }
 
 // Environment records where and how the run happened.

@@ -242,15 +242,19 @@ func (r *Report) mdLocks(w writer) {
 		return
 	}
 	w("## Lock telemetry (candidate phases)\n\n")
-	w("Sampled every %d ms from `pg_stat_activity` and `pg_locks`; waits shorter than the interval can be missed.\n\n", rows[0].Locks.SampleIntervalMS)
-	w("| Repeat | Migration waited | Migration blocked by | Sessions queued behind migration | Longest workload lock wait | Samples |\n|---|---|---|---|---|---|\n")
+	w("Sampled every %d ms from `pg_stat_activity` and `pg_locks`; waits shorter than the interval can be missed. *Logged* waits come from the server log (`log_lock_waits`), which records every wait longer than `deadlock_timeout` exactly.\n\n", rows[0].Locks.SampleIntervalMS)
+	w("| Repeat | Migration waited | Migration blocked by | Sessions queued behind migration | Longest workload lock wait | Logged waits | Samples |\n|---|---|---|---|---|---|---|\n")
 	for _, p := range rows {
 		blockedBy := strings.Join(p.Locks.MigrationBlockedBy, ", ")
 		if blockedBy == "" {
 			blockedBy = "–"
 		}
-		w("| %d | %s | %s | %d | %s | %d |\n", p.Repeat+1, fmtMS(p.Locks.MigrationMaxWaitMS), esc(blockedBy),
-			p.Locks.MaxBlockedByMigration, fmtMS(p.Locks.MaxLockWaitMS), p.Locks.Samples)
+		logged := "–"
+		if p.LoggedWaits.Events > 0 {
+			logged = fmt.Sprintf("%d (workload max %s)", p.LoggedWaits.Events, fmtMS(p.LoggedWaits.MaxWorkloadWaitMS))
+		}
+		w("| %d | %s | %s | %d | %s | %s | %d |\n", p.Repeat+1, fmtMS(p.Locks.MigrationMaxWaitMS), esc(blockedBy),
+			p.Locks.MaxBlockedByMigration, fmtMS(p.Locks.MaxLockWaitMS), logged, p.Locks.Samples)
 	}
 	w("\n")
 }
