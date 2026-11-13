@@ -95,6 +95,26 @@ Re-renders a JSON report written by `verify`.
 | `--format` | `markdown` | `markdown`, `html`, `json`, `sarif` or `junit`. |
 | `--output` | stdout | Output file. |
 
+## `prodshadow diff`
+
+Compares two JSON reports — typically a migration and its rewritten
+alternative — and prints the decision change, findings resolved, introduced
+and persisting, and each scenario's candidate p95, stall and error rate.
+Runs with different fixtures, workloads or PostgreSQL versions are flagged as
+not directly comparable.
+
+```bash
+prodshadow verify --output out/original
+prodshadow verify --migration alternatives/0012_concurrently.sql --output out/alternative
+prodshadow diff --base out/original/report.json --head out/alternative/report.json
+```
+
+| Flag | Default | |
+|---|---|---|
+| `--base` | — | Report of the original migration. |
+| `--head` | — | Report of the alternative. |
+| `--json` | `false` | Machine-readable output. |
+
 ## `prodshadow doctor`
 
 Checks the platform, the configuration (if present), the container engine
