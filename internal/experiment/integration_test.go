@@ -95,6 +95,10 @@ func TestBlockingMigrationIsObserved(t *testing.T) {
 		if ph.Locks.MaxBlockedByMigration < 1 || len(ph.Locks.MigrationBlockedBy) == 0 {
 			t.Fatalf("lock attribution missing: %+v", ph.Locks)
 		}
+		// The server log must corroborate the sampled waits.
+		if ph.LoggedWaits.Events == 0 || ph.LoggedWaits.MaxMigrationWaitMS < 200 || ph.LoggedWaits.MaxWorkloadWaitMS < 200 {
+			t.Fatalf("logged lock waits missing: %+v", ph.LoggedWaits)
+		}
 		t.Logf("candidate repeat %d: migration waited %.0fms, %d sessions queued behind it, read max %.0fms",
 			ph.Repeat, ph.Locks.MigrationMaxWaitMS, ph.Locks.MaxBlockedByMigration, ph.DuringMigration[0].MaxObservedMS)
 	}
