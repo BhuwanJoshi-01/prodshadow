@@ -33,3 +33,19 @@ func TestLocalProviderHasNoOrphans(t *testing.T) {
 		t.Fatalf("got %v", err)
 	}
 }
+
+func TestImagePresent(t *testing.T) {
+	p := newContainerProvider("docker", "")
+	p.run = func(ctx context.Context, name string, args ...string) ([]byte, []byte, error) {
+		if args[len(args)-1] == "postgres:17-alpine" {
+			return []byte("sha256:abc"), nil, nil
+		}
+		return nil, []byte("No such image"), errors.New("exit status 1")
+	}
+	if ok, err := ImagePresent(context.Background(), p, "postgres:17-alpine"); !ok || err != nil {
+		t.Fatalf("present image: %v %v", ok, err)
+	}
+	if ok, err := ImagePresent(context.Background(), p, "postgres:99"); ok || err != nil {
+		t.Fatalf("missing image: %v %v", ok, err)
+	}
+}

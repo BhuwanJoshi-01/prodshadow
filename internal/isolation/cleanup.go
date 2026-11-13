@@ -48,3 +48,20 @@ func RemoveOrphans(ctx context.Context, p Provider, ids []string) error {
 	}
 	return errors.Join(errs...)
 }
+
+// ImagePresent reports whether a container image is available locally. A
+// missing image is pulled on first use, which needs registry access.
+func ImagePresent(ctx context.Context, p Provider, image string) (bool, error) {
+	cp, ok := p.(*containerProvider)
+	if !ok {
+		return false, ErrNoCleanup
+	}
+	_, stderr, err := cp.run(ctx, cp.binary, "image", "inspect", "--format", "{{.Id}}", image)
+	if err == nil {
+		return true, nil
+	}
+	if len(stderr) > 0 {
+		return false, nil
+	}
+	return false, commandError(cp.binary, "image inspect", stderr, err)
+}
