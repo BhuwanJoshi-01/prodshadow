@@ -8,6 +8,7 @@ import (
 
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/config"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/experiment"
+	"github.com/BhuwanJoshi-01/Open-Source-1/internal/migrate"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/risk"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/security"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/sqlinspect"
@@ -137,7 +138,19 @@ func Build(in Input) *Report {
 			r.Fixture.GeneratedRows += rows.Rows
 		}
 		for _, p := range res.Phases {
-			r.Phases = append(r.Phases, phaseOf(p))
+			ph := phaseOf(p)
+			if ph.Migration != nil {
+				// Copy before redacting so the caller's result is untouched;
+				// server error messages can echo SQL literals.
+				m := *ph.Migration
+				m.Error = red.String(m.Error)
+				m.Statements = append([]migrate.StatementOutcome(nil), m.Statements...)
+				for i := range m.Statements {
+					m.Statements[i].Error = red.String(m.Statements[i].Error)
+				}
+				ph.Migration = &m
+			}
+			r.Phases = append(r.Phases, ph)
 		}
 		if res.CleanupError != "" {
 			r.Errors = append(r.Errors, "cleanup: "+red.String(res.CleanupError))
