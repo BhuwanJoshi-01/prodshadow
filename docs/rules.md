@@ -23,7 +23,7 @@ migration, because nothing else uses them yet.
 | `PS104` | add-column-not-null-without-default | warning | `ADD COLUMN … NOT NULL` without a default fails on any non-empty table. |
 | `PS105` | alter-column-type | warning | `ALTER COLUMN … TYPE` usually rewrites the table and its indexes; heuristic, because some conversions (e.g. `varchar(n)` → `text`) do not. |
 | `PS106` | set-not-null-scans-table | warning | `SET NOT NULL` scans every row under `ACCESS EXCLUSIVE` unless a validated `CHECK (col IS NOT NULL)` exists. |
-| `PS107` | constraint-validated-in-place | warning | Foreign key or `CHECK` added without `NOT VALID` validates all rows while holding a lock. |
+| `PS107` | constraint-validated-in-place | warning | Foreign key or `CHECK` added without `NOT VALID` — including an inline `ADD COLUMN … REFERENCES`, which cannot be `NOT VALID` — validates all rows while holding a lock. |
 | `PS108` | unique-constraint-builds-index | warning | `UNIQUE`, `PRIMARY KEY` or `EXCLUDE` constraint without `USING INDEX` builds its index under `ACCESS EXCLUSIVE`. |
 | `PS109` | destructive-change | warning | `DROP TABLE`, `DROP COLUMN`, `TRUNCATE`: data loss and application compatibility need explicit review. |
 | `PS110` | rename-breaks-running-code | warning | Renaming a table or column breaks instances still using the old name. |
