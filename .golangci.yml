@@ -1,0 +1,30 @@
+version: "2"
+run:
+  timeout: 5m
+linters:
+  default: standard
+  enable:
+    - bodyclose
+    - errorlint
+    - gosec
+    - misspell
+    - nilerr
+    - noctx
+    - prealloc
+    - unconvert
+    - unparam
+  settings:
+    gosec:
+      excludes:
+        # Report files and directories are meant to be readable by the CI user.
+        - G301
+        - G306
+        # Paths come from the user's own configuration.
+        - G304
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters: [gosec, noctx, unparam]
+formatters:
+  enable:
+    - gofmt
