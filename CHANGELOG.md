@@ -10,7 +10,7 @@ versioning; the report schema (`schema_version`) is versioned separately.
 - `prodshadow init`, `validate`, `inspect`, `verify`, `report`, `doctor`,
   `cleanup`, `rules`, `schema` and `version` commands.
 - Static analysis with the PostgreSQL 17 grammar: per-statement lock
-  classification and rules PS101–PS121, inline
+  classification and rules PS101–PS122, inline
   `prodshadow:ignore` annotations with reason and expiry.
 - Hardened Docker/Podman provider (no network, read-only root, tmpfs data,
   dropped capabilities, resource limits) and a local-binaries provider.
@@ -25,7 +25,7 @@ versioning; the report schema (`schema_version`) is versioned separately.
   counters.
 - Paired baseline/candidate experiment on fresh template copies with
   alternating order.
-- Risk evaluation (OBS001–OBS011, QUAL001–QUAL007) with confidence, noise
+- Risk evaluation (OBS001–OBS011, QUAL001–QUAL008) with confidence, noise
   bands, inconclusive handling and audited suppressions.
 - JSON (schema 1.0.0), Markdown and self-contained HTML reports with
   redaction.
