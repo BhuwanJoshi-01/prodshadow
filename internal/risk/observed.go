@@ -1,0 +1,293 @@
+package risk
+
+import (
+	"fmt"
+	"math"
+	"sort"
+	"strings"
+
+	"github.com/BhuwanJoshi-01/Open-Source-1/internal/config"
+	"github.com/BhuwanJoshi-01/Open-Source-1/internal/evidence"
+	"github.com/BhuwanJoshi-01/Open-Source-1/internal/experiment"
+	"github.com/BhuwanJoshi-01/Open-Source-1/internal/migrate"
+	"github.com/BhuwanJoshi-01/Open-Source-1/internal/sqlinspect"
+	"github.com/BhuwanJoshi-01/Open-Source-1/internal/stats"
+)
+
+const docLockTimeout = "https://www.postgresql.org/docs/current/runtime-config-client.html#GUC-LOCK-TIMEOUT"
+
+func rule(id string) ObservedRule {
+	for _, r := range ObservedRules {
+		if r.ID == id {
+			return r
+		}
+	}
+	return ObservedRule{ID: id, Name: strings.ToLower(id)}
+}
+
+func newFinding(id string, conf evidence.Confidence, reason, msg string) Finding {
+	r := rule(id)
+	kind := evidence.Observed
+	if strings.HasPrefix(id, "QUAL") {
+		kind = evidence.Quality
+	}
+	return Finding{RuleID: r.ID, Rule: r.Name, Severity: r.Severity, Confidence: conf, ConfidenceReason: reason, Evidence: kind, Message: msg}
+}
+
+func candidates(res *experiment.Result) []experiment.PhaseResult {
+	var out []experiment.PhaseResult
+	for _, ph := range res.Phases {
+		if ph.Kind == experiment.Candidate {
+			out = append(out, ph)
+		}
+	}
+	return out
+}
+
+// consistency describes how many candidate repeats showed an effect and
+// maps that to a confidence level.
+func consistency(hits, total int) (evidence.Confidence, string) {
+	reason := fmt.Sprintf("observed in %d of %d candidate repeats", hits, total)
+	switch {
+	case total >= 3 && hits == total:
+		return evidence.High, reason
+	case hits*2 > total:
+		return evidence.Medium, reason
+	default:
+		return evidence.Low, reason
+	}
+}
+
+func locate(f *Finding, stmts []*sqlinspect.Statement, id string) {
+	for _, s := range stmts {
+		if s.ID == id {
+			f.StatementID, f.File, f.Line = s.ID, s.File, s.StartLine
+			if t := s.Tables(); len(t) > 0 {
+				f.Table = t[0]
+			}
+			if l := s.StrongestLock(); l != 0 {
+				f.Lock = l.String()
+			}
+			return
+		}
+	}
+}
+
+// observedFindings evaluates experiment rules.
+func observedFindings(cfg *config.Config, res *experiment.Result, comps []Comparison, stmts []*sqlinspect.Statement) []Finding {
+	var out []Finding
+	cands := candidates(res)
+	if len(cands) == 0 {
+		return nil
+	}
+	p := cfg.Policy
+
+	// Lock-queue evidence: server-side waits and client-side stalls.
+	worstWait, blockedRepeats, maxQueued := 0.0, 0, 0
+	var blockers []string
+	var relation, mode string
+	for _, ph := range cands {
+		worstWait = math.Max(worstWait, ph.Locks.MaxLockWaitMS)
+		if ph.Locks.MaxBlockedByMigration > 0 {
+			blockedRepeats++
+		}
+		maxQueued = max(maxQueued, ph.Locks.MaxBlockedByMigration)
+		blockers = append(blockers, ph.Locks.MigrationBlockedBy...)
+		// Relations are sorted by longest wait; the first is normally the
+		// migration's own request.
+		if relation == "" && len(ph.Locks.Relations) > 0 {
+			relation, mode = ph.Locks.Relations[0].Relation, ph.Locks.Relations[0].Mode
+		}
+	}
+	blockers = uniq(blockers)
+	worstStall, stallScenario := 0.0, ""
+	for _, c := range comps {
+		if !c.Background && c.StallMS > worstStall {
+			worstStall, stallScenario = c.StallMS, c.Scenario
+		}
+	}
+	observed := math.Max(worstWait, worstStall)
+	source := "server-side lock wait"
+	if worstStall > worstWait {
+		source = fmt.Sprintf("client-side stall of scenario %s beyond its baseline p99", stallScenario)
+	}
+
+	if p.MaxLockWaitMS != nil && observed > *p.MaxLockWaitMS {
+		hits := 0
+		for _, ph := range cands {
+			if ph.Locks.MaxLockWaitMS > *p.MaxLockWaitMS || stallOf(ph, comps) > *p.MaxLockWaitMS {
+				hits++
+			}
+		}
+		conf, reason := consistency(hits, len(cands))
+		if blockedRepeats == 0 {
+			conf = conf.Lower(evidence.Medium)
+			reason += "; no server-side lock wait was sampled, the stall was measured client-side"
+		}
+		f := newFinding("OBS001", conf, reason, fmt.Sprintf("Workload sessions waited up to %.0f ms while the migration ran (%s), exceeding the %.0f ms budget.", observed, source, *p.MaxLockWaitMS))
+		f.Observed, f.Threshold, f.Unit = ptr(observed), ptr(*p.MaxLockWaitMS), "ms"
+		f.Table = relation
+		f.Remediation = "Keep blocking DDL short: set a low lock_timeout with retries, avoid running it while long transactions are open, or use a non-blocking variant."
+		out = append(out, f)
+	}
+
+	if maxQueued > 0 {
+		conf, reason := consistency(blockedRepeats, len(cands))
+		msg := fmt.Sprintf("Up to %d workload session(s) queued behind the migration's lock request", maxQueued)
+		if relation != "" {
+			msg += fmt.Sprintf(" (%s on %s)", mode, relation)
+		}
+		msg += fmt.Sprintf("; the longest sampled wait was %.0f ms.", worstWait)
+		if len(blockers) > 0 {
+			msg += " The migration itself waited for: " + strings.Join(blockers, ", ") + "."
+		}
+		f := newFinding("OBS011", conf, reason, msg)
+		f.Observed, f.Unit, f.Table = ptr(float64(maxQueued)), "sessions", relation
+		out = append(out, f)
+	}
+
+	out = append(out, migrationFindings(cfg, cands, stmts, blockers)...)
+	out = append(out, regressionFindings(cfg, comps, len(cands))...)
+
+	deadlocks := int64(0)
+	for _, ph := range cands {
+		deadlocks += ph.Counters.Deadlocks
+	}
+	if deadlocks > 0 {
+		f := newFinding("OBS010", evidence.High, "counted by pg_stat_database", fmt.Sprintf("%d deadlock(s) occurred in candidate phases.", deadlocks))
+		f.Observed, f.Unit = ptr(float64(deadlocks)), "deadlocks"
+		out = append(out, f)
+	}
+	return out
+}
+
+func stallOf(ph experiment.PhaseResult, comps []Comparison) float64 {
+	worst := 0.0
+	for i, d := range ph.DuringMigration {
+		if d.Background || i >= len(comps) {
+			continue
+		}
+		worst = math.Max(worst, d.MaxObservedMS-comps[i].Baseline.P99MS)
+	}
+	return worst
+}
+
+func migrationFindings(cfg *config.Config, cands []experiment.PhaseResult, stmts []*sqlinspect.Statement, blockers []string) []Finding {
+	var out []Finding
+	byState := map[string][]*migrate.Outcome{}
+	var durations []float64
+	for _, ph := range cands {
+		if ph.Migration == nil {
+			continue
+		}
+		durations = append(durations, ph.Migration.DurationMS)
+		if ph.Migration.Status == migrate.Failed {
+			byState[ph.Migration.SQLState] = append(byState[ph.Migration.SQLState], ph.Migration)
+		}
+	}
+	states := make([]string, 0, len(byState))
+	for s := range byState {
+		states = append(states, s)
+	}
+	sort.Strings(states)
+	for _, state := range states {
+		outs := byState[state]
+		first := outs[0]
+		conf, reason := consistency(len(outs), len(cands))
+		var f Finding
+		switch state {
+		case "55P03":
+			msg := fmt.Sprintf("The migration could not acquire its lock within lock_timeout (%d ms)", cfg.Migration.LockTimeoutMS)
+			if len(blockers) > 0 {
+				msg += " because " + strings.Join(blockers, ", ") + " held a conflicting lock"
+			}
+			msg += ". In production, without a lock_timeout, it would have waited — and every query queued behind it."
+			f = newFinding("OBS002", conf, reason, msg)
+			f.Remediation = "Run the statement with a short lock_timeout and retry with backoff, and avoid deploying while long transactions are open."
+			f.DocsURL = docLockTimeout
+		case "57014":
+			f = newFinding("OBS004", conf, reason, fmt.Sprintf("A migration statement exceeded statement_timeout (%d ms).", cfg.Migration.StatementTimeoutMS))
+			f.Remediation = "Split the statement, batch the data change, or use a variant that does not need to finish within one statement."
+		default:
+			f = newFinding("OBS003", conf, reason, fmt.Sprintf("Migration statement %s failed with SQLSTATE %s: %s", first.FailedStatement, state, first.Error))
+		}
+		locate(&f, stmts, first.FailedStatement)
+		out = append(out, f)
+	}
+	if p := cfg.Policy.MaxMigrationSeconds; p != nil && len(durations) > 0 {
+		med := stats.Median(durations) / 1000
+		if med > *p {
+			f := newFinding("OBS009", evidence.Medium, "median duration across candidate repeats; durations depend on fixture size and hardware",
+				fmt.Sprintf("The migration took %.1f s (median), longer than the %.1f s budget.", med, *p))
+			f.Observed, f.Threshold, f.Unit = ptr(med), ptr(*p), "s"
+			out = append(out, f)
+		}
+	}
+	return out
+}
+
+func regressionFindings(cfg *config.Config, comps []Comparison, repeats int) []Finding {
+	var out []Finding
+	p := cfg.Policy
+	for _, c := range comps {
+		if c.Background {
+			continue
+		}
+		noise := 0.0
+		if c.BaselineNoiseCV != nil {
+			noise = *c.BaselineNoiseCV
+		}
+		check := func(id, label string, ratio, limit *float64) {
+			if ratio == nil || limit == nil || *ratio <= *limit {
+				return
+			}
+			// A regression must exceed both the policy and three times
+			// the baseline's own variation to count as a finding.
+			band := math.Max(*limit, 1+3*noise)
+			if *ratio <= band {
+				f := newFinding(id, evidence.Low, fmt.Sprintf("ratio within the baseline noise band (%.2f×)", band),
+					fmt.Sprintf("%s latency of %s rose %.2f× (limit %.2f×), but baseline repeats varied by %.0f%%, so the change cannot be distinguished from noise.", label, c.Scenario, *ratio, *limit, noise*100))
+				f.Severity = evidence.Inconclusive
+				f.Scenario, f.Observed, f.Threshold, f.Unit = c.Scenario, ratio, limit, "ratio"
+				out = append(out, f)
+				return
+			}
+			conf, reason := evidence.High, fmt.Sprintf("median of %d repeats; baseline noise %.0f%%", repeats, noise*100)
+			if repeats < 3 || noise > 0.2 {
+				conf = evidence.Medium
+			}
+			f := newFinding(id, conf, reason, fmt.Sprintf("%s latency of %s rose %.2f× (limit %.2f×).", label, c.Scenario, *ratio, *limit))
+			f.Scenario, f.Observed, f.Threshold, f.Unit = c.Scenario, ratio, limit, "ratio"
+			out = append(out, f)
+		}
+		check("OBS005", "p95", c.P95Ratio, p.MaxP95LatencyRatio)
+		check("OBS006", "p99", c.P99Ratio, p.MaxP99LatencyRatio)
+
+		if p.MaxErrorRateIncreasePctPoints != nil && c.ErrorRateDeltaPP > *p.MaxErrorRateIncreasePctPoints {
+			f := newFinding("OBS007", evidence.High, fmt.Sprintf("%d failed of %d candidate operations", c.Candidate.Errors, c.Candidate.Ops),
+				fmt.Sprintf("The error rate of %s rose by %.2f percentage points (limit %.2f).", c.Scenario, c.ErrorRateDeltaPP, *p.MaxErrorRateIncreasePctPoints))
+			f.Scenario, f.Observed, f.Threshold, f.Unit = c.Scenario, ptr(c.ErrorRateDeltaPP), ptr(*p.MaxErrorRateIncreasePctPoints), "pct_points"
+			out = append(out, f)
+		}
+		if p.MaxThroughputDropPct != nil && c.ThroughputChangePct != nil && -*c.ThroughputChangePct > *p.MaxThroughputDropPct {
+			f := newFinding("OBS008", evidence.Medium, "median throughput across repeats",
+				fmt.Sprintf("Throughput of %s fell by %.1f%% (limit %.1f%%).", c.Scenario, -*c.ThroughputChangePct, *p.MaxThroughputDropPct))
+			f.Scenario, f.Observed, f.Threshold, f.Unit = c.Scenario, ptr(-*c.ThroughputChangePct), ptr(*p.MaxThroughputDropPct), "pct"
+			out = append(out, f)
+		}
+	}
+	return out
+}
+
+func uniq(xs []string) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, x := range xs {
+		if !seen[x] {
+			seen[x] = true
+			out = append(out, x)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
