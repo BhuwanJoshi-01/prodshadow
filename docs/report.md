@@ -41,6 +41,7 @@ with a different major version instead of misreading them.
 | `engine` | PostgreSQL version, runtime, image, network mode, resource limits, settings and their hash, parser grammar. |
 | `fixture`, `workload` | Hashes, table sizes, scenario descriptions (template IDs instead of SQL by default), seeds. |
 | `tool`, `git_sha`, `environment` | Reproduction metadata. |
+| `effective_config` | The configuration after defaults and environment overrides (redaction patterns omitted). |
 | `errors` | Infrastructure errors; any error makes the run `failed` (exit 4). |
 
 ## Finding
