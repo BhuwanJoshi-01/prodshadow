@@ -273,3 +273,19 @@ func TestPlan(t *testing.T) {
 		t.Fatalf("plan json: %+v %s", out, r.stdout)
 	}
 }
+
+func TestDiffRequiresBothReports(t *testing.T) {
+	if r := run(t, t.TempDir(), nil, "diff", "--base", "a.json"); r.code != ExitInvalid {
+		t.Fatalf("missing --head: %+v", r)
+	}
+	dir := initProject(t)
+	cfg := filepath.Join(dir, "prodshadow.yaml")
+	raw, _ := os.ReadFile(cfg)
+	writeFile(t, cfg, strings.Replace(string(raw), "  file: ./workloads/workload.yaml\n", "", 1))
+	run(t, dir, nil, "verify", "--quiet")
+	rep := filepath.Join("prodshadow-results", "report.json")
+	r := run(t, dir, nil, "diff", "--base", rep, "--head", rep)
+	if r.code != ExitOK || !strings.Contains(r.stdout, "INCONCLUSIVE → INCONCLUSIVE") || !strings.Contains(r.stdout, "**Resolved (0)**") {
+		t.Fatalf("diff of a report with itself: %+v", r)
+	}
+}
