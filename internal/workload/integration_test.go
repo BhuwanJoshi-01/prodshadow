@@ -129,3 +129,33 @@ func TestOpenLoopArrivals(t *testing.T) {
 		t.Fatalf("throughput %.1f/s far from the arrival rate", st.Throughput)
 	}
 }
+
+// TestOpenLoopCountsQueueing saturates a single session: arrivals that find
+// it busy are dropped, and latency includes the time spent waiting to be
+// served rather than only the query itself.
+func TestOpenLoopCountsQueueing(t *testing.T) {
+	ctx := context.Background()
+	_, srv := pgtest.Start(t)
+	spec, err := Parse([]byte("version: 1\nscenarios:\n  - {id: slow, weight: 1, mode: read, sql: \"SELECT pg_sleep(0.05)\"}\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := Run(ctx, spec, Options{
+		Concurrency: 1, ArrivalRate: 60, Measurement: 2 * time.Second, Seed: 1, Stream: "saturated",
+		Connect: func(ctx context.Context, app string) (*pgx.Conn, error) {
+			return srv.Connect(ctx, srv.Admin(), isolation.ConnOptions{ApplicationName: app})
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	st := Summarize(res, Window{})[0]
+	if st.ByClass["dropped"] == 0 {
+		t.Fatalf("a saturated session must drop arrivals: %+v", st)
+	}
+	// Each query takes 50 ms; queued arrivals wait for their predecessor.
+	if st.Latency.P95MS < 70 {
+		t.Fatalf("queueing time is missing from latency: p95 %.1f ms", st.Latency.P95MS)
+	}
+	t.Logf("dropped %d of %d arrivals, p95 %.1f ms", st.ByClass["dropped"], st.Ops, st.Latency.P95MS)
+}
