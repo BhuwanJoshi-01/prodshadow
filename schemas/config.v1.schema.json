@@ -92,7 +92,7 @@
       "additionalProperties": false,
       "properties": {
         "directory": {"type": "string", "default": "./prodshadow-results"},
-        "formats": {"type": "array", "items": {"enum": ["json", "markdown", "html", "sarif"]}, "default": ["json", "markdown"]}
+        "formats": {"type": "array", "items": {"enum": ["json", "markdown", "html", "sarif", "junit"]}, "default": ["json", "markdown"]}
       }
     },
     "privacy": {
