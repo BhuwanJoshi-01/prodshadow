@@ -58,6 +58,7 @@ func TestRedactExactAndUserPatterns(t *testing.T) {
 
 func TestNilRedactorIsSafe(t *testing.T) {
 	var r *Redactor
+	r.Add("ignored-secret")
 	if r.String("x") != "x" {
 		t.Fatal("nil redactor should pass text through")
 	}

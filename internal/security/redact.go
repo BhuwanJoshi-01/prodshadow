@@ -60,6 +60,9 @@ func NewRedactor(userPatterns []string) (*Redactor, error) {
 // Add registers exact secrets. Values shorter than 6 characters are ignored
 // to avoid redacting common words.
 func (r *Redactor) Add(secrets ...string) {
+	if r == nil {
+		return
+	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for _, s := range secrets {
