@@ -36,7 +36,9 @@ migration, because nothing else uses them yet.
 | `PS117` | procedural-code | info | `DO` blocks and `CALL` cannot be analysed statically. |
 | `PS118` | trigger-change-blocks-writes | info | `CREATE TRIGGER` and `ENABLE/DISABLE TRIGGER` take `SHARE ROW EXCLUSIVE`. |
 | `PS119` | foreign-key-locks-referenced-table | info | A new table's foreign key takes `SHARE ROW EXCLUSIVE` on the referenced table. |
+| `PS120` | ineffective-lock-timeout | warning | `SET lock_timeout = 0`, or a value above 10 s: queries can queue behind a waiting migration for that long. |
 | `PS121` | concurrent-index-caveats | info | `CREATE INDEX CONCURRENTLY` waits for older transactions and leaves an `INVALID` index if it fails. |
+| `PS122` | drop-index-blocks-traffic | warning | `DROP INDEX` without `CONCURRENTLY` takes `ACCESS EXCLUSIVE` on the owning table. |
 
 ## Observed rules
 
