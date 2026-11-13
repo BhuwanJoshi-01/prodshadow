@@ -73,7 +73,7 @@ func validateReferences(cfg *config.Config) config.Problems {
 		}
 	}
 	if len(cfg.Migration.Files) > 0 {
-		if _, _, err := loadMigrations(cfg.BaseDir(), cfg.Migration.Files); err != nil {
+		if _, err := loadMigrations(cfg.BaseDir(), cfg.Migration.Files); err != nil {
 			add("migration.files", err)
 		}
 	}

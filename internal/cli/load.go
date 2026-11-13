@@ -49,11 +49,11 @@ func display(base, p string) string {
 }
 
 // loadMigrations reads migration files in order and parses them.
-func loadMigrations(base string, files []string) ([]sqlinspect.Source, []*sqlinspect.Statement, error) {
+func loadMigrations(base string, files []string) ([]*sqlinspect.Statement, error) {
 	if len(files) == 0 {
-		return nil, nil, errors.New("no migration files: pass --migration or set migration.files")
+		return nil, errors.New("no migration files: pass --migration or set migration.files")
 	}
-	var srcs []sqlinspect.Source
+	srcs := make([]sqlinspect.Source, 0, len(files))
 	for _, f := range files {
 		abs := f
 		if !filepath.IsAbs(abs) {
@@ -61,15 +61,11 @@ func loadMigrations(base string, files []string) ([]sqlinspect.Source, []*sqlins
 		}
 		src, err := sqlinspect.ReadSource(abs, display(base, abs))
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		srcs = append(srcs, src)
 	}
-	stmts, err := sqlinspect.ParseSources(srcs)
-	if err != nil {
-		return srcs, stmts, err
-	}
-	return srcs, stmts, nil
+	return sqlinspect.ParseSources(srcs)
 }
 
 func printProblems(w io.Writer, ps config.Problems) {

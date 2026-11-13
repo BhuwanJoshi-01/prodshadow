@@ -61,7 +61,7 @@ func runInspect(_ context.Context, env *Env, args []string) int {
 		threshold = sev.Rank()
 	}
 
-	_, stmts, err := loadMigrations(base, files)
+	stmts, err := loadMigrations(base, files)
 	if err != nil {
 		fmt.Fprintf(env.Stderr, "prodshadow: %v\n", err)
 		return ExitInvalid
