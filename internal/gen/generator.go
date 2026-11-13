@@ -1,6 +1,7 @@
 package gen
 
 import (
+	"encoding/binary"
 	"fmt"
 	"math/rand/v2"
 	"strconv"
@@ -84,9 +85,10 @@ type zipf struct {
 
 func (g *zipf) Next(r *rand.Rand) any {
 	if g.z == nil || g.src != r {
-		g.z, g.src = rand.NewZipf(r, g.s, 1, uint64(g.max-g.min)), r
+		// Validate guarantees max > min, so the span is positive.
+		g.z, g.src = rand.NewZipf(r, g.s, 1, uint64(g.max-g.min)), r //nolint:gosec // span > 0
 	}
-	return g.min + int64(g.z.Uint64())
+	return g.min + int64(g.z.Uint64()) //nolint:gosec // bounded by the span
 }
 
 type choice struct {
@@ -156,11 +158,8 @@ type uuidGen struct{}
 
 func (uuidGen) Next(r *rand.Rand) any {
 	var b [16]byte
-	hi, lo := r.Uint64(), r.Uint64()
-	for i := 0; i < 8; i++ {
-		b[i] = byte(hi >> (56 - 8*i))
-		b[8+i] = byte(lo >> (56 - 8*i))
-	}
+	binary.BigEndian.PutUint64(b[:8], r.Uint64())
+	binary.BigEndian.PutUint64(b[8:], r.Uint64())
 	b[6] = (b[6] & 0x0f) | 0x40
 	b[8] = (b[8] & 0x3f) | 0x80
 	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])

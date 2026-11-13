@@ -14,5 +14,7 @@ import (
 func Stream(seed int64, name string) *rand.Rand {
 	h := fnv.New64a()
 	_, _ = h.Write([]byte(name))
-	return rand.New(rand.NewPCG(uint64(seed), h.Sum64()))
+	// A seeded, reproducible PRNG is the point here: these values model
+	// data and traffic, they are never secrets.
+	return rand.New(rand.NewPCG(uint64(seed), h.Sum64())) //nolint:gosec // deterministic by design
 }
