@@ -61,6 +61,7 @@ migration, because nothing else uses them yet.
 | [`PS141`](rules/PS141.md) | create-partition-locks-parent | warning | `CREATE TABLE ... PARTITION OF` takes `ACCESS EXCLUSIVE` on the partitioned table. |
 | [`PS142`](rules/PS142.md) | autovacuum-disabled | warning | Turning autovacuum off for a table lets dead rows and transaction ID age accumulate. |
 | [`PS143`](rules/PS143.md) | unlogged-table | warning | Unlogged tables are emptied after a crash and are not replicated to standbys. |
+| [`PS144`](rules/PS144.md) | row-security-disabled | warning | Disabling row-level security or dropping a policy exposes rows the policy used to hide. |
 
 ## Observed rules
 

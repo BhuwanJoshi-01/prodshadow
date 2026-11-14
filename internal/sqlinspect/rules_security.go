@@ -1,0 +1,57 @@
+package sqlinspect
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/BhuwanJoshi-01/Open-Source-1/internal/evidence"
+
+	pg_query "github.com/pganalyze/pg_query_go/v6"
+)
+
+func init() {
+	register(Rule{
+		ID:       "PS144",
+		Name:     "row-security-disabled",
+		Summary:  "Disabling row-level security or dropping a policy exposes rows the policy used to hide",
+		Severity: evidence.Warning,
+		DocsURL:  "https://www.postgresql.org/docs/current/ddl-rowsecurity.html",
+		check:    checkRowSecurityDisabled,
+	})
+}
+
+func checkRowSecurityDisabled(c *Context, s *Statement) []Finding {
+	if s.node == nil {
+		return nil
+	}
+	if dp := s.node.GetDropStmt(); dp != nil && dp.RemoveType == pg_query.ObjectType_OBJECT_POLICY {
+		var out []Finding
+		for _, o := range dp.Objects {
+			name := strings.Join(stringItems(o.GetList().GetItems()), ".")
+			f := at(s, fmt.Sprintf("DROP POLICY %s removes a row-level security rule: unless another policy covers the same rows, they become visible or writable to roles the policy used to restrict.", name))
+			f.Evidence, f.Confidence = evidence.Heuristic, evidence.Medium
+			f.Remediation = "Create the replacement policy before dropping the old one, in the same transaction."
+			out = append(out, f)
+		}
+		return out
+	}
+	table, cmds := alterCmds(c, s)
+	var out []Finding
+	for _, cmd := range cmds {
+		var what string
+		switch cmd.Subtype {
+		case pg_query.AlterTableType_AT_DisableRowSecurity:
+			what = "DISABLE ROW LEVEL SECURITY turns off every policy on %s: all roles with table privileges see and change every row."
+		case pg_query.AlterTableType_AT_NoForceRowSecurity:
+			what = "NO FORCE ROW LEVEL SECURITY exempts the owner of %s from its policies again."
+		default:
+			continue
+		}
+		f := at(s, fmt.Sprintf(what, table))
+		f.Table = table
+		f.Evidence, f.Confidence = evidence.Static, evidence.High
+		f.Remediation = "Keep row-level security enabled and change the policies instead; if it must be off for a data fix, enable it again in the same transaction."
+		out = append(out, f)
+	}
+	return out
+}
