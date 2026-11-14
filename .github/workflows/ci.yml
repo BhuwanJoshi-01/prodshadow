@@ -68,3 +68,5 @@ jobs:
           go-version-file: go.mod
       - name: Fuzz the statement splitter
         run: go test -run XXX -fuzz FuzzSplit -fuzztime 30s ./internal/sqlsplit/
+      - name: Fuzz workload drafts from exported statistics
+        run: go test -run XXX -fuzz FuzzDraftFromStats -fuzztime 30s ./internal/workload/
