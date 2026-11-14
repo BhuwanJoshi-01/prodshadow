@@ -80,6 +80,9 @@ func Evaluate(in Input) Assessment {
 		findings = append(findings, observedFindings(cfg, in.Result, a.Comparisons, in.Statements)...)
 	}
 	findings = append(findings, qualityFindings(cfg, a.Quality, in.NoExperiment)...)
+	if in.Result != nil {
+		findings = append(findings, failingScenarios(in.Result)...)
+	}
 	if in.NoExperiment == "" && in.Workload != nil && !modelsBlocker(cfg, in.Workload) {
 		findings = append(findings, newFinding("QUAL008", evidence.High, "derived from the workload definition",
 			"No session keeps a transaction open while the migration starts. Most migration outages need one: a long transaction makes the migration's lock request wait, and every query queues behind it. Add a background session with hold_ms to rehearse that case."))
@@ -360,4 +363,55 @@ func compatibilityNotChecked(wl *workload.Spec, static []sqlinspect.Finding) []F
 		return []Finding{f}
 	}
 	return nil
+}
+
+// FailingScenarioRate is the baseline error rate from which a scenario is
+// considered broken rather than affected by the migration.
+const FailingScenarioRate = 0.9
+
+// failingScenarios reports scenarios that fail almost every operation in
+// the baseline, before any migration ran: the workload itself is broken
+// (QUAL013). The first error message says why.
+func failingScenarios(res *experiment.Result) []Finding {
+	type agg struct {
+		ops, errors int
+		sample      string
+	}
+	byID := map[string]*agg{}
+	var order []string
+	for _, ph := range res.Phases {
+		if ph.Kind != experiment.Baseline {
+			continue
+		}
+		for _, sc := range ph.Scenarios {
+			a, ok := byID[sc.ID]
+			if !ok {
+				a = &agg{}
+				byID[sc.ID] = a
+				order = append(order, sc.ID)
+			}
+			a.ops += sc.Ops
+			a.errors += sc.Errors
+			if a.sample == "" {
+				a.sample = sc.SampleError
+			}
+		}
+	}
+	var out []Finding
+	for _, id := range order {
+		a := byID[id]
+		if a.ops < 10 || float64(a.errors) < FailingScenarioRate*float64(a.ops) {
+			continue
+		}
+		msg := fmt.Sprintf("Scenario %s failed %d of %d operations in the baseline, before any migration ran, so its query is broken and the experiment measured nothing for it.", id, a.errors, a.ops)
+		if a.sample != "" {
+			msg += " First error: " + a.sample + "."
+		}
+		f := newFinding("QUAL013", evidence.High, "baseline error rate", msg)
+		f.Scenario = id
+		f.Observed, f.Threshold, f.Unit = ptr(float64(a.errors)/float64(a.ops)), ptr(FailingScenarioRate), "error rate"
+		f.Remediation = "Run the scenario's SQL against the fixture by hand: check table and column names, parameter types (add explicit casts such as $1::bigint) and the privileges of the application role."
+		out = append(out, f)
+	}
+	return out
 }

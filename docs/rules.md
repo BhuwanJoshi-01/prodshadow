@@ -128,6 +128,7 @@ and is lowered when only client-side evidence exists.
 | [`QUAL010`](rules/QUAL010.md) | write-blocking-not-exercised | info | The migration blocks writes but the workload has no write scenario, so the stall is not measured. |
 | [`QUAL011`](rules/QUAL011.md) | table-not-exercised | warning | The migration blocks traffic on a table that no workload scenario or background session uses. |
 | [`QUAL012`](rules/QUAL012.md) | compatibility-not-checked | info | The migration drops or renames something running code may use, but no compatibility probes check the previous release. |
+| [`QUAL013`](rules/QUAL013.md) | scenario-always-fails | inconclusive | A workload scenario fails almost every operation before any migration runs. |
 
 ## Suppressions
 

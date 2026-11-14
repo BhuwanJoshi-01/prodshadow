@@ -258,3 +258,18 @@ func TestCompatibilityNotChecked(t *testing.T) {
 		t.Fatal("probes are declared")
 	}
 }
+
+func TestFailingScenarios(t *testing.T) {
+	res := quietResult()
+	for i := range res.Phases {
+		res.Phases[i].Scenarios = append(res.Phases[i].Scenarios, workload.ScenarioStats{ID: "record_event", Mode: "write", Ops: 500, Errors: 500,
+			SampleError: "42P18: inconsistent types deduced for parameter $1"})
+	}
+	f := byRule(Evaluate(Input{Config: testConfig(), Result: res}), "QUAL013")
+	if f == nil || f.Scenario != "record_event" || f.Severity != evidence.Inconclusive || !strings.Contains(f.Message, "42P18: inconsistent types") || !strings.Contains(f.Message, "1500 of 1500") {
+		t.Fatalf("QUAL013 = %+v", f)
+	}
+	if byRule(Evaluate(Input{Config: testConfig(), Result: quietResult()}), "QUAL013") != nil {
+		t.Fatal("healthy scenarios")
+	}
+}
