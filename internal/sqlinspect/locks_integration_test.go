@@ -45,6 +45,15 @@ CREATE SEQUENCE invoice_numbers;
 CREATE TABLE tickets (id bigserial PRIMARY KEY, title text);
 CREATE VIEW recent_orders AS SELECT id, status FROM orders;
 CREATE TRIGGER orders_audit BEFORE UPDATE ON orders FOR EACH ROW EXECUTE FUNCTION suppress_redundant_updates_trigger();
+-- A statement-level audit trigger: it fires even when no row is inserted,
+-- so the oracle sees its lock deterministically.
+CREATE TABLE order_audit (n int, at timestamptz);
+CREATE FUNCTION audit_order_inserts() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  INSERT INTO order_audit VALUES (1, now());
+  RETURN NULL;
+END $$;
+CREATE TRIGGER orders_audit_log AFTER INSERT ON orders FOR EACH STATEMENT EXECUTE FUNCTION audit_order_inserts();
 CREATE TABLE tags (id int NOT NULL, name text);
 CREATE TABLE invoices (id int PRIMARY KEY, customer_id int CONSTRAINT invoices_customer_fk REFERENCES customers (id));
 CREATE TABLE payments (id int, invoice_id int);

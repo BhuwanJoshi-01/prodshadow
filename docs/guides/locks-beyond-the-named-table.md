@@ -82,9 +82,21 @@ columns. `ALTER SEQUENCE`, in any form, takes `SHARE ROW EXCLUSIVE`, so it
 waits for every in-flight transaction that drew a value and blocks new
 inserts while it waits ([PS156](../rules/PS156.md)).
 
+## Triggers
+
+A trigger runs its function inside the statement that fired it, so an
+`INSERT INTO orders` with an audit trigger also takes `ROW EXCLUSIVE` on
+the audit table. ProdShadow reads the static SQL of PL/pgSQL and SQL
+functions in the schema (including `PERFORM` and `BEGIN ATOMIC` bodies) and
+adds those locks to `INSERT`, `UPDATE`, `DELETE`, `MERGE` and `TRUNCATE`
+statements that fire the trigger, marked `via trigger <name>`. Row-level
+triggers run only for affected rows, so these are locks the statement may
+take.
+
 ## What is not modelled
 
-* Locks taken inside functions, triggers you wrote, and `DO` blocks.
+* Dynamic SQL (`EXECUTE`) in functions, triggers fired by a trigger's own
+  statements, functions in other languages, and `DO` blocks.
 * Which partition an `INSERT` or a pruned query reaches at run time.
 * Objects the fixture schema does not contain. Keep it close to
   production; `validate` warns about tables the workload or the migration

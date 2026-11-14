@@ -389,3 +389,49 @@ CREATE TABLE logs_2027 PARTITION OF logs FOR VALUES FROM ('2027-01-01') TO ('202
 		t.Fatalf("PS161 = %+v", got)
 	}
 }
+
+func TestCatalogTriggerLocks(t *testing.T) {
+	schema := parse(t, `
+CREATE TABLE orders (id int, status text, customer_id int);
+CREATE TABLE order_audit (order_id int, at timestamptz);
+CREATE TABLE customers (id int, paid_orders int);
+CREATE FUNCTION audit_orders() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  INSERT INTO order_audit (order_id, at) VALUES (NEW.id, now());
+  IF NEW.status = 'paid' THEN
+    UPDATE customers SET paid_orders = paid_orders + 1 WHERE id = NEW.customer_id;
+  END IF;
+  PERFORM 1 FROM customers WHERE id = NEW.customer_id FOR UPDATE;
+  RETURN NEW;
+END $$;
+CREATE FUNCTION log_truncate() RETURNS trigger LANGUAGE sql AS 'INSERT INTO order_audit VALUES (0, now())';
+CREATE TRIGGER orders_audit AFTER INSERT OR UPDATE ON orders FOR EACH ROW EXECUTE FUNCTION audit_orders();
+CREATE TRIGGER orders_truncated AFTER TRUNCATE ON orders FOR EACH STATEMENT EXECUTE FUNCTION log_truncate();
+`)
+	stmts := parse(t, `
+INSERT INTO orders VALUES (1, 'new', 1);
+UPDATE orders SET status = 'paid' WHERE id = 1;
+DELETE FROM orders WHERE id = 1;
+TRUNCATE orders;
+DROP TRIGGER orders_audit ON orders;
+INSERT INTO orders VALUES (2, 'new', 1);
+`)
+	NewCatalog(schema).Resolve(stmts)
+	for _, i := range []int{0, 1} {
+		if l, ok := lockOn(stmts[i], "order_audit"); !ok || l.Mode != pglock.RowExclusive || l.Via != "trigger orders_audit" {
+			t.Errorf("statement %d should write order_audit through the trigger: %+v", i, stmts[i].Locks)
+		}
+		if l, ok := lockOn(stmts[i], "customers"); !ok || l.Mode != pglock.RowExclusive {
+			t.Errorf("statement %d: the trigger updates customers: %+v", i, stmts[i].Locks)
+		}
+	}
+	if _, ok := lockOn(stmts[2], "order_audit"); ok {
+		t.Error("no trigger fires on DELETE")
+	}
+	if _, ok := lockOn(stmts[3], "order_audit"); !ok {
+		t.Errorf("the TRUNCATE trigger writes order_audit: %+v", stmts[3].Locks)
+	}
+	if _, ok := lockOn(stmts[5], "customers"); ok {
+		t.Error("the dropped trigger no longer fires")
+	}
+}

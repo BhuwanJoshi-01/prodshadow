@@ -33,7 +33,11 @@ type Catalog struct {
 	columns     map[string][]string // table -> column names in order
 	sequences   map[string][]columnSequence
 	foreignKeys []catalogFK
-	primaryKeys map[string][]string // table -> primary key columns
+	// functionLocks lists the locks of each function's static SQL;
+	// triggers maps a table to its triggers.
+	functionLocks map[string][]TableLock
+	triggers      map[string][]catalogTrigger
+	primaryKeys   map[string][]string // table -> primary key columns
 	// primaryKeyName and keys name the primary key and unique
 	// constraints of each table (keys: constraint -> columns).
 	primaryKeyName map[string]string
@@ -55,6 +59,7 @@ func NewCatalog(schema []*Statement) *Catalog {
 		matviews:         map[string]bool{}, plainUnique: map[string]bool{}, viewColumns: map[string]map[string][]string{},
 		viewOutputs: map[string][]string{},
 		columns:     map[string][]string{}, sequences: map[string][]columnSequence{}, primaryKeys: map[string][]string{},
+		functionLocks: map[string][]TableLock{}, triggers: map[string][]catalogTrigger{},
 		primaryKeyName: map[string]string{}, keys: map[string]map[string][]string{}}
 	for _, s := range schema {
 		c.learn(s)
@@ -203,11 +208,21 @@ func (c *Catalog) learn(s *Statement) {
 				}
 			}
 		}
+	case *pg_query.Node_CreateFunctionStmt:
+		c.learnFunction(s, x.CreateFunctionStmt)
+	case *pg_query.Node_CreateTrigStmt:
+		c.learnTrigger(x.CreateTrigStmt)
 	case *pg_query.Node_DropStmt:
 		switch x.DropStmt.RemoveType {
 		case pg_query.ObjectType_OBJECT_VIEW, pg_query.ObjectType_OBJECT_MATVIEW:
 			for _, v := range dropObjectNames(x.DropStmt.Objects) {
 				c.forgetView(v)
+			}
+		case pg_query.ObjectType_OBJECT_TRIGGER:
+			for _, o := range x.DropStmt.Objects {
+				if items := stringItems(o.GetList().GetItems()); len(items) > 1 {
+					c.forgetTrigger(strings.Join(items[:len(items)-1], "."), items[len(items)-1])
+				}
 			}
 		}
 	case *pg_query.Node_CreateTableAsStmt:
@@ -376,6 +391,7 @@ func (c *Catalog) Resolve(stmts []*Statement) {
 			// Before learning: a dropped foreign key is forgotten here.
 			c.ddlForeignKeyLocks(s)
 			c.viewDependencies(s)
+			c.triggerLocks(s)
 			if v := s.node.GetViewStmt(); v != nil {
 				s.viewReplaceProblem = c.viewReplaceProblem(v)
 			}
