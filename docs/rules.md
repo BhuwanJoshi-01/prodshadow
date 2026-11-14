@@ -52,6 +52,7 @@ migration, because nothing else uses them yet.
 | [`PS132`](rules/PS132.md) | unnamed-concurrent-index | warning | `CREATE INDEX CONCURRENTLY` without a name piles up invalid indexes when it is retried. |
 | [`PS133`](rules/PS133.md) | foreign-key-without-index | info | A foreign key's columns get no index, so deletes on the referenced table scan this one. |
 | [`PS134`](rules/PS134.md) | unbalanced-transaction-control | warning | A file opens a transaction it never ends, nests `BEGIN`, or ends a transaction it did not open. |
+| [`PS135`](rules/PS135.md) | statement-timeout-disabled | info | `SET statement_timeout = 0` lets later statements run, and hold their locks, without limit. |
 
 ## Observed rules
 

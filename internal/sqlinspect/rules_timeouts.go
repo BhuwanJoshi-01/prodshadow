@@ -64,3 +64,30 @@ func checkDropIndex(c *Context, s *Statement) []Finding {
 	f.Remediation = "Use DROP INDEX CONCURRENTLY, outside a transaction block."
 	return []Finding{f}
 }
+
+func init() {
+	register(Rule{
+		ID:       "PS135",
+		Name:     "statement-timeout-disabled",
+		Summary:  "SET statement_timeout = 0 lets the following statements run, and hold their locks, without limit",
+		Severity: evidence.Info,
+		DocsURL:  "https://www.postgresql.org/docs/current/runtime-config-client.html#GUC-STATEMENT-TIMEOUT",
+		check:    checkStatementTimeoutDisabled,
+	})
+}
+
+// checkStatementTimeoutDisabled flags statement_timeout = 0. Disabling it
+// is sometimes deliberate for a long backfill, so the rule only informs.
+func checkStatementTimeoutDisabled(c *Context, s *Statement) []Finding {
+	name, value, ok := settingValue(s)
+	if !ok || name != "statement_timeout" {
+		return nil
+	}
+	if d, ok := parseTimeout(value); !ok || d != 0 {
+		return nil
+	}
+	f := at(s, "SET statement_timeout = 0 removes the time limit for every following statement of the session, including the deploy tool's own timeout settings. A statement that runs longer than expected keeps its locks until it finishes or someone cancels it.")
+	f.Evidence, f.Confidence = evidence.Static, evidence.High
+	f.Remediation = "Set a generous but finite limit for the statements that need it, e.g. SET LOCAL statement_timeout = '15min' inside their transaction."
+	return []Finding{f}
+}

@@ -36,3 +36,16 @@ func TestPS122DropIndex(t *testing.T) {
 	expectCount(t, findings(t, "PS122", Options{}, "DROP INDEX orders_status_idx;"), 1)
 	expectCount(t, findings(t, "PS122", Options{}, "DROP INDEX CONCURRENTLY orders_status_idx;"), 0)
 }
+
+func TestPS135StatementTimeoutDisabled(t *testing.T) {
+	for sql, want := range map[string]int{
+		"SET statement_timeout = 0;":          1,
+		"SET LOCAL statement_timeout TO '0';": 1,
+		"SET statement_timeout = '0ms';":      1,
+		"SET statement_timeout = '15min';":    0,
+		"SET lock_timeout = 0;":               0,
+		"RESET statement_timeout;":            0,
+	} {
+		expectCount(t, findings(t, "PS135", Options{}, sql), want)
+	}
+}
