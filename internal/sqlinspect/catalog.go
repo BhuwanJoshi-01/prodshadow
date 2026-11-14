@@ -442,6 +442,14 @@ func (c *Catalog) resolve(s *Statement) {
 		c.dmlForeignKeyLocks(s)
 	case *pg_query.Node_UpdateStmt, *pg_query.Node_DeleteStmt:
 		c.dmlForeignKeyLocks(s)
+	case *pg_query.Node_VacuumStmt:
+		// VACUUM and ANALYZE of a partitioned table process every
+		// partition with the same lock (VACUUM in its own transactions).
+		for _, r := range x.VacuumStmt.Rels {
+			if rv := r.GetVacuumRelation().GetRelation(); rv.GetInh() {
+				c.propagate(s, relName(rv))
+			}
+		}
 	case *pg_query.Node_ClusterStmt:
 		if x.ClusterStmt.Relation != nil {
 			c.partitionedMaintenance(s, relName(x.ClusterStmt.Relation))

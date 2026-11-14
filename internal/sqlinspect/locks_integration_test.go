@@ -171,6 +171,7 @@ var oracleStatements = []string{
 	"SELECT * FROM recent_orders",
 	"UPDATE recent_orders SET status = 'x' WHERE id = 1",
 	"LOCK TABLE recent_orders IN SHARE MODE",
+	"ANALYZE events",
 	"ALTER TABLE customers RENAME COLUMN id TO customer_id",
 	"ALTER SEQUENCE invoice_numbers RESTART WITH 1000",
 	"ALTER SEQUENCE invoice_numbers INCREMENT BY 10",

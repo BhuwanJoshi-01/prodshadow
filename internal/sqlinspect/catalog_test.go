@@ -86,6 +86,13 @@ TRUNCATE events_2026;
 	if len(stmts[1].Locks) != 1 {
 		t.Errorf("ON ONLY must not reach partitions: %+v", stmts[1].Locks)
 	}
+	analyze := resolved(t, "ANALYZE events;\nVACUUM (FULL) events_2026;")
+	if l, ok := lockOn(analyze[0], "events_2026_h1"); !ok || l.Mode != pglock.ShareUpdateExclusive {
+		t.Errorf("ANALYZE should reach every partition: %+v", analyze[0].Locks)
+	}
+	if l, ok := lockOn(analyze[1], "events_2026_h1"); !ok || l.Mode != pglock.AccessExclusive {
+		t.Errorf("VACUUM FULL should reach every partition: %+v", analyze[1].Locks)
+	}
 	if _, ok := lockOn(stmts[3], "events_2026"); ok {
 		t.Errorf("DETACH PARTITION locks only the partition it names: %+v", stmts[3].Locks)
 	}
