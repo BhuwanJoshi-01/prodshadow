@@ -85,6 +85,8 @@ type Server struct {
 	app      *Credential
 	// scratch holds provider-owned temporary paths removed on destroy.
 	scratch string
+	// image is the container image, reused for cleanup helpers.
+	image string
 	// managed is only set by providers in this package.
 	managed bool
 	started time.Time

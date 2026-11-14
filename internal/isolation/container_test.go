@@ -3,6 +3,8 @@ package isolation
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -170,5 +172,49 @@ func TestDestroyStopsBeforeRemoving(t *testing.T) {
 	}
 	if strings.Join(verbs, ",") != "stop,rm" {
 		t.Fatalf("expected a graceful stop before removal, got %v", verbs)
+	}
+}
+
+func TestDestroyRemovesLeftoverSocketsWithHelper(t *testing.T) {
+	p := newContainerProvider("docker", "")
+	scratch := t.TempDir()
+	if err := os.Mkdir(filepath.Join(scratch, "sock"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	var calls [][]string
+	p.run = func(ctx context.Context, name string, args ...string) ([]byte, []byte, error) {
+		calls = append(calls, args)
+		return nil, nil, nil
+	}
+	attempts := 0
+	p.removeAll = func(path string) error {
+		attempts++
+		if attempts == 1 {
+			return os.ErrPermission
+		}
+		return nil
+	}
+	srv := &Server{id: "abc", managed: true, scratch: scratch, image: "postgres:17-alpine"}
+	if err := p.Destroy(context.Background(), srv); err != nil {
+		t.Fatalf("helper cleanup should recover: %v", err)
+	}
+	helper := strings.Join(calls[len(calls)-1], " ")
+	for _, want := range []string{"run --rm --network none", "--entrypoint rm", filepath.Join(scratch, "sock") + ":/sock", "postgres:17-alpine -f /sock/.s.PGSQL.5432 /sock/.s.PGSQL.5432.lock"} {
+		if !strings.Contains(helper, want) {
+			t.Errorf("helper invocation %q lacks %q", helper, want)
+		}
+	}
+	if attempts != 2 {
+		t.Fatalf("scratch removal attempts = %d", attempts)
+	}
+}
+
+func TestDestroyReportsUnrecoverableCleanup(t *testing.T) {
+	p := newContainerProvider("docker", "")
+	p.run = func(ctx context.Context, name string, args ...string) ([]byte, []byte, error) { return nil, nil, nil }
+	p.removeAll = func(string) error { return os.ErrPermission }
+	srv := &Server{id: "abc", managed: true, scratch: t.TempDir(), image: "postgres:17-alpine"}
+	if err := p.Destroy(context.Background(), srv); err == nil {
+		t.Fatal("a failed cleanup must be reported")
 	}
 }

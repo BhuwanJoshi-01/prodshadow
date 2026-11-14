@@ -24,13 +24,15 @@ type containerProvider struct {
 	name   string
 	binary string
 	run    runner
+	// removeAll deletes the scratch directory; tests replace it.
+	removeAll func(string) error
 }
 
 func newContainerProvider(name, binary string) *containerProvider {
 	if binary == "" {
 		binary = name
 	}
-	return &containerProvider{name: name, binary: binary, run: execRunner}
+	return &containerProvider{name: name, binary: binary, run: execRunner, removeAll: os.RemoveAll}
 }
 
 func (p *containerProvider) Name() string { return p.name }
@@ -62,6 +64,7 @@ func (p *containerProvider) Start(ctx context.Context, spec Spec) (*Server, erro
 
 	srv := &Server{
 		provider: p.name,
+		image:    spec.Image,
 		major:    spec.PostgresMajor,
 		token:    token,
 		admin:    Credential{User: AdminUser, password: password},
@@ -279,17 +282,52 @@ func (p *containerProvider) Destroy(ctx context.Context, srv *Server) error {
 		}
 	}
 	if err := p.cleanupScratch(srv); err != nil {
-		errs = append(errs, err)
+		// After a crash the socket files remain, owned by the container's
+		// user; an unprivileged host user cannot delete them. A short-lived
+		// helper container from the same image removes them.
+		if herr := p.removeSocketFiles(ctx, srv); herr != nil {
+			err = errors.Join(err, herr)
+		} else {
+			err = p.cleanupScratch(srv)
+		}
+		if err != nil {
+			errs = append(errs, err)
+		}
 	}
 	srv.managed = false
 	return errors.Join(errs...)
+}
+
+// removeSocketFiles deletes the server's socket and lock file from the
+// shared socket directory using a helper container. Only these two fixed
+// file names are removed.
+func (p *containerProvider) removeSocketFiles(ctx context.Context, srv *Server) error {
+	if srv.image == "" || srv.scratch == "" {
+		return errors.New("no image or socket directory to clean up")
+	}
+	sock := filepath.Join(srv.scratch, "sock")
+	if _, err := os.Stat(sock); err != nil {
+		return err
+	}
+	_, stderr, err := p.run(ctx, p.binary, "run", "--rm", "--network", "none",
+		"--label", LabelManaged+"=true", "--entrypoint", "rm",
+		"--volume", sock+":/sock", srv.image,
+		"-f", "/sock/.s.PGSQL.5432", "/sock/.s.PGSQL.5432.lock")
+	if err != nil {
+		return commandError(p.binary, "run (socket cleanup)", stderr, err)
+	}
+	return nil
 }
 
 func (p *containerProvider) cleanupScratch(srv *Server) error {
 	if srv.scratch == "" {
 		return nil
 	}
-	if err := os.RemoveAll(srv.scratch); err != nil {
+	remove := p.removeAll
+	if remove == nil {
+		remove = os.RemoveAll
+	}
+	if err := remove(srv.scratch); err != nil {
 		return fmt.Errorf("remove scratch directory: %w", err)
 	}
 	srv.scratch = ""
