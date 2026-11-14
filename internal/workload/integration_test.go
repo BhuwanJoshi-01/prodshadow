@@ -159,3 +159,60 @@ func TestOpenLoopCountsQueueing(t *testing.T) {
 	}
 	t.Logf("dropped %d of %d arrivals, p95 %.1f ms", st.ByClass["dropped"], st.Ops, st.Latency.P95MS)
 }
+
+func TestRunProbesAgainstPostgres(t *testing.T) {
+	ctx := context.Background()
+	_, srv := pgtest.Start(t)
+	conn, err := srv.Connect(ctx, srv.Admin(), isolation.ConnOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close(ctx)
+	if _, err := conn.Exec(ctx, "CREATE TABLE products (id int PRIMARY KEY, legacy_sku text); INSERT INTO products SELECT g, 'sku' || g FROM generate_series(1, 10) g"); err != nil {
+		t.Fatal(err)
+	}
+	spec, err := Parse([]byte(`version: 1
+scenarios:
+  - {id: read, weight: 1, mode: read, sql: "SELECT 1"}
+compatibility:
+  - version: "1.0"
+    probes:
+      - id: by_sku
+        sql: "SELECT legacy_sku FROM products WHERE id = $1"
+        parameters: [{generator: int_range, min: 1, max: 10}]
+      - id: insert
+        sql: "INSERT INTO products (id) VALUES (100)"
+  - version: "2.0"
+    probes:
+      - id: by_id
+        sql: "SELECT id FROM products WHERE id = 1"
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	before, err := RunProbes(ctx, conn, spec, 1, "it")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range before {
+		if !r.OK {
+			t.Fatalf("probe failed before the change: %+v", r)
+		}
+	}
+	// Probes are rolled back: the insert must not persist, or the second
+	// run would fail on the primary key.
+	if _, err := conn.Exec(ctx, "ALTER TABLE products DROP COLUMN legacy_sku"); err != nil {
+		t.Fatal(err)
+	}
+	after, err := RunProbes(ctx, conn, spec, 1, "it")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(after) != 3 || after[0].OK || after[0].SQLState != "42703" || !after[1].OK || !after[2].OK {
+		t.Fatalf("after dropping legacy_sku: %+v", after)
+	}
+	var n int
+	if err := conn.QueryRow(ctx, "SELECT count(*) FROM products WHERE id = 100").Scan(&n); err != nil || n != 0 {
+		t.Fatalf("probe writes must be rolled back: count %d, err %v", n, err)
+	}
+}
