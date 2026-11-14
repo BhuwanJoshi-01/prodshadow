@@ -98,12 +98,10 @@ func loadMigrations(base string, files []string) ([]*sqlinspect.Statement, error
 	return sqlinspect.ParseSources(srcs)
 }
 
-// resolveFromFixture adds the locks migration statements take on relations
-// they do not name (an index's table, the partitions of a partitioned
-// table, the tables behind a materialized view), learned from the fixture
-// schema, and returns the catalog for the static rules. Without a readable
-// schema it changes nothing and returns nil; validate reports that.
-func resolveFromFixture(cfg *config.Config, stmts []*sqlinspect.Statement) *sqlinspect.Catalog {
+// fixtureCatalog learns indexes, partitions, views, sequences and foreign
+// keys from the fixture schema, or returns nil when there is no readable
+// schema (validate reports that).
+func fixtureCatalog(cfg *config.Config) *sqlinspect.Catalog {
 	if cfg == nil || cfg.Fixture.Schema == "" {
 		return nil
 	}
@@ -115,10 +113,20 @@ func resolveFromFixture(cfg *config.Config, stmts []*sqlinspect.Statement) *sqli
 	if err != nil {
 		return nil
 	}
-	// Resolve learns from the migration as it goes; the rules get a fresh
-	// catalog of the schema as it was before the migration.
-	sqlinspect.NewCatalog(schema).Resolve(stmts)
 	return sqlinspect.NewCatalog(schema)
+}
+
+// resolveFromFixture adds the locks migration statements take on relations
+// they do not name (an index's table, the partitions of a partitioned
+// table, the tables behind a materialized view), learned from the fixture
+// schema, and returns a catalog of the schema as it was before the
+// migration for the static rules. Without a readable schema it changes
+// nothing and returns nil.
+func resolveFromFixture(cfg *config.Config, stmts []*sqlinspect.Statement) *sqlinspect.Catalog {
+	// Resolve learns from the migration as it goes, so the rules get a
+	// catalog of their own.
+	fixtureCatalog(cfg).Resolve(stmts)
+	return fixtureCatalog(cfg)
 }
 
 func printProblems(w io.Writer, ps config.Problems) {

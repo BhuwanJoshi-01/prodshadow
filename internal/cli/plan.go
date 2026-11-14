@@ -11,6 +11,7 @@ import (
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/config"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/experiment"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/sqlinspect"
+	"github.com/BhuwanJoshi-01/Open-Source-1/internal/workload"
 )
 
 // phaseOverhead approximates the per-phase cost of copying the template,
@@ -30,6 +31,16 @@ type planStatement struct {
 	Locks string `json:"locks"`
 }
 
+// planConflict is a predicted lock conflict between a migration statement
+// and a workload statement.
+type planConflict struct {
+	Session       string `json:"session"`
+	StatementID   string `json:"statement_id"`
+	Table         string `json:"table"`
+	MigrationLock string `json:"migration_lock"`
+	WorkloadLock  string `json:"workload_lock"`
+}
+
 type planOutput struct {
 	Project          string            `json:"project"`
 	Postgres         string            `json:"postgres"`
@@ -42,6 +53,8 @@ type planOutput struct {
 	EstimatedSeconds float64           `json:"estimated_seconds"`
 	Migration        []planGroup       `json:"migration"`
 	MigrationTiming  string            `json:"migration_timing"`
+	Conflicts        []planConflict    `json:"conflicts,omitempty"`
+	Unblocked        []string          `json:"unblocked,omitempty"`
 	Warnings         []string          `json:"warnings,omitempty"`
 }
 
@@ -167,7 +180,58 @@ func buildPlan(cfg *config.Config, stmts []*sqlinspect.Statement, in *experiment
 		}
 		out.Migration = append(out.Migration, pg)
 	}
+	if in.workload != nil {
+		out.Conflicts, out.Unblocked = predictConflicts(fixtureCatalog(cfg), stmts, in.workload)
+	}
 	return out
+}
+
+// predictConflicts lists, for every scenario and background session, the
+// migration statements whose locks conflict with the locks its statements
+// take, and the sessions no statement conflicts with.
+func predictConflicts(catalog *sqlinspect.Catalog, stmts []*sqlinspect.Statement, wl *workload.Spec) ([]planConflict, []string) {
+	type session struct {
+		id   string
+		sqls []string
+	}
+	sessions := make([]session, 0, len(wl.Scenarios)+len(wl.Background))
+	for _, sc := range wl.Scenarios {
+		sqls := []string{sc.SQL}
+		if sc.Transaction != nil {
+			sqls = append(sqls, sc.Transaction.Statements...)
+		}
+		sessions = append(sessions, session{sc.ID, sqls})
+	}
+	for _, b := range wl.Background {
+		sessions = append(sessions, session{b.ID + " (background)", b.Transaction.Statements})
+	}
+	var conflicts []planConflict
+	var unblocked []string
+	for _, ses := range sessions {
+		seen := map[planConflict]bool{}
+		for _, q := range ses.sqls {
+			if q == "" {
+				continue
+			}
+			st, err := sqlinspect.ParseOne(q)
+			if err != nil {
+				continue
+			}
+			catalog.Resolve([]*sqlinspect.Statement{st})
+			for _, c := range sqlinspect.PredictConflicts(stmts, st) {
+				pc := planConflict{Session: ses.id, StatementID: c.StatementID, Table: c.Table,
+					MigrationLock: c.MigrationLock.String(), WorkloadLock: c.WorkloadLock.String()}
+				if !seen[pc] {
+					seen[pc] = true
+					conflicts = append(conflicts, pc)
+				}
+			}
+		}
+		if len(seen) == 0 {
+			unblocked = append(unblocked, ses.id)
+		}
+	}
+	return conflicts, unblocked
 }
 
 func nameOr(name, fallback string) string {
@@ -199,6 +263,15 @@ func printPlan(w io.Writer, p planOutput) {
 		fmt.Fprintf(w, "  group %d: %s\n", i+1, g.Transaction)
 		for _, s := range g.Statements {
 			fmt.Fprintf(w, "    %-5s %s:%d  %s — %s\n", s.ID, s.File, s.Line, s.Tag, s.Locks)
+		}
+	}
+	if len(p.Conflicts) > 0 || len(p.Unblocked) > 0 {
+		fmt.Fprintf(w, "\nConflicts  predicted from lock modes: whichever comes second waits; verify measures how long\n")
+		for _, c := range p.Conflicts {
+			fmt.Fprintf(w, "  %-28s conflicts with %s (%s on %s vs its %s)\n", c.Session, c.StatementID, c.MigrationLock, c.Table, c.WorkloadLock)
+		}
+		if len(p.Unblocked) > 0 {
+			fmt.Fprintf(w, "  no conflict: %s\n", strings.Join(p.Unblocked, ", "))
 		}
 	}
 	for _, warn := range p.Warnings {

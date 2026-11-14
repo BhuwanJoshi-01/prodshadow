@@ -314,6 +314,35 @@ func TestPlan(t *testing.T) {
 	}
 }
 
+func TestPlanPredictsConflicts(t *testing.T) {
+	r := run(t, "", nil, "plan", "--config", "../../examples/blocking-index/prodshadow.yaml")
+	for _, want := range []string{"update_status                conflicts with 1.1 (SHARE on orders vs its ROW EXCLUSIVE)", "no conflict: get_order"} {
+		if !strings.Contains(r.stdout, want) {
+			t.Errorf("plan lacks %q:\n%s", want, r.stdout)
+		}
+	}
+	// Inserting a customer's order checks the customer (foreign key), so
+	// it conflicts with a migration on customers through the schema.
+	dir := initProject(t)
+	writeFile(t, filepath.Join(dir, "m.sql"), "ALTER TABLE customers ADD COLUMN tier text;\n")
+	r = run(t, dir, nil, "plan", "--json", "--migration", "m.sql")
+	var out struct {
+		Conflicts []planConflict `json:"conflicts"`
+	}
+	if err := json.Unmarshal([]byte(r.stdout), &out); err != nil {
+		t.Fatalf("plan json: %v\n%s", err, r.stdout)
+	}
+	found := false
+	for _, c := range out.Conflicts {
+		if c.Session == "create_order" && c.Table == "customers" && c.WorkloadLock == "ROW SHARE" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("create_order should conflict with the ALTER on customers through its foreign key: %+v", out.Conflicts)
+	}
+}
+
 func TestDiffRequiresBothReports(t *testing.T) {
 	if r := run(t, t.TempDir(), nil, "diff", "--base", "a.json"); r.code != ExitInvalid {
 		t.Fatalf("missing --head: %+v", r)

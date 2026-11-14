@@ -70,6 +70,14 @@ sessions, the alternating phase schedule, transaction groups with predicted
 locks, and an estimated duration — without starting anything. Capacity
 problems (too many sessions for `max_connections`) are listed as warnings.
 
+`plan` also predicts conflicts: for each scenario and background session,
+the migration statements whose locks conflict with the locks its SQL takes
+(including locks through foreign keys and partitions learned from the
+fixture schema), and the sessions nothing conflicts with. A conflict means
+whichever side comes second waits; how long, and whether the queue
+amplifies it, is what `verify` measures. In `--json` output they are
+`conflicts` and `unblocked`.
+
 | Flag | Default | |
 |---|---|---|
 | `--config` | `prodshadow.yaml` | Configuration file. |
