@@ -44,7 +44,12 @@ strong_migrations, and to clone-based checkers such as DBLab.
    PostgreSQL grammar; ProdShadow records the locks it takes, where in the
    file it is, and the hazards it can see from the SQL alone, from blocking
    index builds to grants to `PUBLIC` (`prodshadow rules`; each rule has a
-   page under [docs/rules](docs/rules.md)).
+   page under [docs/rules](docs/rules.md)). With the fixture schema it also
+   knows the locks a statement takes on tables it does not name (through
+   foreign keys, partitions, views, triggers and indexes) and which
+   workload scenarios each statement will conflict with — before anything
+   runs (`prodshadow plan`). A lock oracle checks every prediction against
+   `pg_locks` on PostgreSQL 15–18.
 2. **Disposable server** – a PostgreSQL container with no network, a
    read-only root file system, a size-capped tmpfs data directory, all
    capabilities dropped except those the image needs, and CPU, memory and
@@ -82,7 +87,9 @@ prodshadow inspect --config prodshadow.yaml   # static analysis, no database
 prodshadow verify  --config prodshadow.yaml   # the full experiment
 ```
 
-`prodshadow plan` shows what `verify` will do and roughly how long it takes.
+`prodshadow plan` shows what `verify` will do, roughly how long it takes,
+and which scenarios each migration statement is predicted to block
+(`--markdown` for a pull request comment).
 Other commands help around it: `draft-workload` turns a
 `pg_stat_statements` export into a draft workload, `history` charts stored
 reports over time, `diff` compares a migration with its rewrite, `locks`
