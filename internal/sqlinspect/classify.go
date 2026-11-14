@@ -264,6 +264,18 @@ func classifyReindex(s *Statement, st *pg_query.ReindexStmt) {
 			concurrent = defElemTrue(d)
 		}
 	}
+	switch st.Kind {
+	case pg_query.ReindexObjectType_REINDEX_OBJECT_SCHEMA, pg_query.ReindexObjectType_REINDEX_OBJECT_SYSTEM, pg_query.ReindexObjectType_REINDEX_OBJECT_DATABASE:
+		// These process one table at a time, each in its own transaction,
+		// so they cannot run inside a transaction block. The tables are
+		// not named in the statement, so no locks are recorded.
+		s.Tag += " " + strings.TrimPrefix(st.Kind.String(), "REINDEX_OBJECT_")
+		if concurrent {
+			s.Tag += " CONCURRENTLY"
+		}
+		s.Txn = TxnNotInBlock
+		return
+	}
 	if concurrent {
 		s.Tag += " CONCURRENTLY"
 		s.Txn = TxnNotInBlock

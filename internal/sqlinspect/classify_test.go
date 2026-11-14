@@ -121,3 +121,25 @@ func TestSnakeLabel(t *testing.T) {
 		t.Fatalf("got %s", got)
 	}
 }
+
+func TestClassifyWideReindex(t *testing.T) {
+	cases := map[string]string{
+		"REINDEX SCHEMA public":                "REINDEX SCHEMA",
+		"REINDEX DATABASE app":                 "REINDEX DATABASE",
+		"REINDEX SYSTEM":                       "REINDEX SYSTEM",
+		"REINDEX (CONCURRENTLY) SCHEMA public": "REINDEX SCHEMA CONCURRENTLY",
+		"REINDEX SCHEMA CONCURRENTLY public":   "REINDEX SCHEMA CONCURRENTLY",
+	}
+	for sql, tag := range cases {
+		st := one(t, sql)
+		if st.Kind != KindReindex || st.Tag != tag {
+			t.Errorf("%s: kind %s tag %q, want reindex %q", sql, st.Kind, st.Tag, tag)
+		}
+		if st.Txn != TxnNotInBlock {
+			t.Errorf("%s: txn = %s, want %s", sql, st.Txn, TxnNotInBlock)
+		}
+		if len(st.Locks) != 0 {
+			t.Errorf("%s: unexpected locks %v", sql, st.Locks)
+		}
+	}
+}

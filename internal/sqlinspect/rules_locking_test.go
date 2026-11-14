@@ -3,6 +3,8 @@ package sqlinspect
 import (
 	"strings"
 	"testing"
+
+	"github.com/BhuwanJoshi-01/Open-Source-1/internal/pglock"
 )
 
 func TestPS111UnboundedDML(t *testing.T) {
@@ -20,8 +22,13 @@ func TestPS113RewriteMaintenance(t *testing.T) {
 	for _, sql := range []string{"VACUUM FULL orders;", "CLUSTER orders USING idx;", "REFRESH MATERIALIZED VIEW mv;", "REINDEX TABLE orders;", "ALTER TABLE orders SET LOGGED;"} {
 		expectCount(t, findings(t, "PS113", Options{}, sql), 1)
 	}
-	for _, sql := range []string{"VACUUM orders;", "REINDEX TABLE CONCURRENTLY orders;", "REFRESH MATERIALIZED VIEW CONCURRENTLY mv;"} {
+	for _, sql := range []string{"VACUUM orders;", "REINDEX TABLE CONCURRENTLY orders;", "REFRESH MATERIALIZED VIEW CONCURRENTLY mv;", "REINDEX SCHEMA CONCURRENTLY public;"} {
 		expectCount(t, findings(t, "PS113", Options{}, sql), 0)
+	}
+	wide := findings(t, "PS113", Options{}, "REINDEX SCHEMA public;")
+	expectCount(t, wide, 1)
+	if wide[0].Lock != pglock.Share || !strings.Contains(wide[0].Message, "one table at a time") {
+		t.Errorf("schema-wide REINDEX finding: %+v", wide[0])
 	}
 }
 

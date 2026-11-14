@@ -126,7 +126,13 @@ func checkRewriteMaintenance(c *Context, s *Statement) []Finding {
 		return nil
 	}
 	mode := s.StrongestLock()
-	f := at(s, fmt.Sprintf("%s while holding %s, which %s for the full duration.", what, mode, impactPhrase(mode)))
+	msg := fmt.Sprintf("%s while holding %s, which %s for the full duration.", what, mode, impactPhrase(mode))
+	if s.Kind == KindReindex && mode == pglock.None && !strings.HasSuffix(s.Tag, "CONCURRENTLY") {
+		// REINDEX SCHEMA, DATABASE and SYSTEM name no table.
+		mode = pglock.Share
+		msg = fmt.Sprintf("%s rebuilds every index it covers one table at a time, holding SHARE on each table (which %s) and ACCESS EXCLUSIVE on each index while it is rebuilt.", s.Tag, impactPhrase(mode))
+	}
+	f := at(s, msg)
 	f.Table, f.Lock = table, mode
 	f.Remediation = "Prefer the CONCURRENTLY variant where one exists, or schedule the operation separately from application deploys."
 	switch s.Kind {
