@@ -37,6 +37,7 @@ type Catalog struct {
 	// functionLocks lists the locks of each function's static SQL;
 	// triggers maps a table to its triggers.
 	functionLocks    map[string][]TableLock
+	functionWrites   map[string][]tableWrite
 	dynamicFunctions map[string]bool
 	triggers         map[string][]catalogTrigger
 	rules            map[string][]catalogRule
@@ -62,7 +63,7 @@ func NewCatalog(schema []*Statement) *Catalog {
 		matviews:         map[string]bool{}, plainUnique: map[string]bool{}, viewColumns: map[string]map[string][]string{},
 		viewOutputs: map[string][]string{},
 		columns:     map[string][]string{}, sequences: map[string][]columnSequence{}, primaryKeys: map[string][]string{},
-		functionLocks: map[string][]TableLock{}, dynamicFunctions: map[string]bool{}, triggers: map[string][]catalogTrigger{},
+		functionLocks: map[string][]TableLock{}, functionWrites: map[string][]tableWrite{}, dynamicFunctions: map[string]bool{}, triggers: map[string][]catalogTrigger{},
 		rules:          map[string][]catalogRule{},
 		primaryKeyName: map[string]string{}, keys: map[string]map[string][]string{}}
 	for _, s := range schema {

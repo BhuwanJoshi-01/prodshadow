@@ -66,12 +66,19 @@ func (c *Catalog) learnFunction(s *Statement, st *pg_query.CreateFunctionStmt) {
 		}
 	}
 	var locks []TableLock
+	var writes []tableWrite
+	record := func(fs *Statement) {
+		locks = append(locks, fs.Locks...)
+		if w, ok := writeOf(fs); ok {
+			writes = append(writes, w)
+		}
+	}
 	if st.SqlBody != nil {
 		// BEGIN ATOMIC ... END: the statements are already parsed.
 		walkStatementsOf(st.SqlBody, func(n *pg_query.Node) {
 			fs := &Statement{node: n, Parsed: true}
 			classify(fs)
-			locks = append(locks, fs.Locks...)
+			record(fs)
 		})
 	}
 	for _, q := range queries {
@@ -80,10 +87,39 @@ func (c *Catalog) learnFunction(s *Statement, st *pg_query.CreateFunctionStmt) {
 			continue
 		}
 		for _, fs := range stmts {
-			locks = append(locks, fs.Locks...)
+			record(fs)
 		}
 	}
-	c.functionLocks[catalogKey(strings.Join(names, "."))] = locks
+	key := catalogKey(strings.Join(names, "."))
+	c.functionLocks[key] = locks
+	c.functionWrites[key] = writes
+}
+
+// tableWrite is a table a function's statement writes, with the trigger
+// events that statement fires.
+type tableWrite struct {
+	table  string
+	events int32
+}
+
+// writeOf returns the table an INSERT, UPDATE, DELETE, MERGE or TRUNCATE
+// statement writes and the trigger events it fires.
+func writeOf(s *Statement) (tableWrite, bool) {
+	switch x := s.node.Node.(type) {
+	case *pg_query.Node_InsertStmt:
+		return tableWrite{relName(x.InsertStmt.Relation), triggerInsert}, true
+	case *pg_query.Node_UpdateStmt:
+		return tableWrite{relName(x.UpdateStmt.Relation), triggerUpdate}, true
+	case *pg_query.Node_DeleteStmt:
+		return tableWrite{relName(x.DeleteStmt.Relation), triggerDelete}, true
+	case *pg_query.Node_MergeStmt:
+		return tableWrite{relName(x.MergeStmt.Relation), triggerInsert | triggerUpdate | triggerDelete}, true
+	case *pg_query.Node_TruncateStmt:
+		if len(x.TruncateStmt.Relations) > 0 {
+			return tableWrite{relName(x.TruncateStmt.Relations[0].GetRangeVar()), triggerTruncate}, true
+		}
+	}
+	return tableWrite{}, false
 }
 
 // walkStatementsOf calls fn for each statement of a BEGIN ATOMIC body.
@@ -223,12 +259,23 @@ func (c *Catalog) triggerLocks(s *Statement) {
 }
 
 func (c *Catalog) fireTriggers(s *Statement, table string, events int32) {
+	c.fireTriggersFrom(s, table, events, map[string]bool{})
+}
+
+// fireTriggersFrom follows triggers whose functions write tables with
+// triggers of their own, each trigger at most once.
+func (c *Catalog) fireTriggersFrom(s *Statement, table string, events int32, fired map[string]bool) {
 	for _, tr := range c.triggers[catalogKey(table)] {
-		if tr.events&events == 0 {
+		key := catalogKey(table) + "." + tr.name
+		if tr.events&events == 0 || fired[key] {
 			continue
 		}
+		fired[key] = true
 		for _, l := range c.functionLocks[tr.function] {
 			s.addImpliedLock(l.Table, l.Mode, "trigger "+tr.name)
+		}
+		for _, w := range c.functionWrites[tr.function] {
+			c.fireTriggersFrom(s, w.table, w.events, fired)
 		}
 	}
 }

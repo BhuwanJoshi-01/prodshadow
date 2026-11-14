@@ -105,7 +105,8 @@ functions in the schema (including `PERFORM` and `BEGIN ATOMIC` bodies) and
 adds those locks to `INSERT`, `UPDATE`, `DELETE`, `MERGE` and `TRUNCATE`
 statements that fire the trigger, marked `via trigger <name>`. Row-level
 triggers run only for affected rows, so these are locks the statement may
-take.
+take. When a trigger's function writes a table that has triggers of its
+own, those are followed too.
 
 Rewrite rules (`CREATE RULE ... DO ALSO/INSTEAD ...`) add their actions to
 every matching `INSERT`, `UPDATE` or `DELETE`, so their locks appear as
@@ -116,9 +117,10 @@ SQL, marked `via function <name>`.
 
 ## What is not modelled
 
-* Dynamic SQL (`EXECUTE`) in functions and `DO` blocks, triggers fired by
-  a trigger's own statements, and functions or `DO` blocks in other
-  languages. The static SQL of PL/pgSQL `DO` blocks is analysed.
+* Dynamic SQL (`EXECUTE`) in functions and `DO` blocks, and functions or
+  `DO` blocks in other languages. The static SQL of PL/pgSQL `DO` blocks is
+  analysed, and triggers fired by a trigger function's own writes are
+  followed.
 * Which partition an `INSERT` or a pruned query reaches at run time.
 * Objects the fixture schema does not contain. Keep it close to
   production; `validate` warns about tables the workload or the migration

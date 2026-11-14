@@ -721,3 +721,26 @@ func TestCatalogSummary(t *testing.T) {
 		t.Error("a nil catalog has no summary")
 	}
 }
+
+func TestCatalogFollowsNestedTriggers(t *testing.T) {
+	schema := parse(t, `
+CREATE TABLE orders (id int);
+CREATE TABLE order_audit (id int);
+CREATE TABLE audit_counts (n int);
+CREATE FUNCTION audit() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN INSERT INTO order_audit VALUES (NEW.id); RETURN NEW; END $$;
+CREATE FUNCTION count_audits() RETURNS trigger LANGUAGE sql AS 'UPDATE audit_counts SET n = n + 1';
+CREATE FUNCTION recount() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN INSERT INTO order_audit VALUES (0); RETURN NULL; END $$;
+CREATE TRIGGER orders_audit AFTER INSERT ON orders FOR EACH ROW EXECUTE FUNCTION audit();
+CREATE TRIGGER audit_counted AFTER INSERT ON order_audit FOR EACH ROW EXECUTE FUNCTION count_audits();
+CREATE TRIGGER counts_loop AFTER UPDATE ON audit_counts FOR EACH ROW EXECUTE FUNCTION recount();
+`)
+	stmts := parse(t, "INSERT INTO orders VALUES (1);")
+	NewCatalog(schema).Resolve(stmts)
+	if l, ok := lockOn(stmts[0], "audit_counts"); !ok || l.Mode != pglock.RowExclusive || l.Via != "trigger audit_counted" {
+		t.Errorf("the audit table's own trigger updates audit_counts: %+v", stmts[0].Locks)
+	}
+	// The loop back into order_audit terminates.
+	if l, ok := lockOn(stmts[0], "order_audit"); !ok || l.Via != "trigger orders_audit" {
+		t.Errorf("order_audit: %+v", stmts[0].Locks)
+	}
+}

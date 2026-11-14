@@ -54,6 +54,14 @@ BEGIN
   RETURN NULL;
 END $$;
 CREATE TRIGGER orders_audit_log AFTER INSERT ON orders FOR EACH STATEMENT EXECUTE FUNCTION audit_order_inserts();
+-- The audit table has a trigger of its own: inserts into orders reach it.
+CREATE TABLE audit_counts (n int);
+CREATE FUNCTION count_audits() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  UPDATE audit_counts SET n = n + 1;
+  RETURN NULL;
+END $$;
+CREATE TRIGGER order_audit_counted AFTER INSERT ON order_audit FOR EACH STATEMENT EXECUTE FUNCTION count_audits();
 CREATE TABLE tags (id int NOT NULL, name text);
 CREATE TABLE invoices (id int PRIMARY KEY, customer_id int CONSTRAINT invoices_customer_fk REFERENCES customers (id));
 CREATE TABLE payments (id int, invoice_id int);
