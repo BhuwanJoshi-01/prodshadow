@@ -86,6 +86,7 @@ func Evaluate(in Input) Assessment {
 	}
 	if in.NoExperiment == "" && in.Workload != nil {
 		findings = append(findings, writeBlockingUnexercised(in.Workload, in.Statements)...)
+		findings = append(findings, tablesNotExercised(in.Workload, in.Statements)...)
 	}
 
 	findings = applyOverrides(findings, cfg.Policy.Rules)
@@ -273,4 +274,70 @@ func writeBlockingUnexercised(wl *workload.Spec, stmts []*sqlinspect.Statement) 
 		}
 	}
 	return nil
+}
+
+// tablesNotExercised reports tables on which the migration takes a lock
+// that blocks reads or writes, but which no scenario or background session
+// touches: the experiment says nothing about them (QUAL011).
+func tablesNotExercised(wl *workload.Spec, stmts []*sqlinspect.Statement) []Finding {
+	touched := map[string]bool{}
+	var sqls []string
+	for _, sc := range wl.Scenarios {
+		sqls = append(sqls, sc.SQL)
+		if sc.Transaction != nil {
+			sqls = append(sqls, sc.Transaction.Statements...)
+		}
+	}
+	for _, b := range wl.Background {
+		sqls = append(sqls, b.Transaction.Statements...)
+	}
+	for _, q := range sqls {
+		if q == "" {
+			continue
+		}
+		st, err := sqlinspect.ParseOne(q)
+		if err != nil {
+			continue
+		}
+		for _, t := range st.Tables() {
+			touched[t] = true
+			touched[strings.TrimPrefix(t, "public.")] = true
+		}
+	}
+	created := map[string]bool{}
+	var missing []string
+	var first *sqlinspect.Statement
+	for _, s := range stmts {
+		if ct := s.Node().GetCreateStmt(); ct != nil && ct.Relation != nil {
+			created[ct.Relation.Relname] = true
+		}
+		for _, l := range s.Locks {
+			impact := l.Mode.Impact()
+			name := strings.TrimPrefix(l.Table, "public.")
+			if (impact != pglock.ImpactWrites && impact != pglock.ImpactAllTraffic) || touched[name] || created[name] || slices.Contains(missing, name) {
+				continue
+			}
+			if s.Kind == sqlinspect.KindDropIndex {
+				continue // the lock is recorded against the index name
+			}
+			missing = append(missing, name)
+			if first == nil {
+				first = s
+			}
+		}
+	}
+	if len(missing) == 0 {
+		return nil
+	}
+	f := newFinding("QUAL011", evidence.High, "derived from the migration's locks and the tables the workload's SQL reads or writes",
+		fmt.Sprintf("The migration blocks traffic on %s, but no workload scenario or background session uses %s, so the experiment cannot show what waiting on %s would do. Add scenarios for the queries your application runs on %s.", strings.Join(missing, ", "), pronoun(len(missing)), pronoun(len(missing)), pronoun(len(missing))))
+	f.StatementID, f.File, f.Line = first.ID, first.File, first.StartLine
+	return []Finding{f}
+}
+
+func pronoun(n int) string {
+	if n == 1 {
+		return "it"
+	}
+	return "them"
 }

@@ -225,3 +225,22 @@ func TestWriteBlockingNotExercised(t *testing.T) {
 		t.Fatal("ACCESS EXCLUSIVE blocks reads too, which the read scenario shows")
 	}
 }
+
+func TestTablesNotExercised(t *testing.T) {
+	stmts, err := sqlinspect.ParseSources([]sqlinspect.Source{{Path: "m.sql", Content: "ALTER TABLE invoices ADD COLUMN note text;\nCREATE TABLE refunds (id bigint PRIMARY KEY);\nALTER TABLE refunds ADD COLUMN note text;\n"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ordersOnly := &workload.Spec{Scenarios: []workload.Scenario{{ID: "read", Mode: "read", SQL: "SELECT status FROM orders WHERE id = $1"}}}
+	f := byRule(Evaluate(Input{Config: testConfig(), Result: quietResult(), Statements: stmts, Workload: ordersOnly}), "QUAL011")
+	if f == nil || !strings.Contains(f.Message, "invoices") || strings.Contains(f.Message, "refunds") || f.Line != 1 {
+		t.Fatalf("QUAL011 = %+v", f)
+	}
+	viaBackground := &workload.Spec{
+		Scenarios:  ordersOnly.Scenarios,
+		Background: []workload.Background{{ID: "report", Transaction: workload.TxnSpec{Statements: []string{"SELECT count(*) FROM public.invoices"}}}},
+	}
+	if byRule(Evaluate(Input{Config: testConfig(), Result: quietResult(), Statements: stmts, Workload: viaBackground}), "QUAL011") != nil {
+		t.Fatal("a background session on the table exercises it")
+	}
+}
