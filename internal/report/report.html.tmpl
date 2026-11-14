@@ -68,6 +68,11 @@ ul { padding-left:20px; }
 {{range .Phases}}<tr><td>{{.Kind}} #{{inc .Repeat}}</td><td>{{printf "%.1f" .MeasuredSec}} s</td><td>{{if .Migration}}{{.Migration.Status}}{{if .Migration.SQLState}} ({{.Migration.SQLState}}){{end}}, {{ms .Migration.DurationMS}}{{with .Migration.Retries}}<br><small>{{len .}} lock retr{{if eq (len .) 1}}y{{else}}ies{{end}}</small>{{end}}{{else}}–{{end}}</td><td>{{ms .Locks.MigrationMaxWaitMS}}</td><td>{{join .Locks.MigrationBlockedBy ", "}}</td><td>{{.Locks.MaxBlockedByMigration}}</td><td>{{.LoggedWaits.Events}}</td><td>{{ms .Locks.MaxXactMS}}{{if .Locks.MaxXactApp}} <small>{{.Locks.MaxXactApp}}</small>{{end}}</td><td>{{int64 .Counters.WALBytes}} B</td></tr>{{end}}
 </table></div>{{end}}
 
+{{with .RelationWaits}}<h2>Waits by relation</h2><p class="note">Lock waits across candidate phases. <em>Predicted</em> says whether a migration statement was predicted to lock the relation; a wait the migration caused on an unpredicted relation is reported as QUAL015.</p><div class="scroll"><table>
+<tr><th>Relation</th><th>Mode waited for</th><th>Most waiters</th><th>Longest wait</th><th>Migration involved</th><th>Predicted</th></tr>
+{{range .}}<tr><td><code>{{.Relation}}</code></td><td>{{.Mode}}</td><td>{{.Waiters}}</td><td>{{ms .WaitMS}}</td><td>{{if .Migration}}yes{{else}}no{{end}}</td><td{{if eq .Predicted "no"}}{{if .Migration}} class="sev-warning"{{end}}{{end}}>{{.Predicted}}</td></tr>{{end}}
+</table></div>{{end}}
+
 <h2>Experiment quality</h2>
 <ul>
 <li>Representativeness: <strong>{{.Representativeness.Level}}</strong></li>

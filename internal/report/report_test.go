@@ -319,4 +319,8 @@ func TestMarkdownShowsWaitsByRelation(t *testing.T) {
 			t.Errorf("markdown lacks %q:\n%s", want, md)
 		}
 	}
+	page, err := r.HTML()
+	if err != nil || !strings.Contains(page, "<h2>Waits by relation</h2>") || !strings.Contains(page, `<td class="sev-warning">no</td>`) {
+		t.Errorf("HTML lacks the waits table (err %v)", err)
+	}
 }
