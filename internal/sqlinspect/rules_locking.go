@@ -100,8 +100,8 @@ func checkExplicitLock(c *Context, s *Statement) []Finding {
 	}
 	var out []Finding
 	for _, l := range s.Locks {
-		if l.Mode.Impact() != pglock.ImpactWrites && l.Mode.Impact() != pglock.ImpactAllTraffic {
-			continue
+		if l.Via != "" || (l.Mode.Impact() != pglock.ImpactWrites && l.Mode.Impact() != pglock.ImpactAllTraffic) {
+			continue // partitions and view tables follow the named table
 		}
 		f := at(s, fmt.Sprintf("LOCK TABLE %s IN %s MODE %s until the transaction ends.", l.Table, l.Mode, impactPhrase(l.Mode)))
 		f.Table, f.Lock = l.Table, l.Mode

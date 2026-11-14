@@ -41,7 +41,17 @@ func checkDestructive(c *Context, s *Statement) []Finding {
 			if c.CreatedEarlier(s, l.Table) {
 				continue
 			}
-			f := at(s, fmt.Sprintf("%s %s permanently removes its data and takes ACCESS EXCLUSIVE; application versions that still query it will fail.", verb, l.Table))
+			what := l.Table
+			if l.Via != "" {
+				// Locks resolved from the schema are on tables the
+				// statement does not name. Only TRUNCATE ... CASCADE
+				// removes their data (the referencing tables).
+				if s.Kind != KindTruncate || !strings.HasPrefix(l.Via, "foreign key ") {
+					continue
+				}
+				what = l.Table + " (through CASCADE, " + l.Via + ")"
+			}
+			f := at(s, fmt.Sprintf("%s %s permanently removes its data and takes ACCESS EXCLUSIVE; application versions that still query it will fail.", verb, what))
 			f.Table, f.Lock = l.Table, pglock.AccessExclusive
 			f.Remediation = "Confirm no deployed version reads the table, keep a backup or rename-and-wait period, and drop it in a later release."
 			out = append(out, f)

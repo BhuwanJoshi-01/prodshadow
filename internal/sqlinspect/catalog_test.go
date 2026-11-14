@@ -619,3 +619,25 @@ ALTER TABLE orders DROP COLUMN state;
 		t.Error("the view reads the renamed column, so dropping it fails")
 	}
 }
+
+func TestPerTableRulesIgnoreImpliedLocks(t *testing.T) {
+	stmts := parse(t, "DROP TABLE line_items;\nTRUNCATE invoices CASCADE;\nLOCK TABLE invoices IN SHARE MODE;\n")
+	NewCatalog(parse(t, fkSchema)).Resolve(stmts)
+	var ps109 []string
+	locks := 0
+	for _, f := range Analyze(stmts, Options{}) {
+		switch f.RuleID {
+		case "PS109":
+			ps109 = append(ps109, f.StatementID+" "+f.Message[:strings.Index(f.Message, " permanently")])
+		case "PS112":
+			locks++
+		}
+	}
+	want := []string{"1.1 Dropping line_items", "1.2 Truncating invoices", "1.2 Truncating line_items (through CASCADE, foreign key line_items_invoice_fk)", "1.2 Truncating notes (through CASCADE, foreign key notes_line_item_fk)"}
+	if !slices.Equal(ps109, want) {
+		t.Errorf("PS109 = %q, want %q", ps109, want)
+	}
+	if locks != 1 {
+		t.Errorf("LOCK TABLE names one table: %d findings", locks)
+	}
+}
