@@ -1,5 +1,7 @@
 # Guides
 
+## Migration tools
+
 How to use ProdShadow with common migration tools. Each guide shows how to
 produce the two SQL inputs ProdShadow needs: the schema before the
 migration (for the fixture) and the migration itself.
@@ -9,3 +11,7 @@ migration (for the fixture) and the migration itself.
 * [Flyway and Liquibase](flyway.md)
 * [golang-migrate and goose](go-migration-tools.md)
 * [Prisma Migrate](prisma.md)
+
+## Modelling
+
+* [Modelling a workload from production statistics](modelling-traffic.md)
