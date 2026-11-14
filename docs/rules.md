@@ -54,6 +54,7 @@ migration, because nothing else uses them yet.
 | [`PS134`](rules/PS134.md) | unbalanced-transaction-control | warning | A file opens a transaction it never ends, nests `BEGIN`, or ends a transaction it did not open. |
 | [`PS135`](rules/PS135.md) | statement-timeout-disabled | info | `SET statement_timeout = 0` lets later statements run, and hold their locks, without limit. |
 | [`PS136`](rules/PS136.md) | validated-in-same-transaction | warning | `VALIDATE CONSTRAINT` in the transaction that added the constraint `NOT VALID` scans under the stronger lock. |
+| [`PS137`](rules/PS137.md) | constraint-left-not-valid | info | A constraint added `NOT VALID` is not validated later in the migration. |
 
 ## Observed rules
 

@@ -29,3 +29,11 @@ func TestPS136ValidatedInSameTransaction(t *testing.T) {
 	// Validating a constraint added by an earlier migration.
 	expectCount(t, findings(t, "PS136", Options{}, validateFK), 0)
 }
+
+func TestPS137ConstraintLeftNotValid(t *testing.T) {
+	add := "ALTER TABLE refunds ADD CONSTRAINT refunds_order_fk FOREIGN KEY (order_id) REFERENCES orders (id) NOT VALID;\n"
+	expectCount(t, findings(t, "PS137", Options{}, add), 1)
+	expectCount(t, findings(t, "PS137", Options{}, add, "ALTER TABLE refunds VALIDATE CONSTRAINT refunds_order_fk;\n"), 0)
+	expectCount(t, findings(t, "PS137", Options{}, add+"ALTER TABLE refunds VALIDATE CONSTRAINT other_fk;\n"), 1)
+	expectCount(t, findings(t, "PS137", Options{}, "ALTER TABLE orders ADD CONSTRAINT orders_total_positive CHECK (total >= 0);\n"), 0)
+}

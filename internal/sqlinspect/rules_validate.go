@@ -75,3 +75,49 @@ func addedNotValidEarlier(g Group, s *Statement, table, name string) *Statement 
 	}
 	return nil
 }
+
+func init() {
+	register(Rule{
+		ID:       "PS137",
+		Name:     "constraint-left-not-valid",
+		Summary:  "A constraint added NOT VALID is not validated later in the migration",
+		Severity: evidence.Info,
+		DocsURL:  docAlterTable,
+		check:    checkLeftNotValid,
+	})
+}
+
+// checkLeftNotValid reminds that a NOT VALID constraint still has to be
+// validated. Validating it in a later migration is common and correct, so
+// this is information, not a warning.
+func checkLeftNotValid(c *Context, s *Statement) []Finding {
+	table, cons := addedConstraints(c, s)
+	var out []Finding
+	for _, con := range cons {
+		if !con.SkipValidation || con.Conname == "" || c.validatedLater(s, table, con.Conname) {
+			continue
+		}
+		f := at(s, fmt.Sprintf("Constraint %s on %s is added NOT VALID and not validated later in this migration. New and updated rows are checked, but existing rows are not until ALTER TABLE %s VALIDATE CONSTRAINT %s runs, and until then a NOT VALID CHECK cannot stand in for the table scan of SET NOT NULL.", con.Conname, table, table, con.Conname))
+		f.Table = table
+		f.Evidence, f.Confidence = evidence.Static, evidence.High
+		f.Remediation = "Validate it in the next migration, in its own transaction, so the constraint is fully enforced."
+		out = append(out, f)
+	}
+	return out
+}
+
+// validatedLater reports whether a statement after s validates constraint
+// name on table.
+func (c *Context) validatedLater(s *Statement, table, name string) bool {
+	for _, o := range c.Statements[c.position[s]+1:] {
+		if o.Kind != KindAlterTable || o.node == nil || o.node.GetAlterTableStmt() == nil || relName(o.node.GetAlterTableStmt().Relation) != table {
+			continue
+		}
+		for _, n := range o.node.GetAlterTableStmt().Cmds {
+			if cmd := n.GetAlterTableCmd(); cmd != nil && cmd.Subtype == pg_query.AlterTableType_AT_ValidateConstraint && cmd.Name == name {
+				return true
+			}
+		}
+	}
+	return false
+}
