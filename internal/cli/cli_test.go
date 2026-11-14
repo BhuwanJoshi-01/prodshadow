@@ -364,6 +364,15 @@ func TestPlanPredictsConflicts(t *testing.T) {
 	}
 }
 
+func TestPlanNotesLocksHeldUntilCommit(t *testing.T) {
+	dir := initProject(t)
+	writeFile(t, filepath.Join(dir, "m.sql"), "ALTER TABLE orders ADD COLUMN note2 text;\nUPDATE orders SET note2 = 'x' WHERE id < 10;\n")
+	r := run(t, dir, nil, "plan", "--migration", "m.sql")
+	if !strings.Contains(r.stdout, "conflicts with 1.1 (ACCESS EXCLUSIVE on orders vs its ACCESS SHARE), held until 1.2 commits") {
+		t.Fatalf("plan should note that 1.1 holds its lock until the group commits:\n%s", r.stdout)
+	}
+}
+
 func TestPlanMarkdown(t *testing.T) {
 	r := run(t, "", nil, "plan", "--markdown", "--config", "../../examples/blocking-index/prodshadow.yaml")
 	for _, want := range []string{"## ProdShadow plan: blocking-index", "| 1.1 | migrations/0012_index_orders_by_status.sql:", "| update_status | 1.1 | orders | SHARE | ROW EXCLUSIVE |", "No conflict: get_order."} {

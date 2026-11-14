@@ -143,7 +143,7 @@ func printPlanMarkdown(w io.Writer, p planOutput) {
 			if c.Background {
 				session += " (background)"
 			}
-			fmt.Fprintf(w, "| %s | %s | %s | %s | %s |\n", mdCell(session), c.StatementID, mdCell(c.Table), c.MigrationLock, c.WorkloadLock)
+			fmt.Fprintf(w, "| %s | %s%s | %s | %s | %s |\n", mdCell(session), c.StatementID, p.heldUntil(c.StatementID), mdCell(c.Table), c.MigrationLock, c.WorkloadLock)
 		}
 		if len(p.Unblocked) > 0 {
 			fmt.Fprintf(w, "\nNo conflict: %s.\n", mdCell(strings.Join(p.Unblocked, ", ")))
@@ -265,7 +265,7 @@ func printPlan(w io.Writer, p planOutput) {
 			if c.Background {
 				session += " (background)"
 			}
-			fmt.Fprintf(w, "  %-28s conflicts with %s (%s on %s vs its %s)\n", session, c.StatementID, c.MigrationLock, c.Table, c.WorkloadLock)
+			fmt.Fprintf(w, "  %-28s conflicts with %s (%s on %s vs its %s)%s\n", session, c.StatementID, c.MigrationLock, c.Table, c.WorkloadLock, p.heldUntil(c.StatementID))
 		}
 		if len(p.Unblocked) > 0 {
 			fmt.Fprintf(w, "  no conflict: %s\n", strings.Join(p.Unblocked, ", "))
@@ -277,4 +277,21 @@ func printPlan(w io.Writer, p planOutput) {
 	if len(p.Warnings) > 0 {
 		fmt.Fprintln(w)
 	}
+}
+
+// heldUntil notes that a statement's locks stay held after it finishes:
+// inside a transaction group they are released only when the group
+// commits, after its last statement.
+func (p planOutput) heldUntil(id string) string {
+	for _, g := range p.Migration {
+		if g.Transaction == "autocommit" || len(g.Statements) < 2 {
+			continue
+		}
+		for i, s := range g.Statements {
+			if s.ID == id && i < len(g.Statements)-1 {
+				return ", held until " + g.Statements[len(g.Statements)-1].ID + " commits"
+			}
+		}
+	}
+	return ""
 }
