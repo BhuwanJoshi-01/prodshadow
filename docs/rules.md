@@ -60,6 +60,7 @@ migration, because nothing else uses them yet.
 | [`PS140`](rules/PS140.md) | detach-partition-blocks-parent | warning | `DETACH PARTITION` without `CONCURRENTLY` takes `ACCESS EXCLUSIVE` on the partitioned table. |
 | [`PS141`](rules/PS141.md) | create-partition-locks-parent | warning | `CREATE TABLE ... PARTITION OF` takes `ACCESS EXCLUSIVE` on the partitioned table. |
 | [`PS142`](rules/PS142.md) | autovacuum-disabled | warning | Turning autovacuum off for a table lets dead rows and transaction ID age accumulate. |
+| [`PS143`](rules/PS143.md) | unlogged-table | warning | Unlogged tables are emptied after a crash and are not replicated to standbys. |
 
 ## Observed rules
 
