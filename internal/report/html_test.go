@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/experiment"
+	"github.com/BhuwanJoshi-01/Open-Source-1/internal/migrate"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/risk"
 )
 
@@ -66,5 +67,21 @@ func TestHTMLCompatibilitySection(t *testing.T) {
 		if !strings.Contains(out, want) {
 			t.Errorf("HTML lacks %q", want)
 		}
+	}
+}
+
+func TestHTMLShowsLockRetries(t *testing.T) {
+	r := Build(sampleInput(t))
+	for i := range r.Phases {
+		if m := r.Phases[i].Migration; m != nil {
+			m.Retries = []migrate.Retry{{StatementID: "1.1", Attempt: 1}, {StatementID: "1.1", Attempt: 2}}
+		}
+	}
+	out, err := r.HTML()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "<small>2 lock retries</small>") {
+		t.Fatal("HTML lacks the retry count")
 	}
 }

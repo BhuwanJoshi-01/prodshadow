@@ -65,7 +65,7 @@ ul { padding-left:20px; }
 
 {{if .Phases}}<h2>Phases</h2><div class="scroll"><table>
 <tr><th>Phase</th><th>Measured</th><th>Migration</th><th>Migration waited</th><th>Blocked by</th><th>Queued behind migration</th><th>Logged waits</th><th>Longest transaction</th><th>WAL</th></tr>
-{{range .Phases}}<tr><td>{{.Kind}} #{{inc .Repeat}}</td><td>{{printf "%.1f" .MeasuredSec}} s</td><td>{{if .Migration}}{{.Migration.Status}}{{if .Migration.SQLState}} ({{.Migration.SQLState}}){{end}}, {{ms .Migration.DurationMS}}{{else}}–{{end}}</td><td>{{ms .Locks.MigrationMaxWaitMS}}</td><td>{{join .Locks.MigrationBlockedBy ", "}}</td><td>{{.Locks.MaxBlockedByMigration}}</td><td>{{.LoggedWaits.Events}}</td><td>{{ms .Locks.MaxXactMS}}{{if .Locks.MaxXactApp}} <small>{{.Locks.MaxXactApp}}</small>{{end}}</td><td>{{int64 .Counters.WALBytes}} B</td></tr>{{end}}
+{{range .Phases}}<tr><td>{{.Kind}} #{{inc .Repeat}}</td><td>{{printf "%.1f" .MeasuredSec}} s</td><td>{{if .Migration}}{{.Migration.Status}}{{if .Migration.SQLState}} ({{.Migration.SQLState}}){{end}}, {{ms .Migration.DurationMS}}{{with .Migration.Retries}}<br><small>{{len .}} lock retr{{if eq (len .) 1}}y{{else}}ies{{end}}</small>{{end}}{{else}}–{{end}}</td><td>{{ms .Locks.MigrationMaxWaitMS}}</td><td>{{join .Locks.MigrationBlockedBy ", "}}</td><td>{{.Locks.MaxBlockedByMigration}}</td><td>{{.LoggedWaits.Events}}</td><td>{{ms .Locks.MaxXactMS}}{{if .Locks.MaxXactApp}} <small>{{.Locks.MaxXactApp}}</small>{{end}}</td><td>{{int64 .Counters.WALBytes}} B</td></tr>{{end}}
 </table></div>{{end}}
 
 <h2>Experiment quality</h2>
