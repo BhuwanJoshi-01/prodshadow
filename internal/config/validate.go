@@ -288,6 +288,12 @@ func (c *Config) validateMigration(ps *Problems) {
 	if m.StatementTimeoutMS < m.LockTimeoutMS {
 		ps.warnf("migration.statement_timeout_ms", "statement_timeout_ms is shorter than lock_timeout_ms; lock waits will surface as statement timeouts")
 	}
+	if m.LockRetries < 0 || m.LockRetries > 20 {
+		ps.errorf("migration.lock_retries", "lock_retries %d must be between 0 and 20", m.LockRetries)
+	}
+	if m.RetryBackoffMS < 0 || m.RetryBackoffMS > 60_000 {
+		ps.errorf("migration.retry_backoff_ms", "retry_backoff_ms %d must be between 0 and 60000", m.RetryBackoffMS)
+	}
 	if m.StartAfterSeconds < 0 {
 		ps.errorf("migration.start_after_seconds", "start_after_seconds must not be negative")
 	} else if c.Workload.MeasurementSeconds > 0 && m.StartAfterSeconds >= c.Workload.MeasurementSeconds {

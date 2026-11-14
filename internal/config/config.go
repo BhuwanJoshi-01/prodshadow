@@ -128,6 +128,11 @@ type MigrationConfig struct {
 	RunAs string `yaml:"run_as" json:"run_as"`
 	// Transaction is "auto", "per-file" or "none".
 	Transaction string `yaml:"transaction" json:"transaction"`
+	// LockRetries reruns a transaction (or statement) that fails on
+	// lock_timeout, as a deploy tool that retries lock_not_available does.
+	LockRetries int `yaml:"lock_retries" json:"lock_retries"`
+	// RetryBackoffMS times the attempt number is the pause before a retry.
+	RetryBackoffMS int `yaml:"retry_backoff_ms" json:"retry_backoff_ms"`
 }
 
 // PolicyConfig maps evidence to a CI decision.

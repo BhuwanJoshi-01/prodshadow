@@ -3,7 +3,9 @@ package experiment
 import (
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/BhuwanJoshi-01/Open-Source-1/internal/config"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/migrate"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/security"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/workload"
@@ -53,5 +55,18 @@ func TestHasProbes(t *testing.T) {
 	}
 	if !hasProbes(Plan{Workload: &workload.Spec{Compatibility: []workload.AppVersion{{Version: "v1"}}}}) {
 		t.Fatal("compatibility section means probes")
+	}
+}
+
+func TestRetryAllowance(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.ApplyDefaults()
+	if got := retryAllowance(cfg); got != 0 {
+		t.Fatalf("no retries, no allowance: %v", got)
+	}
+	cfg.Migration.LockRetries, cfg.Migration.LockTimeoutMS, cfg.Migration.RetryBackoffMS = 3, 1000, 500
+	// 3 × 1 s of lock waits + (1 + 2 + 3) × 0.5 s of backoff.
+	if got := retryAllowance(cfg); got != 6*time.Second {
+		t.Fatalf("allowance = %v", got)
 	}
 }

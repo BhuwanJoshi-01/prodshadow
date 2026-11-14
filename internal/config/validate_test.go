@@ -167,3 +167,14 @@ func TestMigrationGlobs(t *testing.T) {
 		t.Fatal("malformed pattern not reported")
 	}
 }
+
+func TestValidateLockRetries(t *testing.T) {
+	c := validConfig(t)
+	c.Migration.LockRetries, c.Migration.RetryBackoffMS = 21, -1
+	ps := c.Validate()
+	for _, path := range []string{"migration.lock_retries", "migration.retry_backoff_ms"} {
+		if problemAt(ps, path) == nil {
+			t.Errorf("expected a problem at %s: %v", path, ps)
+		}
+	}
+}

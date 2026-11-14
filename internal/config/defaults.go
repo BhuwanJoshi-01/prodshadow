@@ -21,6 +21,7 @@ const (
 	DefaultSeed                  = 1
 	DefaultMinSamples            = 200
 	DefaultLockTimeoutMS         = 1500
+	DefaultRetryBackoffMS        = 500
 	DefaultStatementTimeoutMS    = 60_000
 	DefaultStartAfterSeconds     = 5
 	DefaultRunAs                 = "owner"
@@ -115,6 +116,9 @@ func (c *Config) ApplyDefaults() {
 	}
 	if m.RunAs == "" {
 		m.RunAs = DefaultRunAs
+	}
+	if m.RetryBackoffMS == 0 {
+		m.RetryBackoffMS = DefaultRetryBackoffMS
 	}
 	if m.Transaction == "" {
 		m.Transaction = DefaultTransaction

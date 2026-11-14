@@ -75,6 +75,8 @@ inconclusive.
 | `start_after_seconds` | `5` | Delay into the measurement window, so pre-migration samples exist. Must be shorter than `measurement_seconds`. |
 | `run_as` | `owner` | `owner` (unprivileged role that owns the fixture) or `superuser`. |
 | `transaction` | `auto` | `auto`: wrap each file in a transaction unless it controls transactions itself or contains statements such as `CREATE INDEX CONCURRENTLY`; `per-file`: always wrap; `none`: autocommit each statement. |
+| `lock_retries` | `0` | Rerun a transaction (or autocommitted statement) that fails on `lock_timeout` up to this many times (0–20), as deploy tools that retry `lock_not_available` do. Retries are reported (`OBS014`). |
+| `retry_backoff_ms` | `500` | Pause before a retry, multiplied by the attempt number (0–60000). |
 
 ## `policy`
 

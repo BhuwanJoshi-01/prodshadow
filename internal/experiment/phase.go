@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/BhuwanJoshi-01/Open-Source-1/internal/config"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/isolation"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/migrate"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/postgres"
@@ -121,7 +122,7 @@ func runPhase(ctx context.Context, plan Plan, srv *isolation.Server, step Step) 
 		opts.Extend = extend
 		opts.Tail = 2 * time.Second
 		perStmt := time.Duration(cfg.Migration.StatementTimeoutMS) * time.Millisecond
-		opts.MaxExtension = perStmt*time.Duration(max(1, len(plan.Migration))) + 10*time.Second
+		opts.MaxExtension = perStmt*time.Duration(max(1, len(plan.Migration))) + 10*time.Second + retryAllowance(cfg)
 	}
 
 	res, err := workload.Run(runCtx, plan.Workload, opts)
@@ -201,6 +202,8 @@ func runMigration(ctx context.Context, plan Plan, srv *isolation.Server, db stri
 		StatementTimeout: time.Duration(cfg.Migration.StatementTimeoutMS) * time.Millisecond,
 		Transaction:      sqlinspect.TransactionMode(cfg.Migration.Transaction),
 		Reference:        measureStart,
+		LockRetries:      cfg.Migration.LockRetries,
+		RetryBackoff:     time.Duration(cfg.Migration.RetryBackoffMS) * time.Millisecond,
 	})
 }
 
@@ -254,4 +257,13 @@ func redactOutcome(plan Plan, out *migrate.Outcome) {
 	for i := range out.Statements {
 		out.Statements[i].Error = plan.Redactor.String(out.Statements[i].Error)
 	}
+}
+
+// retryAllowance is the longest time lock retries can add to a migration:
+// every retry waits up to lock_timeout, plus the growing backoff.
+func retryAllowance(cfg *config.Config) time.Duration {
+	r := time.Duration(cfg.Migration.LockRetries)
+	lock := time.Duration(cfg.Migration.LockTimeoutMS) * time.Millisecond
+	backoff := time.Duration(cfg.Migration.RetryBackoffMS) * time.Millisecond
+	return r*lock + backoff*r*(r+1)/2
 }
