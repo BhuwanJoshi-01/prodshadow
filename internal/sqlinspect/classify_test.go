@@ -162,3 +162,36 @@ func TestClassifyStatementsOutsideTransactions(t *testing.T) {
 		t.Errorf("CLUSTER of one table may run in a transaction block, got %s", st.Txn)
 	}
 }
+
+func TestClassifyReadLocks(t *testing.T) {
+	cases := []struct {
+		sql   string
+		tag   string
+		locks map[string]pglock.Mode
+	}{
+		{"SELECT o.id FROM orders o JOIN customers c ON c.id = o.customer_id", "SELECT",
+			map[string]pglock.Mode{"orders": pglock.AccessShare, "customers": pglock.AccessShare}},
+		{"SELECT id FROM orders WHERE id = 1 FOR UPDATE", "SELECT ... FOR UPDATE", map[string]pglock.Mode{"orders": pglock.RowShare}},
+		{"SELECT id FROM orders FOR NO KEY UPDATE SKIP LOCKED", "SELECT ... FOR NO KEY UPDATE", map[string]pglock.Mode{"orders": pglock.RowShare}},
+		{"WITH recent AS (SELECT * FROM orders) SELECT count(*) FROM recent", "SELECT", map[string]pglock.Mode{"orders": pglock.AccessShare}},
+		{"INSERT INTO archive SELECT * FROM orders WHERE created_at < now() - interval '1 year'", "INSERT",
+			map[string]pglock.Mode{"archive": pglock.RowExclusive, "orders": pglock.AccessShare}},
+		{"UPDATE orders o SET region = c.region FROM customers c WHERE c.id = o.customer_id", "UPDATE",
+			map[string]pglock.Mode{"orders": pglock.RowExclusive, "customers": pglock.AccessShare}},
+		{"SELECT 1", "SELECT", map[string]pglock.Mode{}},
+	}
+	for _, tc := range cases {
+		st := one(t, tc.sql)
+		if st.Tag != tc.tag {
+			t.Errorf("%s: tag %q, want %q", tc.sql, st.Tag, tc.tag)
+		}
+		if len(st.Locks) != len(tc.locks) {
+			t.Errorf("%s: locks %v, want %v", tc.sql, st.Locks, tc.locks)
+		}
+		for table, mode := range tc.locks {
+			if got := st.LockOn(table); got != mode {
+				t.Errorf("%s: lock on %s = %s, want %s", tc.sql, table, got, mode)
+			}
+		}
+	}
+}

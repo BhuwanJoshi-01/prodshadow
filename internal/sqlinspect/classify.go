@@ -7,6 +7,8 @@ import (
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/pglock"
 
 	pg_query "github.com/pganalyze/pg_query_go/v6"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 // classify derives Kind, Tag, locks and the transaction requirement from
@@ -36,14 +38,22 @@ func classify(s *Statement) {
 	case *pg_query.Node_InsertStmt:
 		s.Kind, s.Tag = KindInsert, "INSERT"
 		s.addLock(relName(x.InsertStmt.Relation), pglock.RowExclusive)
+		addReadLocks(s, x.InsertStmt, pglock.AccessShare)
 	case *pg_query.Node_UpdateStmt:
 		s.Kind, s.Tag = KindUpdate, "UPDATE"
 		s.addLock(relName(x.UpdateStmt.Relation), pglock.RowExclusive)
+		addReadLocks(s, x.UpdateStmt, pglock.AccessShare)
 	case *pg_query.Node_DeleteStmt:
 		s.Kind, s.Tag = KindDelete, "DELETE"
 		s.addLock(relName(x.DeleteStmt.Relation), pglock.RowExclusive)
+		addReadLocks(s, x.DeleteStmt, pglock.AccessShare)
 	case *pg_query.Node_SelectStmt:
 		s.Kind, s.Tag = KindSelect, "SELECT"
+		mode := pglock.AccessShare
+		if len(x.SelectStmt.LockingClause) > 0 {
+			s.Tag, mode = "SELECT ... FOR "+lockingStrength(x.SelectStmt.LockingClause), pglock.RowShare
+		}
+		addReadLocks(s, x.SelectStmt, mode)
 	case *pg_query.Node_TruncateStmt:
 		s.Kind, s.Tag = KindTruncate, "TRUNCATE"
 		for _, r := range x.TruncateStmt.Relations {
@@ -347,4 +357,46 @@ func nodeTypeName(n *pg_query.Node) string {
 		return ""
 	}
 	return strings.TrimPrefix(fmt.Sprintf("%T", n.Node), "*pg_query.")
+}
+
+// addReadLocks records mode on every relation that root reads, skipping the
+// names of common table expressions. Relations that already have a lock
+// keep the stronger of the two.
+func addReadLocks(s *Statement, root proto.Message, mode pglock.Mode) {
+	ctes := map[string]bool{}
+	walk(root, func(m protoreflect.Message) bool {
+		if cte, ok := m.Interface().(*pg_query.CommonTableExpr); ok {
+			ctes[cte.Ctename] = true
+		}
+		return true
+	})
+	walk(root, func(m protoreflect.Message) bool {
+		rv, ok := m.Interface().(*pg_query.RangeVar)
+		if !ok {
+			return true
+		}
+		if rv.Schemaname == "" && ctes[rv.Relname] {
+			return true
+		}
+		s.addLock(relName(rv), mode)
+		return true
+	})
+}
+
+// lockingStrength names the row lock of a SELECT's first locking clause.
+func lockingStrength(clauses []*pg_query.Node) string {
+	lc := clauses[0].GetLockingClause()
+	if lc == nil {
+		return "UPDATE"
+	}
+	switch lc.Strength {
+	case pg_query.LockClauseStrength_LCS_FORKEYSHARE:
+		return "KEY SHARE"
+	case pg_query.LockClauseStrength_LCS_FORSHARE:
+		return "SHARE"
+	case pg_query.LockClauseStrength_LCS_FORNOKEYUPDATE:
+		return "NO KEY UPDATE"
+	default:
+		return "UPDATE"
+	}
 }
