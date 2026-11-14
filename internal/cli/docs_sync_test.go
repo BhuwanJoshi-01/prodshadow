@@ -28,3 +28,26 @@ func TestEveryRuleIsDocumented(t *testing.T) {
 		}
 	}
 }
+
+// TestEveryStaticRuleHasATopic keeps the topic index of docs/rules.md
+// complete, so new rules are findable by subject.
+func TestEveryStaticRuleHasATopic(t *testing.T) {
+	doc, err := os.ReadFile("../../docs/rules.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	start := strings.Index(string(doc), "## Static rules by topic")
+	end := strings.Index(string(doc), "## Static rules\n")
+	if start < 0 || end < start {
+		t.Fatal("docs/rules.md lacks the topic index before the static rule table")
+	}
+	index := string(doc)[start:end]
+	for _, r := range allRules() {
+		if r.Kind != "static" {
+			continue
+		}
+		if !strings.Contains(index, "["+r.ID+"](rules/"+r.ID+".md)") {
+			t.Errorf("%s is missing from the static rules by topic index", r.ID)
+		}
+	}
+}

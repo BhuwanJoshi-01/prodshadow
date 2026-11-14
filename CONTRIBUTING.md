@@ -85,8 +85,10 @@ non-root user (PostgreSQL refuses to start as root).
 4. Document it: add `docs/rules/PS1xx.md` (what it detects, why it matters,
    a flagged and a preferred example, how the experiment verifies it,
    configuration and references) and a row in [docs/rules.md](docs/rules.md)
-   linking the page. `TestEveryRuleIsDocumented` fails until both exist,
-   and SARIF results link the page.
+   linking the page, and list it under a topic in the "Static rules by
+   topic" index. `TestEveryRuleIsDocumented` and
+   `TestEveryStaticRuleHasATopic` fail until all three exist; SARIF results
+   link the page.
 5. Mention it in `CHANGELOG.md`.
 
 Observed (`OBS`) and quality (`QUAL`) rules live in `internal/risk`; they
