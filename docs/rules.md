@@ -46,6 +46,7 @@ migration, because nothing else uses them yet.
 | [`PS126`](rules/PS126.md) | database-wide-maintenance | warning | `VACUUM`, `ANALYZE` or `REINDEX` without a table name processes the whole database or schema. |
 | [`PS127`](rules/PS127.md) | extension-requires-preload | warning | The extension needs its library in `shared_preload_libraries`, which takes a restart. |
 | [`PS128`](rules/PS128.md) | enum-value-used-before-commit | critical | A value added with `ALTER TYPE ... ADD VALUE` is used before the transaction commits. |
+| [`PS129`](rules/PS129.md) | server-setting-change | warning | `ALTER SYSTEM`, `ALTER DATABASE ... SET` or `ALTER ROLE ... SET` changes settings for other sessions. |
 
 ## Observed rules
 
