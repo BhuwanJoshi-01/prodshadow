@@ -16,6 +16,12 @@ your migration linter alongside ProdShadow.
 Static findings are skipped for tables created earlier in the same
 migration, because nothing else uses them yet.
 
+Some static rules need the schema before the migration, from
+`inspect --schema` or the configuration's `fixture.schema` (which `plan`
+and `verify` always use): PS157, PS158, PS159, PS160 and PS161 are silent
+without it, and PS114, PS122, PS154 and PS156 see more with it.
+`prodshadow rules` marks the first group `[needs schema]`.
+
 ## Static rules by topic
 
 * **Locks that block traffic:** [PS101](rules/PS101.md), [PS103](rules/PS103.md), [PS105](rules/PS105.md), [PS106](rules/PS106.md), [PS107](rules/PS107.md), [PS108](rules/PS108.md), [PS112](rules/PS112.md), [PS113](rules/PS113.md), [PS118](rules/PS118.md), [PS119](rules/PS119.md), [PS122](rules/PS122.md), [PS123](rules/PS123.md), [PS140](rules/PS140.md), [PS141](rules/PS141.md), [PS156](rules/PS156.md)

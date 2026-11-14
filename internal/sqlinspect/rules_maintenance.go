@@ -9,12 +9,13 @@ import (
 
 func init() {
 	register(Rule{
-		ID:       "PS158",
-		Name:     "concurrent-refresh-unsupported",
-		Summary:  "REFRESH MATERIALIZED VIEW CONCURRENTLY fails on a view without a plain unique index, or one that is not populated",
-		Severity: evidence.Critical,
-		DocsURL:  "https://www.postgresql.org/docs/current/sql-refreshmaterializedview.html",
-		check:    checkConcurrentRefresh,
+		ID:          "PS158",
+		Name:        "concurrent-refresh-unsupported",
+		Summary:     "REFRESH MATERIALIZED VIEW CONCURRENTLY fails on a view without a plain unique index, or one that is not populated",
+		Severity:    evidence.Critical,
+		DocsURL:     "https://www.postgresql.org/docs/current/sql-refreshmaterializedview.html",
+		NeedsSchema: true,
+		check:       checkConcurrentRefresh,
 	})
 	register(Rule{
 		ID:       "PS126",

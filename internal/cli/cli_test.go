@@ -422,6 +422,22 @@ func TestInspectNamesBlockedStatements(t *testing.T) {
 	}
 }
 
+func TestRulesMarkSchemaDependentRules(t *testing.T) {
+	r := run(t, "", nil, "rules", "--kind", "static")
+	if !strings.Contains(r.stdout, "[needs schema]") {
+		t.Fatalf("schema-dependent rules are not marked:\n%s", r.stdout)
+	}
+	r = run(t, "", nil, "rules", "PS159")
+	if !strings.Contains(r.stdout, "needs:    the schema before the migration") {
+		t.Fatalf("rule detail lacks the requirement:\n%s", r.stdout)
+	}
+	r = run(t, "", nil, "rules", "--json", "PS101", "PS157")
+	var got []ruleInfo
+	if err := json.Unmarshal([]byte(r.stdout), &got); err != nil || len(got) != 2 || got[0].NeedsSchema || !got[1].NeedsSchema {
+		t.Fatalf("rules --json: %v %+v", err, got)
+	}
+}
+
 func TestRulesSelection(t *testing.T) {
 	r := run(t, "", nil, "rules", "ps124", "--json")
 	var got []ruleInfo

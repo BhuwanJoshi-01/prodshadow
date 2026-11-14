@@ -12,28 +12,31 @@ import (
 
 func init() {
 	register(Rule{
-		ID:       "PS160",
-		Name:     "view-replace-incompatible",
-		Summary:  "CREATE OR REPLACE VIEW fails when it drops, renames or reorders the view's columns",
-		Severity: evidence.Critical,
-		DocsURL:  "https://www.postgresql.org/docs/current/sql-createview.html",
-		check:    checkViewReplace,
+		ID:          "PS160",
+		Name:        "view-replace-incompatible",
+		Summary:     "CREATE OR REPLACE VIEW fails when it drops, renames or reorders the view's columns",
+		Severity:    evidence.Critical,
+		DocsURL:     "https://www.postgresql.org/docs/current/sql-createview.html",
+		NeedsSchema: true,
+		check:       checkViewReplace,
 	})
 	register(Rule{
-		ID:       "PS159",
-		Name:     "dependent-view",
-		Summary:  "Dropping or retyping a column, or dropping a table, fails while a view depends on it",
-		Severity: evidence.Critical,
-		DocsURL:  "https://www.postgresql.org/docs/current/ddl-depend.html",
-		check:    checkDependentView,
+		ID:          "PS159",
+		Name:        "dependent-view",
+		Summary:     "Dropping or retyping a column, or dropping a table, fails while a view depends on it",
+		Severity:    evidence.Critical,
+		DocsURL:     "https://www.postgresql.org/docs/current/ddl-depend.html",
+		NeedsSchema: true,
+		check:       checkDependentView,
 	})
 	register(Rule{
-		ID:       "PS157",
-		Name:     "referenced-table-removed",
-		Summary:  "DROP TABLE or TRUNCATE without CASCADE fails while other tables' foreign keys reference the table",
-		Severity: evidence.Critical,
-		DocsURL:  "https://www.postgresql.org/docs/current/ddl-depend.html",
-		check:    checkReferencedTableRemoved,
+		ID:          "PS157",
+		Name:        "referenced-table-removed",
+		Summary:     "DROP TABLE or TRUNCATE without CASCADE fails while other tables' foreign keys reference the table",
+		Severity:    evidence.Critical,
+		DocsURL:     "https://www.postgresql.org/docs/current/ddl-depend.html",
+		NeedsSchema: true,
+		check:       checkReferencedTableRemoved,
 	})
 	register(Rule{
 		ID:       "PS124",

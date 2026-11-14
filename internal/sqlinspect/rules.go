@@ -16,6 +16,10 @@ type Rule struct {
 	Summary  string
 	Severity evidence.Severity
 	DocsURL  string
+	// NeedsSchema marks rules that only see the problem with the existing
+	// schema (inspect --schema, or fixture.schema); without it they are
+	// silent.
+	NeedsSchema bool
 
 	// check runs once per statement; checkAll runs once per migration;
 	// checkFindings runs once after all other rules, with their findings.

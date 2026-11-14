@@ -21,20 +21,22 @@ type ruleInfo struct {
 	Summary  string `json:"summary"`
 	DocsURL  string `json:"docs_url,omitempty"`
 	Page     string `json:"page"`
+	// NeedsSchema: the rule only reports anything with the fixture schema.
+	NeedsSchema bool `json:"needs_schema,omitempty"`
 }
 
 func allRules() []ruleInfo {
 	static := sqlinspect.Rules()
 	out := make([]ruleInfo, 0, len(static)+len(risk.ObservedRules))
 	for _, r := range static {
-		out = append(out, ruleInfo{r.ID, r.Name, "static", string(r.Severity), r.Summary, r.DocsURL, report.RulePageURL(r.ID)})
+		out = append(out, ruleInfo{r.ID, r.Name, "static", string(r.Severity), r.Summary, r.DocsURL, report.RulePageURL(r.ID), r.NeedsSchema})
 	}
 	for _, r := range risk.ObservedRules {
 		kind := "observed"
 		if r.ID[:4] == "QUAL" {
 			kind = "quality"
 		}
-		out = append(out, ruleInfo{r.ID, r.Name, kind, string(r.Severity), r.Summary, "", report.RulePageURL(r.ID)})
+		out = append(out, ruleInfo{ID: r.ID, Name: r.Name, Kind: kind, Severity: string(r.Severity), Summary: r.Summary, Page: report.RulePageURL(r.ID)})
 	}
 	return out
 }
@@ -75,7 +77,11 @@ func runRules(_ context.Context, env *Env, args []string) int {
 	tw := tabwriter.NewWriter(env.Stdout, 0, 4, 2, ' ', 0)
 	fmt.Fprintln(tw, "ID\tKIND\tDEFAULT\tNAME\tSUMMARY")
 	for _, r := range rules {
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", r.ID, r.Kind, r.Severity, r.Name, r.Summary)
+		summary := r.Summary
+		if r.NeedsSchema {
+			summary += " [needs schema]"
+		}
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", r.ID, r.Kind, r.Severity, r.Name, summary)
 	}
 	if err := tw.Flush(); err != nil {
 		return ExitInternal
@@ -115,6 +121,9 @@ func selectRules(all []ruleInfo, kind string, ids []string) ([]ruleInfo, error) 
 
 func printRule(w io.Writer, r ruleInfo) {
 	fmt.Fprintf(w, "%s %s\n  %s\n\n  kind:     %s\n  default:  %s\n  details:  %s\n", r.ID, r.Name, r.Summary, r.Kind, r.Severity, r.Page)
+	if r.NeedsSchema {
+		fmt.Fprintf(w, "  needs:    the schema before the migration (inspect --schema, or fixture.schema)\n")
+	}
 	if r.DocsURL != "" {
 		fmt.Fprintf(w, "  postgres: %s\n", r.DocsURL)
 	}

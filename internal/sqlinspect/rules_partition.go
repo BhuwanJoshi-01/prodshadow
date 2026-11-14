@@ -11,12 +11,13 @@ import (
 
 func init() {
 	register(Rule{
-		ID:       "PS161",
-		Name:     "concurrent-detach-with-default",
-		Summary:  "DETACH PARTITION CONCURRENTLY fails when the partitioned table has a DEFAULT partition",
-		Severity: evidence.Critical,
-		DocsURL:  "https://www.postgresql.org/docs/current/sql-altertable.html#SQL-ALTERTABLE-DETACH-PARTITION",
-		check:    checkConcurrentDetachWithDefault,
+		ID:          "PS161",
+		Name:        "concurrent-detach-with-default",
+		Summary:     "DETACH PARTITION CONCURRENTLY fails when the partitioned table has a DEFAULT partition",
+		Severity:    evidence.Critical,
+		DocsURL:     "https://www.postgresql.org/docs/current/sql-altertable.html#SQL-ALTERTABLE-DETACH-PARTITION",
+		NeedsSchema: true,
+		check:       checkConcurrentDetachWithDefault,
 	})
 	register(Rule{
 		ID:       "PS123",
