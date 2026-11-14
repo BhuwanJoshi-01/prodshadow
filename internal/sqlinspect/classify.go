@@ -47,6 +47,10 @@ func classify(s *Statement) {
 		s.Kind, s.Tag = KindDelete, "DELETE"
 		s.addLock(relName(x.DeleteStmt.Relation), pglock.RowExclusive)
 		addReadLocks(s, x.DeleteStmt, pglock.AccessShare)
+	case *pg_query.Node_MergeStmt:
+		s.Kind, s.Tag = KindMerge, "MERGE"
+		s.addLock(relName(x.MergeStmt.Relation), pglock.RowExclusive)
+		addReadLocks(s, x.MergeStmt, pglock.AccessShare)
 	case *pg_query.Node_SelectStmt:
 		s.Kind, s.Tag = KindSelect, "SELECT"
 		mode := pglock.AccessShare
@@ -140,6 +144,12 @@ func classify(s *Statement) {
 			// which blocks every query that uses the view.
 			s.Tag = "CREATE OR REPLACE VIEW"
 			s.addLock(relName(x.ViewStmt.View), pglock.AccessExclusive)
+		}
+	case *pg_query.Node_CreateStatsStmt:
+		// Extended statistics take SHARE UPDATE EXCLUSIVE, like ANALYZE.
+		s.Kind, s.Tag = KindOtherDDL, "CREATE STATISTICS"
+		for _, r := range x.CreateStatsStmt.Relations {
+			s.addLock(relName(r.GetRangeVar()), pglock.ShareUpdateExclusive)
 		}
 	case *pg_query.Node_CommentStmt:
 		s.Kind, s.Tag = KindComment, "COMMENT"

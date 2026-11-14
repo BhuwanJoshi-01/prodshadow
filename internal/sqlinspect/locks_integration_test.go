@@ -147,9 +147,6 @@ var oracleKnownGaps = map[string]map[string]string{
 	"REINDEX INDEX orders_status_idx":                     {"orders": "SHARE"},
 	"DROP INDEX orders_status_idx":                        {"orders": "ACCESS EXCLUSIVE"},
 	"CREATE INDEX events_id_idx ON events (id)":           {"events_2026": "SHARE"},
-	// Not yet classified.
-	"CREATE STATISTICS orders_stats ON customer_id, status FROM orders":                                 {"orders": "SHARE UPDATE EXCLUSIVE"},
-	"MERGE INTO orders o USING staging s ON s.id = o.id WHEN MATCHED THEN UPDATE SET status = s.status": {"orders": "ROW EXCLUSIVE", "staging": "ACCESS SHARE"},
 }
 
 // oracleVersionGaps adds gaps that only some PostgreSQL majors show.

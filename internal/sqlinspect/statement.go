@@ -28,6 +28,7 @@ const (
 	KindInsert          Kind = "insert"
 	KindUpdate          Kind = "update"
 	KindDelete          Kind = "delete"
+	KindMerge           Kind = "merge"
 	KindSelect          Kind = "select"
 	KindTruncate        Kind = "truncate"
 	KindVacuum          Kind = "vacuum"
