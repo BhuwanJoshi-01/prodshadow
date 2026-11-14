@@ -85,6 +85,7 @@ amplifies it, is what `verify` measures. In `--json` output they are
 | `--config` | `prodshadow.yaml` | Configuration file. |
 | `--migration` | `migration.files` | Override the migration files (repeatable). |
 | `--json` | `false` | Machine-readable output. |
+| `--markdown` | `false` | Markdown with the predicted locks and conflicts, for a pull request comment. |
 
 ## `prodshadow verify`
 

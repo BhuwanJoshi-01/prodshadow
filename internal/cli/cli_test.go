@@ -356,6 +356,15 @@ func TestPlanPredictsConflicts(t *testing.T) {
 	}
 }
 
+func TestPlanMarkdown(t *testing.T) {
+	r := run(t, "", nil, "plan", "--markdown", "--config", "../../examples/blocking-index/prodshadow.yaml")
+	for _, want := range []string{"## ProdShadow plan: blocking-index", "| 1.1 | migrations/0012_index_orders_by_status.sql:", "| update_status | 1.1 | orders | SHARE | ROW EXCLUSIVE |", "No conflict: get_order."} {
+		if !strings.Contains(r.stdout, want) {
+			t.Errorf("plan --markdown lacks %q:\n%s", want, r.stdout)
+		}
+	}
+}
+
 func TestDiffRequiresBothReports(t *testing.T) {
 	if r := run(t, t.TempDir(), nil, "diff", "--base", "a.json"); r.code != ExitInvalid {
 		t.Fatalf("missing --head: %+v", r)

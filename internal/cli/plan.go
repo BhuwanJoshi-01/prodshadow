@@ -54,6 +54,7 @@ func runPlan(_ context.Context, env *Env, args []string) int {
 	var files multiFlag
 	fs.Var(&files, "migration", "migration file, overriding migration.files (repeatable)")
 	asJSON := fs.Bool("json", false, "print machine-readable JSON")
+	asMarkdown := fs.Bool("markdown", false, "print Markdown, e.g. for a pull request comment")
 	changedSince := fs.String("changed-since", "", "only migrations git reports as added or changed since this ref (e.g. origin/main)")
 	if code := parseFlags(fs, args); code >= 0 {
 		return code
@@ -108,8 +109,53 @@ func runPlan(_ context.Context, env *Env, args []string) int {
 		fmt.Fprintln(env.Stdout, string(b))
 		return ExitOK
 	}
+	if *asMarkdown {
+		printPlanMarkdown(env.Stdout, out)
+		return ExitOK
+	}
 	printPlan(env.Stdout, out)
 	return ExitOK
+}
+
+// printPlanMarkdown renders the parts of a plan a reviewer needs: what the
+// migration locks and which workload sessions it is predicted to conflict
+// with, before any experiment runs.
+func printPlanMarkdown(w io.Writer, p planOutput) {
+	fmt.Fprintf(w, "## ProdShadow plan: %s\n\n", mdCell(p.Project))
+	fmt.Fprintf(w, "%s · workload %s · schedule ", mdCell(p.Postgres), mdCell(p.Workload))
+	for i, s := range p.Schedule {
+		if i > 0 {
+			fmt.Fprint(w, " ")
+		}
+		fmt.Fprintf(w, "%s%d", strings.ToUpper(string(s.Kind[:1])), s.Repeat+1)
+	}
+	fmt.Fprint(w, "\n\n| ID | Location | Statement | Predicted locks |\n|---|---|---|---|\n")
+	for _, g := range p.Migration {
+		for _, s := range g.Statements {
+			fmt.Fprintf(w, "| %s | %s:%d | %s | %s |\n", s.ID, mdCell(s.File), s.Line, mdCell(s.Tag), mdCell(s.Locks))
+		}
+	}
+	if len(p.Conflicts) > 0 || len(p.Unblocked) > 0 {
+		fmt.Fprint(w, "\n**Predicted conflicts** (from lock modes; `verify` measures how long each wait lasts)\n\n| Session | Statement | Table | Migration lock | Session lock |\n|---|---|---|---|---|\n")
+		for _, c := range p.Conflicts {
+			session := c.Session
+			if c.Background {
+				session += " (background)"
+			}
+			fmt.Fprintf(w, "| %s | %s | %s | %s | %s |\n", mdCell(session), c.StatementID, mdCell(c.Table), c.MigrationLock, c.WorkloadLock)
+		}
+		if len(p.Unblocked) > 0 {
+			fmt.Fprintf(w, "\nNo conflict: %s.\n", mdCell(strings.Join(p.Unblocked, ", ")))
+		}
+	}
+	for _, warn := range p.Warnings {
+		fmt.Fprintf(w, "\n> %s\n", mdCell(warn))
+	}
+}
+
+// mdCell escapes text for a Markdown table cell.
+func mdCell(s string) string {
+	return strings.NewReplacer("|", "\\|", "\n", " ").Replace(s)
 }
 
 func buildPlan(cfg *config.Config, stmts []*sqlinspect.Statement, in *experimentInputs) planOutput {
