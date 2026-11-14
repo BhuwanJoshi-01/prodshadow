@@ -93,6 +93,11 @@ versioning; the report schema (`schema_version`) is versioned separately.
 - `--changed-since REF` on `inspect`, `plan` and `verify`, and a
   `changed-since` input on the GitHub Action, limit a run to the migrations
   added or changed since a git ref.
+- Quality rules `QUAL010` (write-blocking locks with a read-only
+  workload), `QUAL011` (locked tables the workload never touches) and
+  `QUAL012` (drops or renames without compatibility probes).
+- `validate` warns about workload and migration tables the fixture schema
+  does not create.
 - Observed rules `OBS015` (optional `policy.max_extra_wal_mb` budget for WAL
   written beyond the baseline) and `OBS016` (sorts or index builds spilling
   to temporary files).
@@ -103,7 +108,8 @@ versioning; the report schema (`schema_version`) is versioned separately.
 - Every rule has a documentation page under `docs/rules/`, linked from
   SARIF results.
 - Guides for Alembic, Atlas, Django, Prisma, Flyway/Liquibase,
-  golang-migrate/goose and sqitch/dbmate; troubleshooting guide, glossary and architecture
+  golang-migrate/goose and sqitch/dbmate, reading a report and choosing
+  policy thresholds; static rules indexed by topic; ADRs 0007 to 0010; troubleshooting guide, glossary and architecture
   decision records.
 
 ### Fixed
