@@ -18,6 +18,14 @@ func init() {
 		DocsURL:  "https://www.postgresql.org/docs/current/ddl-rowsecurity.html",
 		check:    checkRowSecurityDisabled,
 	})
+	register(Rule{
+		ID:       "PS145",
+		Name:     "granted-to-public",
+		Summary:  "Privileges granted to PUBLIC apply to every role, including ones created later",
+		Severity: evidence.Warning,
+		DocsURL:  "https://www.postgresql.org/docs/current/sql-grant.html",
+		check:    checkGrantToPublic,
+	})
 }
 
 func checkRowSecurityDisabled(c *Context, s *Statement) []Finding {
@@ -54,4 +62,35 @@ func checkRowSecurityDisabled(c *Context, s *Statement) []Finding {
 		out = append(out, f)
 	}
 	return out
+}
+
+func checkGrantToPublic(_ *Context, s *Statement) []Finding {
+	if s.node == nil {
+		return nil
+	}
+	var grantees []*pg_query.Node
+	var what string
+	switch {
+	case s.node.GetGrantStmt() != nil && s.node.GetGrantStmt().IsGrant:
+		st := s.node.GetGrantStmt()
+		grantees = st.Grantees
+		what = strings.ToLower(strings.TrimPrefix(st.Objtype.String(), "OBJECT_"))
+		if st.Targtype == pg_query.GrantTargetType_ACL_TARGET_ALL_IN_SCHEMA {
+			what = "all " + what + "s in a schema"
+		}
+	case s.node.GetAlterDefaultPrivilegesStmt() != nil && s.node.GetAlterDefaultPrivilegesStmt().GetAction().GetIsGrant():
+		grantees = s.node.GetAlterDefaultPrivilegesStmt().GetAction().Grantees
+		what = "objects created from now on"
+	default:
+		return nil
+	}
+	for _, g := range grantees {
+		if r := g.GetRoleSpec(); r != nil && r.Roletype == pg_query.RoleSpecType_ROLESPEC_PUBLIC {
+			f := at(s, fmt.Sprintf("GRANT ... TO PUBLIC on %s gives the privilege to every role in the cluster, including roles created later and roles of other applications sharing the server.", what))
+			f.Evidence, f.Confidence = evidence.Static, evidence.High
+			f.Remediation = "Grant to the specific application or group roles that need the access."
+			return []Finding{f}
+		}
+	}
+	return nil
 }

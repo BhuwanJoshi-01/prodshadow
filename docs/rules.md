@@ -62,6 +62,7 @@ migration, because nothing else uses them yet.
 | [`PS142`](rules/PS142.md) | autovacuum-disabled | warning | Turning autovacuum off for a table lets dead rows and transaction ID age accumulate. |
 | [`PS143`](rules/PS143.md) | unlogged-table | warning | Unlogged tables are emptied after a crash and are not replicated to standbys. |
 | [`PS144`](rules/PS144.md) | row-security-disabled | warning | Disabling row-level security or dropping a policy exposes rows the policy used to hide. |
+| [`PS145`](rules/PS145.md) | granted-to-public | warning | Privileges granted to `PUBLIC` apply to every role, including ones created later. |
 
 ## Observed rules
 
