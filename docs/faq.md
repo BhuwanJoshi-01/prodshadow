@@ -83,3 +83,14 @@ needs it (for example to create an extension that is not trusted).
 **Can ProdShadow import production statistics?**
 Not yet. It is planned as a separate, read-only, opt-in command after a
 security review; see the [roadmap](roadmap.md).
+
+## Why does a report say a statement locks a table it does not name?
+
+Because PostgreSQL does. `DROP INDEX orders_status_idx` locks `orders`,
+`ALTER TABLE invoices DROP CONSTRAINT invoices_customer_fk` locks
+`customers`, and an `INSERT INTO invoices` takes a lock on `customers` to
+check the foreign key. ProdShadow learns these relationships from the
+fixture schema and shows such locks with their origin, for example
+`ACCESS EXCLUSIVE on customers (via foreign key invoices_customer_fk)`.
+[Locks beyond the named table](guides/locks-beyond-the-named-table.md)
+lists every case, each checked against a real server.

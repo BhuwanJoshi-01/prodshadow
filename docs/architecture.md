@@ -30,7 +30,13 @@ flowchart TD
    `BEGIN ATOMIC` bodies). `sqlinspect` parses each statement separately with
    libpg_query, so one unparsable statement does not hide the rest, derives
    table locks from the documented lock levels, plans transaction groups,
-   and evaluates static rules.
+   and evaluates static rules. A `Catalog` learned from the fixture schema
+   adds the locks statements take on relations they do not name (an
+   index's table, partitions, view sources, sequences, foreign keys) and
+   lets rules see the existing schema; the lock oracle integration test
+   checks the predicted modes against `pg_locks`. The same predictions,
+   applied to the workload's SQL, tell which scenarios each statement will
+   conflict with (`plan`, `predicted_conflicts` in the report).
 3. **Provision** – `isolation` starts one hardened server per run, creates the
    unprivileged `ps_app` role and verifies the ownership token.
 4. **Seed** – `fixture` loads schema, seed and generated rows into
