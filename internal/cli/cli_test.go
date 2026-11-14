@@ -513,3 +513,18 @@ func TestInspectJUnit(t *testing.T) {
 		t.Fatalf("empty result needs a test case: %+v", r)
 	}
 }
+
+func TestValidateWarnsAboutUnreachableQueueBudget(t *testing.T) {
+	dir := initProject(t)
+	cfg := filepath.Join(dir, "prodshadow.yaml")
+	raw, _ := os.ReadFile(cfg)
+	writeFile(t, cfg, strings.Replace(string(raw), "  # max_queued_sessions: 10 ", "  max_queued_sessions: 20 #", 1))
+	r := run(t, dir, nil, "validate")
+	if r.code != ExitOK || !strings.Contains(r.stdout+r.stderr, "OBS012 can never fire") {
+		t.Fatalf("validate: %+v", r)
+	}
+	writeFile(t, cfg, strings.Replace(string(raw), "  # max_queued_sessions: 10 ", "  max_queued_sessions: 4 #", 1))
+	if r := run(t, dir, nil, "validate"); strings.Contains(r.stdout+r.stderr, "can never fire") {
+		t.Fatalf("reachable budget warned: %+v", r)
+	}
+}

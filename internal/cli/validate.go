@@ -62,8 +62,13 @@ func validateReferences(cfg *config.Config) config.Problems {
 		wl, err := workload.Load(cfg.Resolve(f))
 		if err != nil {
 			add("workload.file", err)
-		} else if err := experiment.CheckCapacity(cfg, wl); err != nil {
-			add("workload.concurrency", err)
+		} else {
+			if err := experiment.CheckCapacity(cfg, wl); err != nil {
+				add("workload.concurrency", err)
+			}
+			if msg := unreachableQueueBudget(cfg, wl); msg != "" {
+				ps = append(ps, config.Problem{Level: config.LevelWarning, Path: "policy.max_queued_sessions", Message: msg, Line: cfg.LineOf("policy.max_queued_sessions")})
+			}
 		}
 	}
 	if g := cfg.Fixture.Generator; g != nil && g.Path != "" {
@@ -82,4 +87,21 @@ func validateReferences(cfg *config.Config) config.Problems {
 		}
 	}
 	return ps
+}
+
+// unreachableQueueBudget explains why policy.max_queued_sessions can never
+// be exceeded: the workload does not have more sessions than the budget.
+func unreachableQueueBudget(cfg *config.Config, wl *workload.Spec) string {
+	limit := cfg.Policy.MaxQueuedSessions
+	if limit == nil {
+		return ""
+	}
+	sessions := cfg.Workload.Concurrency
+	for _, b := range wl.Background {
+		sessions += b.Sessions
+	}
+	if sessions > *limit {
+		return ""
+	}
+	return fmt.Sprintf("max_queued_sessions is %d but the workload only has %d session(s), so OBS012 can never fire; raise workload.concurrency to at least %d or lower the budget", *limit, sessions, *limit+1)
 }
