@@ -46,9 +46,26 @@ ProdShadow measures a model of your system. Read this before trusting a
 
 The bundled parser understands the PostgreSQL 17 grammar. Newer syntax may
 not parse; such statements are still executed in the disposable server and
-reported as `PS116` (inconclusive by default, configurable). Lock
-predictions for `DO` blocks, procedure calls and functions are not possible
-(`PS117`).
+reported as `PS116` (inconclusive by default, configurable). The static
+SQL of PL/pgSQL `DO` blocks, and of functions, procedures and triggers
+defined in the schema, is analysed; dynamic SQL (`EXECUTE`), other
+languages and procedures the schema does not define are not (`PS117`).
+
+## Prediction limits
+
+Static predictions (implied locks, `plan`'s conflicts, PS154–PS161) are only
+as complete as the schema they read:
+
+* A fixture schema that lacks a production foreign key, partition, view or
+  trigger hides the locks it implies. `QUAL015` reports a wait the
+  prediction missed; `validate` and `doctor` report schema statements the
+  parser cannot read.
+* Which partitions a query or DML statement reaches depends on pruning at
+  run time, and row-level triggers and foreign key checks only run for rows
+  a statement affects. These are predicted as locks a statement *may* take.
+* With a closed-loop workload, a migration that blocks one table can hold
+  every session, so conflicts on other tables do not show in the
+  measurement (`QUAL014`).
 
 ## Platform limits
 
