@@ -92,11 +92,27 @@ var droppedObjectKinds = map[pg_query.ObjectType]string{
 	pg_query.ObjectType_OBJECT_SCHEMA:    "schema",
 }
 
+// renamedObjectKinds are the renames, besides tables and columns, that
+// break code referring to the old name.
+var renamedObjectKinds = map[string]string{
+	"rename_view": "view", "rename_matview": "materialized view", "rename_function": "function",
+	"rename_procedure": "procedure", "rename_type": "type", "rename_domain": "domain", "rename_schema": "schema",
+}
+
 func checkRename(c *Context, s *Statement) []Finding {
+	if s.node != nil && s.node.GetAlterEnumStmt() != nil && s.node.GetAlterEnumStmt().OldVal != "" {
+		st := s.node.GetAlterEnumStmt()
+		f := at(s, fmt.Sprintf("Renaming value '%s' of enum %s to '%s' breaks every running application instance that still reads or writes '%s'.", st.OldVal, qualifiedName(st.TypeName), st.NewVal, st.OldVal))
+		f.Remediation = "Add the new value, migrate code and data to it, and stop using the old value; enum values cannot be dropped, so keep the old one unused."
+		return []Finding{f}
+	}
 	if s.Kind != KindRename || len(s.Subcommands) == 0 {
 		return nil
 	}
 	sub := s.Subcommands[0]
+	if kind, ok := renamedObjectKinds[sub]; ok {
+		return renameObject(c, s, kind)
+	}
 	if sub != "rename_column" && sub != "rename_table" {
 		return nil
 	}
@@ -108,5 +124,27 @@ func checkRename(c *Context, s *Statement) []Finding {
 	f := at(s, fmt.Sprintf("Renaming a %s on %s is instant but breaks every running application instance that still uses the old name until all instances are replaced.", what, table))
 	f.Table, f.Lock = table, pglock.AccessExclusive
 	f.Remediation = "Use expand and contract: add the new name, write to both, migrate readers, then remove the old name in a later release."
+	return []Finding{f}
+}
+
+// renameObject reports the rename of a view, function, type or schema.
+func renameObject(c *Context, s *Statement, kind string) []Finding {
+	st := s.node.GetRenameStmt()
+	if st == nil {
+		return nil
+	}
+	name := relName(st.Relation)
+	switch {
+	case name != "":
+	case st.Object != nil:
+		name = dropTargetName(st.Object)
+	default:
+		name = st.Subname
+	}
+	if name != "" && c.CreatedEarlier(s, name) {
+		return nil
+	}
+	f := at(s, fmt.Sprintf("Renaming %s %s to %s breaks every running application instance, job or report that still uses the old name until all of them are updated.", kind, name, st.Newname))
+	f.Remediation = "Create the object under the new name next to the old one (for a view, a second view; for a function, a wrapper), move callers over, then drop the old name in a later release."
 	return []Finding{f}
 }
