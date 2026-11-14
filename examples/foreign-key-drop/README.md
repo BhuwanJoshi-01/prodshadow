@@ -42,9 +42,11 @@ prodshadow verify --config examples/foreign-key-drop/prodshadow.yaml
 
 In our runs (PostgreSQL 17.12, three repeats) the migration timed out after
 2.0 s in every repeat, and invoice reads and inserts stalled for 2.0 s.
-Customer reads did not stall in this workload: each of the 8 closed-loop
-sessions soon issued an invoice query and waited there, so none was left to
-read customers. With more clients, customer reads queue behind the
+Whether customer reads stall too depends on timing: in one run they did
+(2.0 s), in another they showed no stall, because each of the 8
+closed-loop sessions had already issued an invoice query and was waiting
+there, so none was left to read customers. `QUAL014` points out runs like
+the second one; with more clients, customer reads queue behind the
 migration's waiting request on `customers` as well.
 
 **Rehearsing the fix:** there is no lock-free way to drop a foreign key.
