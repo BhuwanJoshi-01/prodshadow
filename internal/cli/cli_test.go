@@ -330,3 +330,31 @@ func TestInspectNamesBlockedStatements(t *testing.T) {
 		t.Fatalf("inspect should name the blocked statements: %s", r.stdout)
 	}
 }
+
+func TestRulesSelection(t *testing.T) {
+	r := run(t, "", nil, "rules", "ps124", "--json")
+	var got []ruleInfo
+	if r.code != ExitOK || json.Unmarshal([]byte(r.stdout), &got) != nil || len(got) != 1 || got[0].ID != "PS124" {
+		t.Fatalf("rules ps124 --json: %+v", r)
+	}
+	if !strings.HasSuffix(got[0].Page, "/docs/rules/PS124.md") {
+		t.Errorf("page = %q", got[0].Page)
+	}
+	r = run(t, "", nil, "rules", "OBS002", "cascade-drop")
+	if r.code != ExitOK || !strings.Contains(r.stdout, "OBS002 ") || !strings.Contains(r.stdout, "PS124 cascade-drop") || !strings.Contains(r.stdout, "details:") {
+		t.Fatalf("rules detail: %+v", r)
+	}
+	r = run(t, "", nil, "rules", "--kind", "quality")
+	if r.code != ExitOK || strings.Contains(r.stdout, "PS101") || !strings.Contains(r.stdout, "QUAL001") {
+		t.Fatalf("rules --kind quality: %+v", r)
+	}
+	if r := run(t, "", nil, "rules", "--kind", "static", "OBS002"); r.code != ExitInvalid {
+		t.Fatalf("observed rule with --kind static: %+v", r)
+	}
+	if r := run(t, "", nil, "rules", "PS999"); r.code != ExitInvalid || !strings.Contains(r.stderr, "unknown rule") {
+		t.Fatalf("unknown rule: %+v", r)
+	}
+	if r := run(t, "", nil, "rules", "--kind", "nope"); r.code != ExitInvalid {
+		t.Fatalf("invalid kind: %+v", r)
+	}
+}

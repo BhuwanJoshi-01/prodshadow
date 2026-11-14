@@ -116,6 +116,27 @@ func parseFlags(fs *flag.FlagSet, args []string) int {
 	return -1
 }
 
+// parseWithArgs parses a command that takes positional arguments. Flags
+// may appear before, between or after them. It returns the positional
+// arguments and -1 to mean "continue", or an exit code.
+func parseWithArgs(fs *flag.FlagSet, args []string) ([]string, int) {
+	var positional []string
+	for {
+		if err := fs.Parse(args); err != nil {
+			if errors.Is(err, flag.ErrHelp) {
+				return nil, ExitOK
+			}
+			return nil, ExitInvalid
+		}
+		rest := fs.Args()
+		if len(rest) == 0 {
+			return positional, -1
+		}
+		positional = append(positional, rest[0])
+		args = rest[1:]
+	}
+}
+
 // multiFlag collects repeated string flags.
 type multiFlag []string
 

@@ -133,7 +133,10 @@ remove anything else.
 
 ## `prodshadow rules`, `schema`, `version`
 
-* `prodshadow rules [--json]` lists every rule with its default severity.
+* `prodshadow rules [--kind static|observed|quality] [--json] [RULE ...]`
+  lists every rule with its default severity. Name one or more rules, by ID
+  or name, to see their details and a link to their documentation page,
+  for example `prodshadow rules PS103 OBS002`.
 * `prodshadow schema config|workload|report` prints a JSON Schema.
 * `prodshadow version [--json]` prints the version, commit, report schema
   version and parser grammar.
