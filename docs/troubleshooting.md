@@ -61,6 +61,26 @@ The report's decision lists why. The common reasons:
 | `55P04` | unsafe use of new enum value | `PS128`: an enum value used in the transaction that added it. |
 | `23502` / `23505` | not null / unique violation | The fixture's data violates the new constraint, as production data may. |
 
+## A prediction does not match the measurement
+
+`plan` and the report's *Predicted conflict* column come from lock modes
+and the fixture schema; the measurement is what happened.
+
+* **A predicted conflict, no stall.** The conflicting lock was held too
+  briefly to matter (an `ADD COLUMN` without a blocker), or every
+  closed-loop session was already waiting elsewhere (`QUAL014`; use
+  `workload.arrival_rate` or more sessions).
+* **A stall, no predicted conflict.** Row locks: the migration updates or
+  deletes rows the scenario also changes (`OBS017`, as in the
+  backfill-heavy example); batch the migration. Or contention for CPU and
+  I/O: check whether the stall repeats.
+* **Sessions waited on a table nothing was predicted to lock** (`QUAL015`).
+  The fixture schema lacks what connects it to the migration: compare it
+  with `pg_dump --schema-only` of production, and run `prodshadow doctor`
+  to see what the analysis learned from it (`Schema: ...`).
+* **`inspect` shows no `via` locks.** It was run without a schema: pass
+  `--schema` or `--config`.
+
 ## Leftover containers
 
 Interrupted runs can leave servers behind. `prodshadow cleanup --dry-run`
