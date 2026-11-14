@@ -224,17 +224,26 @@ func runProbes(ctx context.Context, plan Plan, srv *isolation.Server, db string,
 	return res, nil
 }
 
-// pairProbes joins the before and after results, which come in the same
-// order, and redacts server messages.
+// pairProbes joins the before and after results of each probe by version
+// and ID, and redacts server messages. A probe without an after result was
+// not measured and is left out rather than reported as broken.
 func pairProbes(plan Plan, before, after []workload.ProbeResult) []Compatibility {
+	type key struct{ version, id string }
+	afterByKey := make(map[key]workload.ProbeResult, len(after))
+	for _, a := range after {
+		afterByKey[key{a.Version, a.ID}] = a
+	}
 	out := make([]Compatibility, 0, len(before))
-	for i, b := range before {
-		c := Compatibility{Version: b.Version, Probe: b.ID, BeforeOK: b.OK, BeforeSQLState: b.SQLState, BeforeError: plan.Redactor.String(b.Error)}
-		if i < len(after) {
-			a := after[i]
-			c.AfterOK, c.AfterSQLState, c.AfterError = a.OK, a.SQLState, plan.Redactor.String(a.Error)
+	for _, b := range before {
+		a, ok := afterByKey[key{b.Version, b.ID}]
+		if !ok {
+			continue
 		}
-		out = append(out, c)
+		out = append(out, Compatibility{
+			Version: b.Version, Probe: b.ID,
+			BeforeOK: b.OK, BeforeSQLState: b.SQLState, BeforeError: plan.Redactor.String(b.Error),
+			AfterOK: a.OK, AfterSQLState: a.SQLState, AfterError: plan.Redactor.String(a.Error),
+		})
 	}
 	return out
 }
