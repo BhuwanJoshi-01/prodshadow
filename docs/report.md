@@ -50,7 +50,8 @@ with a different major version instead of misreading them.
 | `findings` | Every finding, most severe first; suppressed findings last. |
 | `comparisons` | Per scenario: baseline and candidate medians across repeats (`p50/p95/p99`, throughput, error rate, max observed), the during-migration window, ratios, error-rate delta in percentage points, throughput change, baseline noise (coefficient of variation) and stall. |
 | `phases` | Every baseline and candidate phase: scenario statistics, per-second timeline, lock telemetry summary, database counters (WAL bytes, deadlocks, …), the migration outcome per statement and, in candidate phases, each compatibility probe's result before and after the migration (`compatibility`, since 1.1.0). |
-| `migration` | Files, timeouts, transaction mode and every statement with location, kind, predicted locks, transaction requirement and fingerprint. |
+| `predicted_conflicts` | Per scenario and background session (`session`, `background`): the migration statement (`statement_id`), table and both lock modes (`migration_lock`, `workload_lock`) that conflict, predicted from the lock modes and the fixture schema (since 1.8.0). Compare with `comparisons[].during_migration`. |
+| `migration` | Files, timeouts, transaction mode and every statement with location, kind, predicted locks, transaction requirement and fingerprint. Each lock may carry `created_by` (a relation the migration created, since 1.6.0) or `via` (a relation the statement does not name, resolved from the fixture schema, since 1.7.0). |
 | `quality` | Pairs completed, minimum samples, baseline noise, sampling interval and gaps, connection failures, limitations. |
 | `representativeness` | Fixture level (`manual-fixture`, `synthetic`) and limitations. |
 | `engine` | PostgreSQL version, runtime, image, network mode, resource limits, settings and their hash, parser grammar. |
