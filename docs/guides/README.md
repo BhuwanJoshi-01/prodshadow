@@ -18,6 +18,8 @@ migration (for the fixture) and the migration itself.
 
 * [Reading a report](reading-a-report.md): what each section of the report
   means and what to look at first
+* [Choosing policy thresholds](choosing-thresholds.md): setting each budget
+  from what the application can tolerate
 
 ## Patterns
 
