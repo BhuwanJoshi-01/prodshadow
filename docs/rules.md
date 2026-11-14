@@ -63,6 +63,7 @@ migration, because nothing else uses them yet.
 | [`PS143`](rules/PS143.md) | unlogged-table | warning | Unlogged tables are emptied after a crash and are not replicated to standbys. |
 | [`PS144`](rules/PS144.md) | row-security-disabled | warning | Disabling row-level security or dropping a policy exposes rows the policy used to hide. |
 | [`PS145`](rules/PS145.md) | granted-to-public | warning | Privileges granted to `PUBLIC` apply to every role, including ones created later. |
+| [`PS146`](rules/PS146.md) | security-definer-search-path | warning | A `SECURITY DEFINER` function without a fixed `search_path` can be hijacked by its callers. |
 
 ## Observed rules
 

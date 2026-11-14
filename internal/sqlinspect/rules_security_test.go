@@ -32,3 +32,19 @@ func TestPS145GrantedToPublic(t *testing.T) {
 		}
 	}
 }
+
+func TestPS146SecurityDefinerSearchPath(t *testing.T) {
+	body := " RETURNS int LANGUAGE sql AS $$ SELECT 1 $$;"
+	cases := map[string]int{
+		"CREATE FUNCTION f()" + body[:len(body)-1] + " SECURITY DEFINER;":                                       1,
+		"CREATE FUNCTION f()" + body[:len(body)-1] + " SECURITY DEFINER SET search_path = pg_catalog, pg_temp;": 0,
+		"CREATE FUNCTION f()" + body[:len(body)-1] + " SECURITY INVOKER;":                                       0,
+		"CREATE FUNCTION f()" + body: 0,
+		"CREATE OR REPLACE FUNCTION f()" + body[:len(body)-1] + " SECURITY DEFINER SET work_mem = '64MB';": 1,
+	}
+	for sql, want := range cases {
+		if got := findings(t, "PS146", Options{}, sql); len(got) != want {
+			t.Errorf("%s: expected %d findings, got %d", sql, want, len(got))
+		}
+	}
+}

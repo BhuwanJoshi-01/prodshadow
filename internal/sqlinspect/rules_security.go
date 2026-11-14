@@ -26,6 +26,14 @@ func init() {
 		DocsURL:  "https://www.postgresql.org/docs/current/sql-grant.html",
 		check:    checkGrantToPublic,
 	})
+	register(Rule{
+		ID:       "PS146",
+		Name:     "security-definer-search-path",
+		Summary:  "A SECURITY DEFINER function without a fixed search_path can be hijacked by its callers",
+		Severity: evidence.Warning,
+		DocsURL:  "https://www.postgresql.org/docs/current/sql-createfunction.html#SQL-CREATEFUNCTION-SECURITY",
+		check:    checkSecurityDefiner,
+	})
 }
 
 func checkRowSecurityDisabled(c *Context, s *Statement) []Finding {
@@ -93,4 +101,33 @@ func checkGrantToPublic(_ *Context, s *Statement) []Finding {
 		}
 	}
 	return nil
+}
+
+func checkSecurityDefiner(_ *Context, s *Statement) []Finding {
+	if s.node == nil || s.node.GetCreateFunctionStmt() == nil {
+		return nil
+	}
+	st := s.node.GetCreateFunctionStmt()
+	definer, pinned := false, false
+	for _, o := range st.Options {
+		d := o.GetDefElem()
+		if d == nil {
+			continue
+		}
+		switch d.Defname {
+		case "security":
+			definer = d.Arg.GetBoolean().GetBoolval()
+		case "set":
+			if vs := d.Arg.GetVariableSetStmt(); vs != nil && strings.EqualFold(vs.Name, "search_path") {
+				pinned = true
+			}
+		}
+	}
+	if !definer || pinned {
+		return nil
+	}
+	f := at(s, fmt.Sprintf("Function %s runs with its owner's privileges (SECURITY DEFINER) but does not fix search_path, so a caller who can create objects in a schema on their search_path can make it call their own functions or operators with the owner's rights.", qualifiedName(st.Funcname)))
+	f.Evidence, f.Confidence = evidence.Static, evidence.High
+	f.Remediation = "Add SET search_path = pg_catalog, pg_temp (and schema-qualify the objects the function uses), and revoke EXECUTE from PUBLIC."
+	return []Finding{f}
 }
