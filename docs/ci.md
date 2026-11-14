@@ -76,6 +76,9 @@ still running:
   run: prodshadow plan --config prodshadow.yaml --markdown >> "$GITHUB_STEP_SUMMARY"
 ```
 
+The ProdShadow action does this by default before running `verify`
+(input `plan-summary`, set it to `"false"` to skip).
+
 `verify` then measures the same conflicts; its report shows each
 scenario's prediction next to its measured stall.
 

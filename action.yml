@@ -18,6 +18,9 @@ inputs:
   args:
     description: Optional newline-separated extra flags for prodshadow verify, one flag or value per line (for example --repeats and 5 on two lines).
     default: ""
+  plan-summary:
+    description: Before the experiment, append the predicted locks and conflicts (prodshadow plan --markdown) to the job summary.
+    default: "true"
   working-directory:
     description: Directory to run in.
     default: .
@@ -69,6 +72,26 @@ runs:
         version="${PS_VERSION:-${PS_ACTION_REF:-main}}"
         CGO_ENABLED=1 go install "github.com/BhuwanJoshi-01/Open-Source-1/cmd/prodshadow@${version}"
         prodshadow version
+
+    - name: Predicted locks and conflicts
+      if: inputs.plan-summary == 'true'
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        PS_CONFIG: ${{ inputs.config }}
+        PS_MIGRATIONS: ${{ inputs.migrations }}
+        PS_CHANGED_SINCE: ${{ inputs.changed-since }}
+      run: |
+        set -uo pipefail
+        args=(plan --markdown --config "$PS_CONFIG")
+        while IFS= read -r m; do
+          [ -n "$m" ] && args+=(--migration "$m")
+        done <<< "$PS_MIGRATIONS"
+        if [ -n "$PS_CHANGED_SINCE" ]; then
+          args+=(--changed-since "$PS_CHANGED_SINCE")
+        fi
+        # The prediction is informational; verify reports any problem.
+        prodshadow "${args[@]}" >> "$GITHUB_STEP_SUMMARY" || echo "::warning::prodshadow plan failed; see the verify step"
 
     - name: Run prodshadow verify
       id: verify
