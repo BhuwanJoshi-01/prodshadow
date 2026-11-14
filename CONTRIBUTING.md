@@ -75,10 +75,17 @@ tests. When you add or change a prediction, also add the statement to
 lock oracle runs it in a transaction on a real server and compares the
 locks in `pg_locks` with the prediction, on every PostgreSQL version of the
 nightly matrix. Locks on relations a statement does not name (an index's
-table, the partitions of a partitioned table, the tables behind a
-materialized view) are resolved by `sqlinspect.Catalog` from the schema;
-the oracle uses its own schema for that. Anything still unpredictable goes
-into `oracleKnownGaps` with a comment saying why.
+table, partitions, view tables, sequences, foreign keys, triggers, rules,
+called functions) are resolved by `sqlinspect.Catalog` from the schema, in
+`catalog*.go`; the oracle uses its own schema for that, so add the objects
+a new case needs to `oracleSchema`. A case whose locks depend on data needs
+data (referencing rows, a statement-level trigger). Anything still
+unpredictable goes into `oracleKnownGaps` with a comment saying why. See
+[ADR 0011](docs/adr/0011-schema-catalog.md) and
+[ADR 0012](docs/adr/0012-lock-oracle.md).
+
+A rule that says PostgreSQL will reject a statement also gets a case in
+`TestFailingStatementsOracle`, with the SQLSTATE the server returns.
 
 ## Adding a static rule
 
@@ -92,6 +99,9 @@ into `oracleKnownGaps` with a comment saying why.
    created earlier in the migration (`Context.CreatedEarlier`), since
    nothing uses them yet, and follow the transaction plan
    (`Context.Group`) when the hazard depends on transaction scope.
+   A rule that needs the existing schema reads facts that
+   `Catalog.Resolve` records on the statement (or `Options.Catalog`), and
+   sets `NeedsSchema` if it is silent without one.
 3. Add positive and negative cases to the rule's test file; the
    `findings(t, "PS1xx", Options{}, sql...)` helper analyses one or more
    files.
