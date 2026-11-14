@@ -53,11 +53,15 @@ ProdShadow to the blocker-injection rehearsal rather than broadening it.
    allowlisted catalog queries only) to size fixtures and weight scenarios
    from `pg_stat_statements` and `pg_class`. Requires a security review
    first.
-2. **Application-version compatibility probes**: declare queries per
-   release and report which versions break.
+2. ~~Application-version compatibility probes~~ — done: the workload's
+   `compatibility` section lists queries per release; they run before and
+   after the migration and broken versions are reported as `OBS013`.
 3. ~~Lock-wait events from the server log~~ — done: `log_lock_waits` is
    parsed after each phase and reported as *logged waits*.
-4. **SQL rendering helpers** for Django, Rails, Alembic and Prisma.
+4. **SQL rendering helpers** for Django, Rails, Alembic and Prisma. Step
+   by step [guides](guides/README.md) exist for Alembic, Django, Prisma,
+   Flyway/Liquibase and golang-migrate/goose; Rails still needs one, since
+   it has no offline SQL mode.
 5. **PostgreSQL 19** in the matrix once a parser binding for the newer
    grammar is released.
 6. **Prebuilt release binaries** (the release workflow exists; publish the first tagged build) for linux/amd64, linux/arm64 and
@@ -65,7 +69,8 @@ ProdShadow to the blocker-injection rehearsal rather than broadening it.
 
 ## Later / research
 
-* Historical trends and a static dashboard over stored JSON reports.
+* A static dashboard over stored JSON reports (`prodshadow history`
+  already prints the timeline).
 * Multi-node and replica-aware experiments.
 * MySQL support behind the provider interface.
 
