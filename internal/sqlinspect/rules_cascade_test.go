@@ -3,6 +3,8 @@ package sqlinspect
 import (
 	"strings"
 	"testing"
+
+	"github.com/BhuwanJoshi-01/Open-Source-1/internal/evidence"
 )
 
 func TestPS124CascadeDrop(t *testing.T) {
@@ -34,4 +36,29 @@ func TestPS124CascadeDrop(t *testing.T) {
 	if !strings.Contains(got[0].Message, "foreign key") {
 		t.Errorf("truncate message should explain the foreign key cascade: %s", got[0].Message)
 	}
+}
+
+func TestPS157ReferencedTableRemoved(t *testing.T) {
+	analyse := func(migration string) []Finding {
+		stmts := parse(t, migration)
+		NewCatalog(parse(t, fkSchema)).Resolve(stmts)
+		var out []Finding
+		for _, f := range Analyze(stmts, Options{}) {
+			if f.RuleID == "PS157" {
+				out = append(out, f)
+			}
+		}
+		return out
+	}
+	got := analyse("DROP TABLE customers;")
+	if len(got) != 1 || got[0].Severity != evidence.Critical || !strings.Contains(got[0].Message, "invoices.invoices_customer_id_fkey still references") {
+		t.Fatalf("PS157 = %+v", got)
+	}
+	expectCount(t, analyse("TRUNCATE invoices;"), 1)
+	expectCount(t, analyse("TRUNCATE invoices, line_items, notes;"), 0)
+	expectCount(t, analyse("DROP TABLE customers CASCADE;"), 0)
+	expectCount(t, analyse("ALTER TABLE invoices DROP CONSTRAINT invoices_customer_id_fkey;\nDROP TABLE customers;"), 0)
+	expectCount(t, analyse("DROP TABLE notes;"), 0)
+	// Without the schema nothing is known.
+	expectCount(t, findings(t, "PS157", Options{}, "DROP TABLE customers;"), 0)
 }

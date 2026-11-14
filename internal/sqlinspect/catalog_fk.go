@@ -141,7 +141,11 @@ func (c *Catalog) ddlForeignKeyLocks(s *Statement) {
 		if x.DropStmt.RemoveType != pg_query.ObjectType_OBJECT_TABLE {
 			return
 		}
-		for _, table := range dropObjectNames(x.DropStmt.Objects) {
+		dropped := dropObjectNames(x.DropStmt.Objects)
+		if x.DropStmt.Behavior != pg_query.DropBehavior_DROP_CASCADE {
+			s.referencedBy = c.outsideReferences(dropped)
+		}
+		for _, table := range dropped {
 			for _, fk := range c.referencedBy(table) {
 				if catalogKey(fk.refTable) != catalogKey(table) {
 					s.addImpliedLock(fk.refTable, pglock.AccessExclusive, "foreign key "+fk.name)
@@ -157,6 +161,11 @@ func (c *Catalog) ddlForeignKeyLocks(s *Statement) {
 		}
 	case *pg_query.Node_TruncateStmt:
 		if x.TruncateStmt.Behavior != pg_query.DropBehavior_DROP_CASCADE {
+			var names []string
+			for _, r := range x.TruncateStmt.Relations {
+				names = append(names, relName(r.GetRangeVar()))
+			}
+			s.referencedBy = c.outsideReferences(names)
 			return
 		}
 		seen := map[string]bool{}
@@ -289,4 +298,22 @@ func (c *Catalog) referentialAction(s *Statement, fk catalogFK, action string, s
 	if action == "c" && seen != nil {
 		c.deleteCascade(s, fk.table, seen)
 	}
+}
+
+// outsideReferences lists the foreign keys ("table.constraint") that point
+// at one of tables from a table not among them: a DROP TABLE or TRUNCATE of
+// tables without CASCADE fails while they exist.
+func (c *Catalog) outsideReferences(tables []string) []string {
+	in := func(t string) bool {
+		return slices.ContainsFunc(tables, func(o string) bool { return catalogKey(o) == catalogKey(t) })
+	}
+	var out []string
+	for _, t := range tables {
+		for _, fk := range c.referencing(t) {
+			if !in(fk.table) {
+				out = append(out, strings.TrimPrefix(fk.table, "public.")+"."+fk.name)
+			}
+		}
+	}
+	return out
 }

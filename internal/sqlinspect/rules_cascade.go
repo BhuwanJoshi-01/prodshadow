@@ -11,6 +11,14 @@ import (
 
 func init() {
 	register(Rule{
+		ID:       "PS157",
+		Name:     "referenced-table-removed",
+		Summary:  "DROP TABLE or TRUNCATE without CASCADE fails while other tables' foreign keys reference the table",
+		Severity: evidence.Critical,
+		DocsURL:  "https://www.postgresql.org/docs/current/ddl-depend.html",
+		check:    checkReferencedTableRemoved,
+	})
+	register(Rule{
 		ID:       "PS124",
 		Name:     "cascade-drop",
 		Summary:  "CASCADE silently drops or truncates dependent objects the migration does not name",
@@ -92,4 +100,26 @@ func dropTargetName(o *pg_query.Node) string {
 		return qualifiedName(o.GetObjectWithArgs().Objname)
 	}
 	return ""
+}
+
+// checkReferencedTableRemoved reports DROP TABLE and TRUNCATE statements
+// that PostgreSQL will reject because foreign keys of other tables
+// reference the table. It needs the fixture schema (Catalog.Resolve).
+func checkReferencedTableRemoved(c *Context, s *Statement) []Finding {
+	if len(s.referencedBy) == 0 {
+		return nil
+	}
+	verb := "DROP TABLE"
+	if s.Kind == KindTruncate {
+		verb = "TRUNCATE"
+	}
+	refers := "references"
+	if len(s.referencedBy) > 1 {
+		refers = "reference"
+	}
+	f := at(s, fmt.Sprintf("%s fails: foreign key %s still %s the table. PostgreSQL refuses to %s a table other tables' foreign keys point at.",
+		verb, strings.Join(s.referencedBy, ", "), refers, strings.ToLower(verb)))
+	f.Table = firstTable(s)
+	f.Remediation = "Drop or change the referencing foreign keys first, in this or an earlier migration. CASCADE removes them silently (see PS124), which is rarely what the referencing code expects."
+	return []Finding{f}
 }

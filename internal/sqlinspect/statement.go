@@ -97,6 +97,9 @@ type Statement struct {
 	Annotations []Annotation `json:"annotations,omitempty"`
 
 	node *pg_query.Node
+	// referencedBy lists the foreign keys ("table.constraint") that make a
+	// DROP TABLE or TRUNCATE without CASCADE fail; set by Catalog.Resolve.
+	referencedBy []string
 }
 
 // ExistingLock returns the strongest lock the statement takes on a relation
