@@ -153,6 +153,7 @@ func buildPlan(cfg *config.Config, stmts []*sqlinspect.Statement, in *experiment
 		out.EstimatedSeconds = (time.Duration(len(out.Schedule)) * phase).Seconds()
 	}
 
+	created := sqlinspect.NewCreated(stmts)
 	for _, g := range sqlinspect.Plan(stmts, sqlinspect.TransactionMode(cfg.Migration.Transaction)) {
 		pg := planGroup{Transaction: "autocommit"}
 		switch {
@@ -162,7 +163,7 @@ func buildPlan(cfg *config.Config, stmts []*sqlinspect.Statement, in *experiment
 			pg.Transaction = "explicit BEGIN/COMMIT in the file"
 		}
 		for _, s := range g.Statements {
-			pg.Statements = append(pg.Statements, planStatement{ID: s.ID, File: s.File, Line: s.StartLine, Tag: s.Tag, Locks: lockSummary(s)})
+			pg.Statements = append(pg.Statements, planStatement{ID: s.ID, File: s.File, Line: s.StartLine, Tag: s.Tag, Locks: lockSummary(s, created)})
 		}
 		out.Migration = append(out.Migration, pg)
 	}

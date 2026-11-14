@@ -2,7 +2,6 @@ package sqlinspect
 
 import (
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/evidence"
@@ -43,7 +42,7 @@ type Context struct {
 
 	position map[*Statement]int
 	groupOf  map[*Statement]int
-	created  map[string]int
+	created  *Created
 }
 
 func newContext(stmts []*Statement, opts Options) *Context {
@@ -56,15 +55,10 @@ func newContext(stmts []*Statement, opts Options) *Context {
 		Options:    opts,
 		position:   map[*Statement]int{},
 		groupOf:    map[*Statement]int{},
-		created:    map[string]int{},
+		created:    NewCreated(stmts),
 	}
 	for i, s := range stmts {
 		c.position[s] = i
-		if name := createdRelation(s); name != "" {
-			if _, dup := c.created[name]; !dup {
-				c.created[name] = i
-			}
-		}
 	}
 	for gi, g := range c.Groups {
 		for _, s := range g.Statements {
@@ -74,38 +68,11 @@ func newContext(stmts []*Statement, opts Options) *Context {
 	return c
 }
 
-// createdRelation returns the relation a CREATE TABLE, CREATE TABLE AS,
-// CREATE MATERIALIZED VIEW or CREATE SEQUENCE statement creates.
-func createdRelation(s *Statement) string {
-	if s.node == nil {
-		return ""
-	}
-	switch {
-	case s.node.GetCreateStmt() != nil:
-		return relName(s.node.GetCreateStmt().Relation)
-	case s.node.GetCreateTableAsStmt() != nil:
-		return relName(s.node.GetCreateTableAsStmt().GetInto().GetRel())
-	case s.node.GetCreateSeqStmt() != nil:
-		return relName(s.node.GetCreateSeqStmt().Sequence)
-	}
-	return ""
-}
-
 // CreatedEarlier reports whether table was created by a statement that
 // precedes s in this migration. Such tables are new and unused, so locking
 // them does not affect application traffic.
 func (c *Context) CreatedEarlier(s *Statement, table string) bool {
-	i, ok := c.created[table]
-	if !ok {
-		// Unqualified and public-qualified names refer to the same table
-		// under the default search_path.
-		if alt, found := strings.CutPrefix(table, "public."); found {
-			i, ok = c.created[alt]
-		} else {
-			i, ok = c.created["public."+table]
-		}
-	}
-	return ok && i < c.position[s]
+	return c.created.By(s, table) != nil
 }
 
 // Group returns the execution group containing s.

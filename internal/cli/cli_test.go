@@ -125,6 +125,18 @@ func TestValidateRejectsEnvOverrideErrors(t *testing.T) {
 	}
 }
 
+func TestInspectMarksLocksOnNewTables(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "m.sql"), "CREATE TABLE audit (id bigint);\nALTER TABLE audit ADD CONSTRAINT audit_pk PRIMARY KEY (id);\n")
+	r := run(t, dir, nil, "inspect", "--migration", "m.sql")
+	if r.code != ExitOK || !strings.Contains(r.stdout, "ACCESS EXCLUSIVE on audit (created by 1.1)") {
+		t.Fatalf("lock on a table created earlier should be marked: %+v", r)
+	}
+	if strings.Contains(r.stdout, "while held or queued") {
+		t.Fatalf("locks on new tables block no application query: %s", r.stdout)
+	}
+}
+
 func TestInspect(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, filepath.Join(dir, "m.sql"), "CREATE INDEX idx ON orders (customer_id);\nALTER TABLE orders ADD COLUMN x int;\n")

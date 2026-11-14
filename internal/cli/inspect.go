@@ -165,12 +165,19 @@ func readStdinMigration(env *Env) ([]*sqlinspect.Statement, error) {
 	return sqlinspect.ParseSources([]sqlinspect.Source{src})
 }
 
-func lockSummary(s *sqlinspect.Statement) string {
+// lockSummary lists the locks s takes. Locks on relations an earlier
+// statement of the migration created are marked as such: nothing in the
+// application uses those relations yet.
+func lockSummary(s *sqlinspect.Statement, created *sqlinspect.Created) string {
 	if !s.Parsed {
 		return "not analysed"
 	}
 	var parts []string
 	for _, l := range s.Locks {
+		if by := created.By(s, l.Table); by != nil {
+			parts = append(parts, fmt.Sprintf("%s on %s (created by %s)", l.Mode, l.Table, by.ID))
+			continue
+		}
 		parts = append(parts, fmt.Sprintf("%s on %s (%s)", l.Mode, l.Table, l.Mode.Impact()))
 	}
 	if len(parts) == 0 {
@@ -181,9 +188,10 @@ func lockSummary(s *sqlinspect.Statement) string {
 
 func printInspectText(w io.Writer, stmts []*sqlinspect.Statement, findings []sqlinspect.Finding) {
 	fmt.Fprintf(w, "%d statement(s) analysed with the %s grammar\n\n", len(stmts), sqlinspect.ParserGrammar)
+	created := sqlinspect.NewCreated(stmts)
 	for _, s := range stmts {
-		fmt.Fprintf(w, "  %-5s %s:%d  %s\n        locks: %s\n", s.ID, s.File, s.StartLine, s.Tag, lockSummary(s))
-		if m := s.StrongestLock(); m != 0 {
+		fmt.Fprintf(w, "  %-5s %s:%d  %s\n        locks: %s\n", s.ID, s.File, s.StartLine, s.Tag, lockSummary(s, created))
+		if m := created.ExistingLock(s).Mode; m != 0 {
 			if blocked := m.BlockedStatements(); len(blocked) > 0 {
 				fmt.Fprintf(w, "        while held or queued, blocks: %s\n", strings.Join(blocked, ", "))
 			}
@@ -216,8 +224,9 @@ func printFindingsText(w io.Writer, findings []sqlinspect.Finding) {
 
 func printInspectMarkdown(w io.Writer, stmts []*sqlinspect.Statement, findings []sqlinspect.Finding) {
 	fmt.Fprintf(w, "## ProdShadow static analysis\n\n| ID | Location | Statement | Locks |\n|---|---|---|---|\n")
+	created := sqlinspect.NewCreated(stmts)
 	for _, s := range stmts {
-		fmt.Fprintf(w, "| %s | %s:%d | %s | %s |\n", s.ID, s.File, s.StartLine, s.Tag, strings.ReplaceAll(lockSummary(s), "|", "\\|"))
+		fmt.Fprintf(w, "| %s | %s:%d | %s | %s |\n", s.ID, s.File, s.StartLine, s.Tag, strings.ReplaceAll(lockSummary(s, created), "|", "\\|"))
 	}
 	fmt.Fprintf(w, "\n| Severity | Rule | Location | Finding |\n|---|---|---|---|\n")
 	for _, f := range findings {
