@@ -180,3 +180,44 @@ INSERT INTO tickets DEFAULT VALUES;
 		t.Errorf("via = %q", l.Via)
 	}
 }
+
+const fkSchema = `
+CREATE TABLE customers (id int PRIMARY KEY, email text);
+CREATE TABLE invoices (id int PRIMARY KEY, customer_id int REFERENCES customers);
+CREATE TABLE line_items (id int, invoice_id int, CONSTRAINT line_items_invoice_fk FOREIGN KEY (invoice_id) REFERENCES invoices (id) ON DELETE CASCADE);
+CREATE TABLE notes (id int, line_item_id int);
+ALTER TABLE line_items ADD PRIMARY KEY (id);
+ALTER TABLE notes ADD CONSTRAINT notes_line_item_fk FOREIGN KEY (line_item_id) REFERENCES line_items ON DELETE SET NULL;
+`
+
+func TestCatalogForeignKeyDMLLocks(t *testing.T) {
+	stmts := parse(t, `
+INSERT INTO invoices VALUES (1, 1);
+UPDATE invoices SET customer_id = 2 WHERE id = 1;
+UPDATE customers SET email = 'x' WHERE id = 1;
+UPDATE customers SET id = 7 WHERE id = 1;
+DELETE FROM invoices WHERE id = 1;
+`)
+	NewCatalog(parse(t, fkSchema)).Resolve(stmts)
+	cases := []struct {
+		stmt  int
+		table string
+		mode  pglock.Mode
+		via   string
+	}{
+		{0, "customers", pglock.RowShare, "foreign key invoices_customer_id_fkey"},
+		{1, "customers", pglock.RowShare, "foreign key invoices_customer_id_fkey"},
+		{3, "invoices", pglock.RowShare, "foreign key invoices_customer_id_fkey"},
+		{4, "line_items", pglock.RowExclusive, "foreign key line_items_invoice_fk"},
+		{4, "notes", pglock.RowExclusive, "foreign key notes_line_item_fk"},
+	}
+	for _, c := range cases {
+		l, ok := lockOn(stmts[c.stmt], c.table)
+		if !ok || l.Mode != c.mode || l.Via != c.via {
+			t.Errorf("statement %d: lock on %s = %+v (found %v), want %s via %q", c.stmt, c.table, l, ok, c.mode, c.via)
+		}
+	}
+	if _, ok := lockOn(stmts[2], "invoices"); ok {
+		t.Error("updating a column no foreign key refers to runs no referential trigger")
+	}
+}

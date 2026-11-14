@@ -41,11 +41,19 @@ CREATE VIEW recent_orders AS SELECT id, status FROM orders;
 CREATE TRIGGER orders_audit BEFORE UPDATE ON orders FOR EACH ROW EXECUTE FUNCTION suppress_redundant_updates_trigger();
 CREATE TABLE tags (id int NOT NULL, name text);
 CREATE TABLE invoices (id int PRIMARY KEY, customer_id int CONSTRAINT invoices_customer_fk REFERENCES customers (id));
+CREATE TABLE payments (id int, invoice_id int);
+ALTER TABLE payments ADD CONSTRAINT payments_invoice_fk FOREIGN KEY (invoice_id) REFERENCES invoices (id) NOT VALID;
+CREATE TABLE line_items (id int, invoice_id int REFERENCES invoices (id) ON DELETE CASCADE);
 CREATE UNIQUE INDEX tags_id_idx ON tags (id);
 CREATE POLICY tags_visible ON tags USING (true);
 CREATE RULE tags_keep AS ON DELETE TO tags DO INSTEAD NOTHING;
 INSERT INTO customers SELECT g, 'c' || g FROM generate_series(1, 100) g;
 INSERT INTO orders SELECT g, 1 + g % 100, 'new', g, NULL FROM generate_series(1, 1000) g;
+-- Referential triggers lock other tables only for rows a statement
+-- affects, so the referencing tables have rows.
+INSERT INTO invoices VALUES (10, 5), (11, 5);
+INSERT INTO line_items VALUES (100, 10);
+INSERT INTO payments VALUES (1000, 11);
 `
 
 var oracleStatements = []string{
@@ -151,6 +159,17 @@ var oracleStatements = []string{
 	"INSERT INTO tickets VALUES (DEFAULT, 'x')",
 	"ALTER TABLE tickets ALTER COLUMN id SET DEFAULT nextval('invoice_numbers')",
 	"DROP SEQUENCE invoice_numbers",
+	"INSERT INTO invoices VALUES (1, 1)",
+	"DELETE FROM customers WHERE id = 1",
+	"UPDATE customers SET id = 1000 WHERE id = 2",
+	"ALTER TABLE orders SET TABLESPACE pg_default",
+	"ALTER TABLE orders ADD CONSTRAINT orders_no_overlap EXCLUDE USING btree (id WITH =)",
+	"ALTER TABLE customers ALTER COLUMN email TYPE varchar(320) USING email::varchar",
+	"DELETE FROM invoices WHERE id = 10",
+	"UPDATE invoices SET customer_id = 3 WHERE id = 10",
+	"UPDATE customers SET email = 'x' WHERE id = 1",
+	"INSERT INTO line_items VALUES (1, 10)",
+	"TRUNCATE line_items",
 	"CREATE INDEX events_at_idx ON ONLY events (at)",
 	"ALTER TABLE events ADD COLUMN kind text",
 	"ALTER TABLE events ALTER COLUMN id SET NOT NULL",

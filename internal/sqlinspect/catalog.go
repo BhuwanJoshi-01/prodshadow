@@ -21,6 +21,8 @@ type Catalog struct {
 	viewReads   map[string][]string // view or materialized view -> relations its query reads
 	columns     map[string][]string // table -> column names in order
 	sequences   map[string][]columnSequence
+	foreignKeys []catalogFK
+	primaryKeys map[string][]string // table -> primary key columns
 }
 
 // columnSequence is a column filled from a sequence by default: serial,
@@ -34,7 +36,7 @@ type columnSequence struct {
 // typically the parsed fixture schema.
 func NewCatalog(schema []*Statement) *Catalog {
 	c := &Catalog{indexTable: map[string]string{}, partitions: map[string][]string{}, partitioned: map[string]bool{}, viewReads: map[string][]string{},
-		columns: map[string][]string{}, sequences: map[string][]columnSequence{}}
+		columns: map[string][]string{}, sequences: map[string][]columnSequence{}, primaryKeys: map[string][]string{}}
 	for _, s := range schema {
 		c.learn(s)
 	}
@@ -112,6 +114,7 @@ func (c *Catalog) learn(s *Statement) {
 		}
 	case *pg_query.Node_CreateStmt:
 		table := relName(x.CreateStmt.Relation)
+		c.learnTableConstraints(x.CreateStmt)
 		for _, e := range x.CreateStmt.TableElts {
 			if col := e.GetColumnDef(); col != nil {
 				c.columns[catalogKey(table)] = append(c.columns[catalogKey(table)], col.Colname)
@@ -139,6 +142,8 @@ func (c *Catalog) learn(s *Statement) {
 			switch at.GetSubtype() {
 			case pg_query.AlterTableType_AT_AddConstraint:
 				if con := at.GetDef().GetConstraint(); con != nil {
+					c.learnForeignKey(x.AlterTableStmt.Relation, "", con)
+					c.learnKey(x.AlterTableStmt.Relation, "", con)
 					if name := constraintIndexName(x.AlterTableStmt.Relation.GetRelname(), con); name != "" {
 						c.indexTable[catalogKey(name)] = table
 					}
@@ -359,6 +364,9 @@ func (c *Catalog) resolve(s *Statement) {
 		}
 	case *pg_query.Node_InsertStmt:
 		c.insertSequences(s, x.InsertStmt)
+		c.dmlForeignKeyLocks(s)
+	case *pg_query.Node_UpdateStmt, *pg_query.Node_DeleteStmt:
+		c.dmlForeignKeyLocks(s)
 	case *pg_query.Node_ClusterStmt:
 		if x.ClusterStmt.Relation != nil {
 			c.partitionedMaintenance(s, relName(x.ClusterStmt.Relation))
