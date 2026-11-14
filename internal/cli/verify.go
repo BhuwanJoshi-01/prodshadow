@@ -361,6 +361,19 @@ func writeSummary(w io.Writer, rep *report.Report, written []string) {
 		}
 		fmt.Fprintf(w, "  %-12s %s %-34s %s\n    %s\n", f.Severity, f.RuleID, f.Rule, f.Where("-"), f.Message)
 	}
+	// Each scenario's longest operation while the migration ran, next to
+	// the conflict the lock modes predicted for it.
+	header := false
+	for _, c := range rep.Comparisons {
+		if c.Background || c.During == nil {
+			continue
+		}
+		if !header {
+			fmt.Fprintln(w, "  during the migration (longest operation; predicted conflict):")
+			header = true
+		}
+		fmt.Fprintf(w, "    %-24s %8.0f ms  %s\n", c.Scenario, c.During.MaxObservedMS, rep.PredictedFor(c))
+	}
 	if len(written) > 0 {
 		fmt.Fprintf(w, "Reports: %s\n", strings.Join(written, ", "))
 	}

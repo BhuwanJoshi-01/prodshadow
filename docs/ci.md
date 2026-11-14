@@ -63,6 +63,22 @@ the same flag on `inspect` and `plan`).
 Older migrations should already be part of `fixture.schema`, so that the new
 migration runs against the schema it will meet in production.
 
+### Showing the prediction before the experiment
+
+`prodshadow plan` needs no container engine and finishes in a second. Its
+Markdown output lists what each statement locks and which workload
+sessions it is predicted to conflict with; appending it to the job summary
+puts that in front of the reviewer even when the experiment is skipped or
+still running:
+
+```yaml
+- name: Predicted locks and conflicts
+  run: prodshadow plan --config prodshadow.yaml --markdown >> "$GITHUB_STEP_SUMMARY"
+```
+
+`verify` then measures the same conflicts; its report shows each
+scenario's prediction next to its measured stall.
+
 ### Inline annotations
 
 When `GITHUB_ACTIONS=true`, `verify` and `inspect` also print workflow
