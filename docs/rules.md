@@ -69,6 +69,7 @@ migration, because nothing else uses them yet.
 | [`PS149`](rules/PS149.md) | expired-annotation | info | An inline suppression has passed its expiry date and no longer applies. |
 | [`PS150`](rules/PS150.md) | unused-annotation | info | An inline suppression names a static rule that reports nothing for its statement. |
 | [`PS151`](rules/PS151.md) | non-immutable-check | warning | A `CHECK` constraint depends on the time, randomness or the session, which PostgreSQL does not re-evaluate. |
+| [`PS152`](rules/PS152.md) | int-primary-key | info | A new table's primary key is a 32-bit integer, which can run out of values. |
 
 ## Observed rules
 
