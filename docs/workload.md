@@ -57,7 +57,7 @@ background:
 | `think_time_ms` | Pause after this scenario in closed-loop mode, overriding the workload's `think_time_ms` (0–60000). |
 
 Only `SELECT` (including `FOR UPDATE`/`FOR SHARE` and CTEs), `INSERT`,
-`UPDATE` and `DELETE` are allowed. DDL, `COPY`, `SET`, transaction control
+`UPDATE`, `DELETE` and `MERGE` (PostgreSQL 15 and later) are allowed. DDL, `COPY`, `SET`, transaction control
 and `SELECT INTO` are rejected when the workload is loaded.
 
 Workload sessions connect as the unprivileged owner role with

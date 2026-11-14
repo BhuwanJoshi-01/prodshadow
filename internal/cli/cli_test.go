@@ -785,6 +785,23 @@ func TestValidateWarnsAboutUnknownWorkloadTables(t *testing.T) {
 	}
 }
 
+func TestValidateWarnsAboutMergeOnOldPostgres(t *testing.T) {
+	dir := initProject(t)
+	wl := filepath.Join(dir, "workloads", "workload.yaml")
+	raw, _ := os.ReadFile(wl)
+	merge := `"MERGE INTO orders o USING (SELECT $2::bigint AS id) n ON n.id = o.id WHEN MATCHED THEN UPDATE SET status = $1"`
+	writeFile(t, wl, strings.Replace(string(raw), `"UPDATE orders SET status = $1 WHERE id = $2"`, merge, 1))
+	if r := run(t, dir, nil, "validate"); r.code != ExitOK || strings.Contains(r.stdout, "MERGE") {
+		t.Fatalf("MERGE is fine on PostgreSQL 17: %+v", r)
+	}
+	cfg := filepath.Join(dir, "prodshadow.yaml")
+	rawCfg, _ := os.ReadFile(cfg)
+	writeFile(t, cfg, strings.Replace(string(rawCfg), `version: "17"`, `version: "14"`, 1))
+	if r := run(t, dir, nil, "validate"); !strings.Contains(r.stdout, "uses MERGE, which PostgreSQL 14 does not support") {
+		t.Fatalf("validate should warn on PostgreSQL 14: %+v", r)
+	}
+}
+
 func TestValidateWarnsAboutUnknownMigrationTables(t *testing.T) {
 	dir := initProject(t)
 	writeFile(t, filepath.Join(dir, "migrations", "0001_add_order_note.sql"), "CREATE TABLE refunds (id bigint PRIMARY KEY);\nALTER TABLE refunds ADD COLUMN note text;\nALTER TABLE invoice ADD COLUMN note text;\nALTER TABLE orders ADD COLUMN note text;\n")

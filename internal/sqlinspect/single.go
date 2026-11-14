@@ -40,12 +40,12 @@ func (s *Statement) MaxParam() int {
 }
 
 // ErrNotDML is returned for workload statements that are not plain queries.
-var ErrNotDML = errors.New("only SELECT, INSERT, UPDATE and DELETE are allowed in workloads")
+var ErrNotDML = errors.New("only SELECT, INSERT, UPDATE, DELETE and MERGE are allowed in workloads")
 
 // RequireDML checks that s is a statement suitable for a workload scenario.
 func (s *Statement) RequireDML() error {
 	switch s.Kind {
-	case KindSelect, KindInsert, KindUpdate, KindDelete:
+	case KindSelect, KindInsert, KindUpdate, KindDelete, KindMerge:
 		if s.node.GetSelectStmt().GetIntoClause() != nil {
 			return fmt.Errorf("%w: SELECT INTO creates a table", ErrNotDML)
 		}

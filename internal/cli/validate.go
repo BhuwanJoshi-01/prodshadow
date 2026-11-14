@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/config"
@@ -79,6 +80,9 @@ func validateReferences(cfg *config.Config) config.Problems {
 					warn("workload.file", fmt.Sprintf("the workload uses table %s, which the fixture schema does not create; its queries will fail", t))
 				}
 			}
+			if msg := mergeUnsupported(cfg, wl); msg != "" {
+				warn("workload.file", msg)
+			}
 			if msg := unreachableQueueBudget(cfg, wl); msg != "" {
 				ps = append(ps, config.Problem{Level: config.LevelWarning, Path: "policy.max_queued_sessions", Message: msg, Line: cfg.LineOf("policy.max_queued_sessions")})
 			}
@@ -105,6 +109,21 @@ func validateReferences(cfg *config.Config) config.Problems {
 		}
 	}
 	return ps
+}
+
+// mergeUnsupported warns when the workload uses MERGE but the configured
+// PostgreSQL major version predates it (MERGE arrived in PostgreSQL 15).
+func mergeUnsupported(cfg *config.Config, wl *workload.Spec) string {
+	major, err := strconv.Atoi(cfg.Postgres.Version)
+	if err != nil || major >= 15 {
+		return ""
+	}
+	for _, q := range workloadSQL(wl) {
+		if st, err := sqlinspect.ParseOne(q); err == nil && st.Kind == sqlinspect.KindMerge {
+			return fmt.Sprintf("the workload uses MERGE, which PostgreSQL %d does not support (it needs 15 or later); those queries will fail", major)
+		}
+	}
+	return ""
 }
 
 // unreachableQueueBudget explains why policy.max_queued_sessions can never

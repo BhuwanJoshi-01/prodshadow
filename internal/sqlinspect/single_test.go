@@ -26,7 +26,7 @@ func TestParseOneAndMaxParam(t *testing.T) {
 }
 
 func TestRequireDML(t *testing.T) {
-	for _, sql := range []string{"SELECT * FROM t WHERE id = $1 FOR UPDATE", "INSERT INTO t VALUES ($1)", "DELETE FROM t WHERE id = $1", "WITH x AS (SELECT 1) SELECT * FROM x"} {
+	for _, sql := range []string{"SELECT * FROM t WHERE id = $1 FOR UPDATE", "INSERT INTO t VALUES ($1)", "DELETE FROM t WHERE id = $1", "WITH x AS (SELECT 1) SELECT * FROM x", "MERGE INTO t USING s ON s.id = t.id WHEN MATCHED THEN UPDATE SET v = $1"} {
 		st, err := ParseOne(sql)
 		if err != nil {
 			t.Fatal(err)
