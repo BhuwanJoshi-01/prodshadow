@@ -23,7 +23,7 @@ func server(t *testing.T) (*isolation.Server, func(string) *pgx.Conn) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		t.Cleanup(func() { c.Close(context.Background()) })
+		t.Cleanup(func() { _ = c.Close(context.Background()) })
 		return c
 	}
 	if _, err := connect("setup").Exec(ctx, "CREATE TABLE orders (id int PRIMARY KEY, amount int); INSERT INTO orders SELECT g, g FROM generate_series(1, 1000) g"); err != nil {
@@ -34,7 +34,7 @@ func server(t *testing.T) (*isolation.Server, func(string) *pgx.Conn) {
 
 func statements(t *testing.T, files ...string) []*sqlinspect.Statement {
 	t.Helper()
-	var srcs []sqlinspect.Source
+	srcs := make([]sqlinspect.Source, 0, len(files))
 	for i, f := range files {
 		srcs = append(srcs, sqlinspect.Source{Path: string(rune('a'+i)) + ".sql", Content: f})
 	}
@@ -91,7 +91,9 @@ func TestExecuteRollsBackWrappedFileOnFailure(t *testing.T) {
 		t.Fatalf("unexpected failure details %+v", out)
 	}
 	var exists bool
-	conn.QueryRow(ctx, "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'a')").Scan(&exists)
+	if err := conn.QueryRow(ctx, "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'a')").Scan(&exists); err != nil {
+		t.Fatal(err)
+	}
 	if exists {
 		t.Fatal("rolled back column still exists")
 	}
@@ -101,8 +103,11 @@ func TestExecuteReportsLockTimeout(t *testing.T) {
 	_, connect := server(t)
 	ctx := context.Background()
 	holder := connect("holder")
-	tx, _ := holder.Begin(ctx)
-	defer tx.Rollback(ctx)
+	tx, err := holder.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
 	if _, err := tx.Exec(ctx, "SELECT count(*) FROM orders"); err != nil {
 		t.Fatal(err)
 	}
@@ -154,8 +159,11 @@ func TestExecuteStopsRetryingWhenExhausted(t *testing.T) {
 	_, connect := server(t)
 	ctx := context.Background()
 	holder := connect("holder")
-	tx, _ := holder.Begin(ctx)
-	defer tx.Rollback(ctx)
+	tx, err := holder.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
 	if _, err := tx.Exec(ctx, "SELECT count(*) FROM orders"); err != nil {
 		t.Fatal(err)
 	}

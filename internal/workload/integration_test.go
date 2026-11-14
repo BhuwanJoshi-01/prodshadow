@@ -68,9 +68,10 @@ background:
 				if err != nil {
 					return
 				}
-				defer conn.Close(ctx)
-				conn.Exec(ctx, "SET lock_timeout = '1200ms'")
-				conn.Exec(ctx, "ALTER TABLE orders ADD COLUMN note text")
+				defer func() { _ = conn.Close(ctx) }()
+				// The ALTER is meant to time out; its error is expected.
+				_, _ = conn.Exec(ctx, "SET lock_timeout = '1200ms'")
+				_, _ = conn.Exec(ctx, "ALTER TABLE orders ADD COLUMN note text")
 			}()
 		},
 	})
@@ -168,7 +169,7 @@ func TestRunProbesAgainstPostgres(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer conn.Close(ctx)
+	defer func() { _ = conn.Close(ctx) }()
 	if _, err := conn.Exec(ctx, "CREATE TABLE products (id int PRIMARY KEY, legacy_sku text); INSERT INTO products SELECT g, 'sku' || g FROM generate_series(1, 10) g"); err != nil {
 		t.Fatal(err)
 	}

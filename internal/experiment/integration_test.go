@@ -218,7 +218,7 @@ func TestContainerCrashIsReportedAndCleanedUp(t *testing.T) {
 			case <-killed:
 			default:
 				close(killed)
-				go exec.Command("docker", "kill", "prodshadow-"+p.RunID).Run()
+				go func() { _ = exec.Command("docker", "kill", "prodshadow-"+p.RunID).Run() }()
 			}
 		}
 	}

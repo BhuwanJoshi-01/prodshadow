@@ -35,16 +35,22 @@ func TestSamplerSeesLockQueue(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	tx, _ := holder.Begin(ctx)
-	tx.Exec(ctx, "SELECT count(*) FROM orders")
-	go migration.Exec(ctx, "ALTER TABLE orders ADD COLUMN x int")
+	tx, err := holder.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tx.Exec(ctx, "SELECT count(*) FROM orders"); err != nil {
+		t.Fatal(err)
+	}
+	// Both statements wait on locks; their own results do not matter.
+	go func() { _, _ = migration.Exec(ctx, "ALTER TABLE orders ADD COLUMN x int") }()
 	time.Sleep(200 * time.Millisecond)
-	go worker.Exec(ctx, "INSERT INTO orders VALUES (1)")
+	go func() { _, _ = worker.Exec(ctx, "INSERT INTO orders VALUES (1)") }()
 
 	sctx, cancel := context.WithTimeout(ctx, 800*time.Millisecond)
 	samples, failed := NewSampler(monitor, 50*time.Millisecond).Run(sctx)
 	cancel()
-	tx.Rollback(ctx)
+	_ = tx.Rollback(ctx)
 	time.Sleep(300 * time.Millisecond)
 
 	s := Summarize(samples, failed, 50*time.Millisecond, time.Now().Add(-time.Second), time.Second)

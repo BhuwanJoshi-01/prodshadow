@@ -66,7 +66,7 @@ func TestDockerServerLifecycle(t *testing.T) {
 			if err := conn.QueryRow(ctx, "SHOW log_lock_waits").Scan(&lockWaits); err != nil || lockWaits != "on" {
 				t.Fatalf("log_lock_waits = %q, %v", lockWaits, err)
 			}
-			conn.Close(ctx)
+			_ = conn.Close(ctx)
 
 			if err := srv.Bootstrap(ctx, nil); err != nil {
 				t.Fatal(err)
@@ -80,7 +80,7 @@ func TestDockerServerLifecycle(t *testing.T) {
 			if err == nil {
 				t.Fatal("application role must not run server-side programs")
 			}
-			appConn.Close(ctx)
+			_ = appConn.Close(ctx)
 
 			wrong := Credential{User: AdminUser, password: "wrong-password"}
 			if _, err := srv.Connect(ctx, wrong, ConnOptions{}); err == nil {
@@ -132,7 +132,7 @@ func TestLocalServerLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	conn.Close(ctx)
+	_ = conn.Close(ctx)
 	if err := p.Destroy(ctx, srv); err != nil {
 		t.Fatal(err)
 	}

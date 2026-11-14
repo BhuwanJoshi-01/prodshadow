@@ -45,7 +45,7 @@ func TestGenerateAllColumnTypes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer conn.Close(ctx)
+	defer func() { _ = conn.Close(ctx) }()
 
 	schema := sqlinspect.Source{Path: "schema.sql", Content: `CREATE TABLE items (
   id bigint PRIMARY KEY, ref uuid NOT NULL UNIQUE, label text NOT NULL, note text,
@@ -80,13 +80,19 @@ func TestGenerateAllColumnTypes(t *testing.T) {
 
 	// The same seed must reproduce identical data.
 	var before string
-	conn.QueryRow(ctx, "SELECT md5(string_agg(items::text, ',' ORDER BY id)) FROM items").Scan(&before)
-	conn.Exec(ctx, "TRUNCATE items")
+	if err := conn.QueryRow(ctx, "SELECT md5(string_agg(items::text, ',' ORDER BY id)) FROM items").Scan(&before); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := conn.Exec(ctx, "TRUNCATE items"); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := Generate(ctx, conn, &gf, 7); err != nil {
 		t.Fatal(err)
 	}
 	var after string
-	conn.QueryRow(ctx, "SELECT md5(string_agg(items::text, ',' ORDER BY id)) FROM items").Scan(&after)
+	if err := conn.QueryRow(ctx, "SELECT md5(string_agg(items::text, ',' ORDER BY id)) FROM items").Scan(&after); err != nil {
+		t.Fatal(err)
+	}
 	if before != after {
 		t.Fatal("generated data is not deterministic")
 	}
