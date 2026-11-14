@@ -165,7 +165,7 @@ remove anything else.
   statements wait while it is held or queued. Name a mode in any spelling
   (`access exclusive`, `ACCESS_EXCLUSIVE`, `AccessExclusiveLock`) for its
   details.
-* `prodshadow schema config|workload|report` prints a JSON Schema.
+* `prodshadow schema config|workload|suppressions|report` prints a JSON Schema.
 * `prodshadow completion bash|zsh|fish` prints a shell completion script for
   commands, flags and schema names, e.g. `source <(prodshadow completion bash)`
   in `~/.bashrc`, or

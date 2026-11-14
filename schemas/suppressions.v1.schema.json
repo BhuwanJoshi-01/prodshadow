@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/BhuwanJoshi-01/Open-Source-1/schemas/suppressions.v1.schema.json",
+  "title": "ProdShadow suppression file",
+  "description": "Audited exceptions referenced by policy.suppressions in prodshadow.yaml.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "suppressions"],
+  "properties": {
+    "version": {"const": 1},
+    "suppressions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["rule", "reason"],
+        "properties": {
+          "rule": {"type": "string", "pattern": "^[A-Z]{2,5}[0-9]{3}$", "description": "Rule ID, e.g. OBS005."},
+          "scenario": {"type": "string", "description": "Only findings about this workload scenario."},
+          "app_version": {"type": "string", "description": "Only findings about this application version (OBS013, QUAL009)."},
+          "file": {"type": "string", "description": "Only findings in this migration file."},
+          "reason": {"type": "string", "minLength": 10, "description": "Why the finding is acceptable; required for audit."},
+          "expires": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$", "description": "Last day the suppression applies (YYYY-MM-DD)."},
+          "approved_by": {"type": "string"}
+        }
+      }
+    }
+  }
+}

@@ -122,6 +122,9 @@ suppressions:
     approved_by: data-team          # optional
 ```
 
-A suppression without a reason is rejected. Suppressed findings remain in
+The format is defined by
+[`schemas/suppressions.v1.schema.json`](../schemas/suppressions.v1.schema.json)
+(`prodshadow schema suppressions`), which editors can use to validate the
+file. A suppression without a reason is rejected. Suppressed findings remain in
 the report (marked as suppressed with their reason) and do not affect the
 decision. Expired suppressions are listed so they get renewed or removed.

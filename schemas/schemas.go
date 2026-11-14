@@ -1,5 +1,6 @@
 // Package schemas embeds the JSON Schemas that define ProdShadow's public
-// file formats: the configuration, the workload definition and the report.
+// file formats: the configuration, the workload definition, suppression
+// files and the report.
 package schemas
 
 import (
@@ -15,12 +16,15 @@ var (
 	configV1 []byte
 	//go:embed workload.v1.schema.json
 	workloadV1 []byte
+	//go:embed suppressions.v1.schema.json
+	suppressionsV1 []byte
 )
 
 var all = map[string][]byte{
-	"report":   reportV1,
-	"config":   configV1,
-	"workload": workloadV1,
+	"report":       reportV1,
+	"config":       configV1,
+	"workload":     workloadV1,
+	"suppressions": suppressionsV1,
 }
 
 // Get returns the schema with the given name.
