@@ -156,3 +156,19 @@ func TestLogsSinceUsesTimestamp(t *testing.T) {
 		t.Fatalf("args = %v", got)
 	}
 }
+
+func TestDestroyStopsBeforeRemoving(t *testing.T) {
+	p := newContainerProvider("docker", "")
+	var verbs []string
+	p.run = func(ctx context.Context, name string, args ...string) ([]byte, []byte, error) {
+		verbs = append(verbs, args[0])
+		return nil, nil, nil
+	}
+	srv := &Server{id: "abc", managed: true, scratch: t.TempDir()}
+	if err := p.Destroy(context.Background(), srv); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(verbs, ",") != "stop,rm" {
+		t.Fatalf("expected a graceful stop before removal, got %v", verbs)
+	}
+}

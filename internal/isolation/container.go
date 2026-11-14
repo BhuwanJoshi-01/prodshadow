@@ -269,6 +269,11 @@ func (p *containerProvider) Destroy(ctx context.Context, srv *Server) error {
 	}
 	var errs []error
 	if srv.id != "" {
+		// Stop first: the image's stop signal (SIGINT) asks PostgreSQL for a
+		// fast shutdown, which removes its socket and lock files from the
+		// shared socket directory. A forced removal would leave them behind,
+		// owned by the container's user.
+		_, _, _ = p.run(ctx, p.binary, "stop", "--time", "15", srv.id)
 		if _, stderr, err := p.run(ctx, p.binary, "rm", "--force", "--volumes", srv.id); err != nil {
 			errs = append(errs, commandError(p.binary, "rm", stderr, err))
 		}
