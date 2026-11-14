@@ -59,6 +59,7 @@ migration, because nothing else uses them yet.
 | [`PS139`](rules/PS139.md) | plaintext-password | warning | A role or user mapping password is written in the migration in plain text. |
 | [`PS140`](rules/PS140.md) | detach-partition-blocks-parent | warning | `DETACH PARTITION` without `CONCURRENTLY` takes `ACCESS EXCLUSIVE` on the partitioned table. |
 | [`PS141`](rules/PS141.md) | create-partition-locks-parent | warning | `CREATE TABLE ... PARTITION OF` takes `ACCESS EXCLUSIVE` on the partitioned table. |
+| [`PS142`](rules/PS142.md) | autovacuum-disabled | warning | Turning autovacuum off for a table lets dead rows and transaction ID age accumulate. |
 
 ## Observed rules
 
