@@ -53,6 +53,7 @@ func commands() []command {
 		{"rules", "List static and observed rules", runRules},
 		{"schema", "Print a JSON Schema (config, workload or report)", runSchema},
 		{"version", "Print version information", runVersion},
+		{"completion", "Print a shell completion script (bash, zsh or fish)", runCompletion},
 	}
 }
 

@@ -434,3 +434,31 @@ func TestHistory(t *testing.T) {
 		t.Fatalf("no arguments: %+v", r)
 	}
 }
+
+func TestCompletionScripts(t *testing.T) {
+	flags := commandFlags(context.Background())
+	for _, c := range commands() {
+		if c.name == "schema" || c.name == "completion" {
+			continue
+		}
+		if len(flags[c.name]) == 0 {
+			t.Errorf("no flags found for %s", c.name)
+		}
+	}
+	r := run(t, "", nil, "completion", "bash")
+	if r.code != ExitOK || !strings.Contains(r.stdout, "complete -o bashdefault -o default -F _prodshadow prodshadow") ||
+		!strings.Contains(r.stdout, `inspect) opts="--config --fail-on --format --migration --transaction"`) {
+		t.Fatalf("bash completion: %+v", r)
+	}
+	r = run(t, "", nil, "completion", "zsh")
+	if r.code != ExitOK || !strings.HasPrefix(r.stdout, "#compdef prodshadow\n") {
+		t.Fatalf("zsh completion: %+v", r)
+	}
+	r = run(t, "", nil, "completion", "fish")
+	if r.code != ExitOK || !strings.Contains(r.stdout, "-n '__fish_seen_subcommand_from history' -l last -d 'only show the N most recent runs (0 shows all)'") {
+		t.Fatalf("fish completion: %+v", r)
+	}
+	if r := run(t, "", nil, "completion", "powershell"); r.code != ExitInvalid {
+		t.Fatalf("unsupported shell: %+v", r)
+	}
+}

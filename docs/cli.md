@@ -152,13 +152,17 @@ remove anything else.
 | `--run` | — | Only this run ID. |
 | `--dry-run` | `false` | List without removing. |
 
-## `prodshadow rules`, `schema`, `version`
+## `prodshadow rules`, `schema`, `completion`, `version`
 
 * `prodshadow rules [--kind static|observed|quality] [--json] [RULE ...]`
   lists every rule with its default severity. Name one or more rules, by ID
   or name, to see their details and a link to their documentation page,
   for example `prodshadow rules PS103 OBS002`.
 * `prodshadow schema config|workload|report` prints a JSON Schema.
+* `prodshadow completion bash|zsh|fish` prints a shell completion script for
+  commands, flags and schema names, e.g. `source <(prodshadow completion bash)`
+  in `~/.bashrc`, or
+  `prodshadow completion fish > ~/.config/fish/completions/prodshadow.fish`.
 * `prodshadow version [--json | --short]` prints the version, commit, report
   schema version and parser grammar. `--short` prints only the version
   number, for scripts that pin or compare it.
