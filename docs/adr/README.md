@@ -8,3 +8,4 @@ supersedes it.
 |---|---|---|
 | [0001](0001-paired-alternating-experiment.md) | Measure the migration as a paired, alternating experiment | accepted |
 | [0002](0002-no-production-connections.md) | Never connect to a database ProdShadow did not create | accepted |
+| [0003](0003-parse-statements-with-postgres-grammar.md) | Split statements ourselves, parse each with PostgreSQL's grammar | accepted |
