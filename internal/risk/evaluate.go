@@ -87,6 +87,7 @@ func Evaluate(in Input) Assessment {
 	if in.NoExperiment == "" && in.Workload != nil {
 		findings = append(findings, writeBlockingUnexercised(in.Workload, in.Statements)...)
 		findings = append(findings, tablesNotExercised(in.Workload, in.Statements)...)
+		findings = append(findings, compatibilityNotChecked(in.Workload, in.Static)...)
 	}
 
 	findings = applyOverrides(findings, cfg.Policy.Rules)
@@ -340,4 +341,23 @@ func pronoun(n int) string {
 		return "it"
 	}
 	return "them"
+}
+
+// compatibilityNotChecked suggests compatibility probes when static rules
+// found a drop or rename that breaks running code, and the workload checks
+// no application version (QUAL012).
+func compatibilityNotChecked(wl *workload.Spec, static []sqlinspect.Finding) []Finding {
+	if len(wl.Compatibility) > 0 {
+		return nil
+	}
+	for _, sf := range static {
+		if sf.Suppressed || (sf.RuleID != "PS109" && sf.RuleID != "PS110") {
+			continue
+		}
+		f := newFinding("QUAL012", evidence.High, "derived from "+sf.RuleID+" and the workload definition",
+			fmt.Sprintf("Statement %s drops or renames something that running application code may use (%s), but the workload declares no compatibility probes, so the experiment does not check whether the previous release keeps working. Add the previous release's queries under compatibility.", sf.StatementID, sf.RuleID))
+		f.StatementID, f.File, f.Line, f.Table = sf.StatementID, sf.File, sf.Line, sf.Table
+		return []Finding{f}
+	}
+	return nil
 }

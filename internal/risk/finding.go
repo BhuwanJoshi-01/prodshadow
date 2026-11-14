@@ -97,6 +97,7 @@ var ObservedRules = []ObservedRule{
 	{"QUAL009", "compatibility-probe-invalid", "A compatibility probe failed before the migration, so that version was not checked", evidence.Inconclusive},
 	{"QUAL010", "write-blocking-not-exercised", "The migration blocks writes but the workload has no write scenario, so the stall is not measured", evidence.Info},
 	{"QUAL011", "table-not-exercised", "The migration blocks traffic on a table that no workload scenario or background session uses", evidence.Warning},
+	{"QUAL012", "compatibility-not-checked", "The migration drops or renames something running code may use, but no compatibility probes check the previous release", evidence.Info},
 }
 
 // Where describes what a finding is about for one-line displays: the

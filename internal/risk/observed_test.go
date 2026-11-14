@@ -244,3 +244,17 @@ func TestTablesNotExercised(t *testing.T) {
 		t.Fatal("a background session on the table exercises it")
 	}
 }
+
+func TestCompatibilityNotChecked(t *testing.T) {
+	stmts, _ := sqlinspect.ParseSources([]sqlinspect.Source{{Path: "m.sql", Content: "ALTER TABLE products DROP COLUMN legacy_sku;\n"}})
+	static := sqlinspect.Analyze(stmts, sqlinspect.Options{})
+	wl := &workload.Spec{Scenarios: []workload.Scenario{{ID: "read", Mode: "read", SQL: "SELECT name FROM products WHERE id = $1"}}}
+	f := byRule(Evaluate(Input{Config: testConfig(), Result: quietResult(), Statements: stmts, Static: static, Workload: wl}), "QUAL012")
+	if f == nil || f.Line != 1 || !strings.Contains(f.Message, "PS109") {
+		t.Fatalf("QUAL012 = %+v", f)
+	}
+	wl.Compatibility = []workload.AppVersion{{Version: "v1", Probes: []workload.Probe{{ID: "p", SQL: "SELECT 1"}}}}
+	if byRule(Evaluate(Input{Config: testConfig(), Result: quietResult(), Statements: stmts, Static: static, Workload: wl}), "QUAL012") != nil {
+		t.Fatal("probes are declared")
+	}
+}
