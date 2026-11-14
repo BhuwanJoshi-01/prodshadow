@@ -76,6 +76,7 @@ var ObservedRules = []ObservedRule{
 	{"OBS009", "migration-duration", "The migration ran longer than policy.max_migration_seconds", evidence.Critical},
 	{"OBS010", "deadlocks", "Deadlocks occurred while the migration ran", evidence.Warning},
 	{"OBS011", "sessions-queued-behind-migration", "Workload sessions queued behind the migration's lock request", evidence.Info},
+	{"OBS012", "queued-session-budget", "More workload sessions queued behind the migration than policy.max_queued_sessions", evidence.Critical},
 	{"QUAL001", "insufficient-samples", "Too few successful operations to compare latency", evidence.Inconclusive},
 	{"QUAL002", "unstable-baseline", "Baseline latency varied too much between repeats to judge a regression", evidence.Inconclusive},
 	{"QUAL003", "representativeness", "The fixture's relation to production data", evidence.Info},

@@ -316,6 +316,9 @@ func (c *Config) validatePolicy(ps *Problems) {
 	nonNegative(ps, "policy.max_error_rate_increase_pct_points", p.MaxErrorRateIncreasePctPoints)
 	nonNegative(ps, "policy.max_lock_wait_ms", p.MaxLockWaitMS)
 	nonNegative(ps, "policy.max_migration_seconds", p.MaxMigrationSeconds)
+	if v := p.MaxQueuedSessions; v != nil && *v < 0 {
+		ps.errorf("policy.max_queued_sessions", "must not be negative")
+	}
 	atLeastOne(ps, "policy.max_p95_latency_ratio", p.MaxP95LatencyRatio)
 	atLeastOne(ps, "policy.max_p99_latency_ratio", p.MaxP99LatencyRatio)
 	if v := p.MaxThroughputDropPct; v != nil && (*v < 0 || *v > 100) {

@@ -52,6 +52,25 @@ func TestOptionalBudgets(t *testing.T) {
 	}
 }
 
+func TestQueuedSessionBudget(t *testing.T) {
+	cfg := testConfig()
+	limit := 2
+	cfg.Policy.MaxQueuedSessions = &limit
+	a := Evaluate(Input{Config: cfg, Result: blockingResult(), Statements: migration(t)})
+	f := byRule(a, "OBS012")
+	if f == nil || *f.Observed != 4 || *f.Threshold != 2 || f.Severity != evidence.Critical || f.Line == 0 {
+		t.Fatalf("OBS012 = %+v", f)
+	}
+	limit = 4
+	a = Evaluate(Input{Config: cfg, Result: blockingResult(), Statements: migration(t)})
+	if byRule(a, "OBS012") != nil {
+		t.Fatal("a queue equal to the limit is within budget")
+	}
+	if a = Evaluate(Input{Config: testConfig(), Result: blockingResult(), Statements: migration(t)}); byRule(a, "OBS012") != nil {
+		t.Fatal("the budget must be opt-in")
+	}
+}
+
 func TestDeadlocksAreReported(t *testing.T) {
 	res := quietResult()
 	res.Phases[1].Counters.Deadlocks = 2

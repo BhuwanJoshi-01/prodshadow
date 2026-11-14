@@ -155,6 +155,25 @@ func observedFindings(cfg *config.Config, res *experiment.Result, comps []Compar
 		out = append(out, f)
 	}
 
+	if limit := p.MaxQueuedSessions; limit != nil && maxQueued > *limit {
+		hits := 0
+		for _, ph := range cands {
+			if ph.Locks.MaxBlockedByMigration > *limit {
+				hits++
+			}
+		}
+		conf, reason := consistency(hits, len(cands))
+		reason += "; sampled counts are a lower bound"
+		f := newFinding("OBS012", conf, reason, fmt.Sprintf("Up to %d workload session(s) queued behind the migration's lock request at once, more than the %d allowed by policy.max_queued_sessions. Each queued session holds a connection, so a pool of that size would be exhausted.", maxQueued, *limit))
+		f.Observed, f.Threshold, f.Unit = ptr(float64(maxQueued)), ptr(float64(*limit)), "sessions"
+		locate(&f, stmts, responsibleStatement(cands, stmts))
+		if relation != "" {
+			f.Table = relation
+		}
+		f.Remediation = "Lower lock_timeout so the migration gives up before the queue grows, retry it, and run it when long transactions are not open."
+		out = append(out, f)
+	}
+
 	out = append(out, migrationFindings(cfg, cands, stmts, blockers)...)
 	out = append(out, regressionFindings(cfg, comps, len(cands))...)
 

@@ -61,6 +61,7 @@ migration, because nothing else uses them yet.
 | [`OBS009`](rules/OBS009.md) | migration-duration | critical | Median migration duration exceeds `policy.max_migration_seconds` (optional). |
 | [`OBS010`](rules/OBS010.md) | deadlocks | warning | Deadlocks counted in candidate phases. |
 | [`OBS011`](rules/OBS011.md) | sessions-queued-behind-migration | info | How many sessions queued behind the migration's lock request, and what the migration waited for. |
+| [`OBS012`](rules/OBS012.md) | queued-session-budget | critical | More sessions queued behind the migration at once than `policy.max_queued_sessions` (optional). |
 
 Confidence of observed findings is `high` when every one of at least three
 candidate repeats shows the effect, `medium` for a majority, `low` otherwise,

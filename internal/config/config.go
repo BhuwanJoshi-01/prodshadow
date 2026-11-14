@@ -143,6 +143,9 @@ type PolicyConfig struct {
 	MaxLockWaitMS                 *float64 `yaml:"max_lock_wait_ms" json:"max_lock_wait_ms,omitempty"`
 	MaxThroughputDropPct          *float64 `yaml:"max_throughput_drop_pct" json:"max_throughput_drop_pct,omitempty"`
 	MaxMigrationSeconds           *float64 `yaml:"max_migration_seconds" json:"max_migration_seconds,omitempty"`
+	// MaxQueuedSessions bounds how many workload sessions may queue behind
+	// the migration's lock request at once.
+	MaxQueuedSessions *int `yaml:"max_queued_sessions" json:"max_queued_sessions,omitempty"`
 
 	// Rules overrides the severity of individual rules, or disables them
 	// with "off". Keys are rule IDs such as "PS101".

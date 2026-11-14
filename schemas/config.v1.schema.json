@@ -83,6 +83,7 @@
         "max_lock_wait_ms": {"type": "number", "minimum": 0, "default": 2000},
         "max_throughput_drop_pct": {"type": "number", "minimum": 0, "maximum": 100},
         "max_migration_seconds": {"type": "number", "minimum": 0},
+        "max_queued_sessions": {"type": "integer", "minimum": 0},
         "rules": {"type": "object", "propertyNames": {"pattern": "^[A-Z]{2,5}[0-9]{3}$"}, "additionalProperties": {"enum": ["off", "info", "warning", "critical"]}},
         "suppressions": {"type": "string"}
       }
