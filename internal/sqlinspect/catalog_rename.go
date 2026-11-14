@@ -2,6 +2,8 @@ package sqlinspect
 
 import (
 	"slices"
+	"strconv"
+	"strings"
 
 	pg_query "github.com/pganalyze/pg_query_go/v6"
 )
@@ -171,4 +173,50 @@ func (c *Catalog) dropColumn(table, column string) {
 		return catalogKey(fk.table) == key && slices.Contains(fk.columns, column)
 	})
 	delete(c.viewColumns[key], column)
+}
+
+// Summary says what the catalog learned, for showing that a schema was
+// read: "12 tables, 3 partitioned, 8 foreign keys, ...". Only non-zero
+// counts are listed.
+func (c *Catalog) Summary() string {
+	if c == nil {
+		return ""
+	}
+	views, matviews := 0, 0
+	for name := range c.viewReads {
+		if _, mat := c.matviews[name]; mat {
+			matviews++
+		} else {
+			views++
+		}
+	}
+	triggers, rules := 0, 0
+	for _, t := range c.triggers {
+		triggers += len(t)
+	}
+	for _, r := range c.rules {
+		rules += len(r)
+	}
+	counts := []struct {
+		n           int
+		one, plural string
+	}{
+		{len(c.columns), "table", "tables"}, {len(c.partitioned), "partitioned", "partitioned"},
+		{len(c.indexTable), "index", "indexes"}, {len(c.foreignKeys), "foreign key", "foreign keys"},
+		{views, "view", "views"}, {matviews, "materialized view", "materialized views"},
+		{len(c.functionLocks), "function", "functions"}, {triggers, "trigger", "triggers"}, {rules, "rule", "rules"},
+	}
+	var parts []string
+	for _, x := range counts {
+		switch {
+		case x.n == 1:
+			parts = append(parts, "1 "+x.one)
+		case x.n > 1:
+			parts = append(parts, strconv.Itoa(x.n)+" "+x.plural)
+		}
+	}
+	if len(parts) == 0 {
+		return "no tables"
+	}
+	return strings.Join(parts, ", ")
 }

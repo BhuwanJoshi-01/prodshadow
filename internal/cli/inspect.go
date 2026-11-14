@@ -119,6 +119,9 @@ func runInspect(_ context.Context, env *Env, args []string) int {
 		if *quiet {
 			printFindingsText(env.Stdout, findings)
 		} else {
+			if opts.Catalog != nil {
+				fmt.Fprintf(env.Stdout, "Schema: %s\n", opts.Catalog.Summary())
+			}
 			printInspectText(env.Stdout, stmts, findings)
 		}
 	case "markdown":

@@ -708,3 +708,16 @@ func TestCatalogSkipsFunctionsWithoutBody(t *testing.T) {
 		t.Fatalf("functions without a body have no locks: %+v", c.functionLocks)
 	}
 }
+
+func TestCatalogSummary(t *testing.T) {
+	if got := NewCatalog(parse(t, fkSchema)).Summary(); got != "4 tables, 3 indexes, 3 foreign keys" {
+		t.Errorf("Summary = %q", got)
+	}
+	if got := NewCatalog(nil).Summary(); got != "no tables" {
+		t.Errorf("empty Summary = %q", got)
+	}
+	var c *Catalog
+	if c.Summary() != "" {
+		t.Error("a nil catalog has no summary")
+	}
+}

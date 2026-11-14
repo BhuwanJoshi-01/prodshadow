@@ -178,6 +178,9 @@ func buildPlan(cfg *config.Config, stmts []*sqlinspect.Statement, in *experiment
 		out.Fixture = append(out.Fixture, fmt.Sprintf("generator %s (%d rows)", cfg.Fixture.Generator.Path, in.generator.TotalRows()))
 	}
 	out.Fixture = append(out.Fixture, "hash "+in.fixtureHash)
+	if c := fixtureCatalog(cfg); c != nil {
+		out.Fixture = append(out.Fixture, "schema has "+c.Summary())
+	}
 
 	if in.workload != nil {
 		mode := "closed-loop"
