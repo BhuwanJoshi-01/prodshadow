@@ -67,6 +67,17 @@ non-root user (PostgreSQL refuses to start as root).
 | `schemas` | Public JSON Schemas |
 | `examples` | End-to-end example projects |
 
+## Changing lock classification
+
+Lock predictions live in `internal/sqlinspect/classify.go` and its unit
+tests. When you add or change a prediction, also add the statement to
+`oracleStatements` in `internal/sqlinspect/locks_integration_test.go`: the
+lock oracle runs it in a transaction on a real server and compares the
+locks in `pg_locks` with the prediction, on every PostgreSQL version of the
+nightly matrix. Locks the classifier cannot know from the migration text
+(such as the tables behind a materialized view) go into `oracleKnownGaps`
+with a comment saying why.
+
 ## Adding a static rule
 
 1. Add the rule to the matching `internal/sqlinspect/rules_*.go` file (or a

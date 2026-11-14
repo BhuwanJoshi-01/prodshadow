@@ -14,6 +14,7 @@ on:
       - "internal/fixture/**"
       - "internal/postgres/**"
       - "internal/pgtest/**"
+      - "internal/sqlinspect/**"
       - "go.mod"
       - "go.sum"
       - ".github/workflows/integration.yml"
