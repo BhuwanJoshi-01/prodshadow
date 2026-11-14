@@ -49,10 +49,10 @@ ProdShadow to the blocker-injection rehearsal rather than broadening it.
 
 ## 0.2 candidates
 
-1. **Read-only statistics import** (separate command, separate credentials,
-   allowlisted catalog queries only) to size fixtures and weight scenarios
-   from `pg_stat_statements` and `pg_class`. Requires a security review
-   first.
+1. ~~Read-only statistics import~~ — done differently: `draft-workload`
+   and `draft-fixture` read CSV exports of `pg_stat_statements` and
+   `pg_class` that users produce themselves, so ProdShadow still never
+   connects to production ([ADR 0008](adr/0008-statistics-from-exported-files.md)).
 2. ~~Application-version compatibility probes~~ — done: the workload's
    `compatibility` section lists queries per release; they run before and
    after the migration and broken versions are reported as `OBS013`.
