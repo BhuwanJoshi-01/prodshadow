@@ -21,6 +21,7 @@ func TestCompareReports(t *testing.T) {
 	}
 	head.Findings = append(kept, risk.Finding{RuleID: "PS121", Rule: "concurrent-index-caveats", Severity: "info", File: "m.sql", Line: 1})
 	head.Comparisons[0].StallMS = 12
+	head.PredictedConflicts = nil // the alternative conflicts with nothing
 
 	d := Compare(base, head)
 	if !d.Comparable || d.BaseDecision != "block" || d.HeadDecision != "pass" {
@@ -33,7 +34,10 @@ func TestCompareReports(t *testing.T) {
 		t.Fatalf("stall should have dropped: %+v", d.Scenarios[0])
 	}
 	md := d.Markdown()
-	for _, want := range []string{"BLOCK → PASS", "**Resolved (1)**", "OBS002", "**Introduced (1)**"} {
+	if d.Scenarios[0].BaseConflict != "1.1 ACCESS EXCLUSIVE on orders" || d.Scenarios[0].HeadConflict != "none" {
+		t.Fatalf("predicted conflicts: %+v", d.Scenarios[0])
+	}
+	for _, want := range []string{"BLOCK → PASS", "**Resolved (1)**", "OBS002", "**Introduced (1)**", "| read_order | 1.1 ACCESS EXCLUSIVE on orders → none |"} {
 		if !strings.Contains(md, want) {
 			t.Errorf("markdown lacks %q:\n%s", want, md)
 		}

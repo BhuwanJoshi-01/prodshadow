@@ -44,6 +44,10 @@ type DiffScenario struct {
 	HeadErrorRate float64  `json:"head_error_rate"`
 	BaseRatio     *float64 `json:"base_p95_ratio,omitempty"`
 	HeadRatio     *float64 `json:"head_p95_ratio,omitempty"`
+	// BaseConflict and HeadConflict summarise the predicted lock
+	// conflicts ("1.1 ACCESS EXCLUSIVE on orders", or "none").
+	BaseConflict string `json:"base_predicted_conflict,omitempty"`
+	HeadConflict string `json:"head_predicted_conflict,omitempty"`
 }
 
 // key identifies a finding independently of message wording. Statement
@@ -115,6 +119,7 @@ func Compare(base, head *Report) Diff {
 			BaseStallMS: bc.StallMS, HeadStallMS: hc.StallMS,
 			BaseErrorRate: bc.Candidate.ErrorRate, HeadErrorRate: hc.Candidate.ErrorRate,
 			BaseRatio: bc.P95Ratio, HeadRatio: hc.P95Ratio,
+			BaseConflict: base.PredictedFor(bc), HeadConflict: head.PredictedFor(hc),
 		})
 	}
 	return d
@@ -140,9 +145,13 @@ func (d Diff) Markdown() string {
 	section("Introduced", d.Introduced)
 	section("Persisting", d.Persisting)
 	if len(d.Scenarios) > 0 {
-		b.WriteString("| Scenario | Candidate p95 | Stall during migration | Error rate |\n|---|---|---|---|\n")
+		b.WriteString("| Scenario | Predicted conflict | Candidate p95 | Stall during migration | Error rate |\n|---|---|---|---|---|\n")
 		for _, s := range d.Scenarios {
-			fmt.Fprintf(&b, "| %s | %s → %s | %s → %s | %.2f%% → %.2f%% |\n", esc(s.Scenario), fmtMS(s.BaseP95MS), fmtMS(s.HeadP95MS),
+			conflict := s.BaseConflict
+			if s.HeadConflict != s.BaseConflict {
+				conflict += " → " + s.HeadConflict
+			}
+			fmt.Fprintf(&b, "| %s | %s | %s → %s | %s → %s | %.2f%% → %.2f%% |\n", esc(s.Scenario), esc(conflict), fmtMS(s.BaseP95MS), fmtMS(s.HeadP95MS),
 				fmtMS(s.BaseStallMS), fmtMS(s.HeadStallMS), s.BaseErrorRate*100, s.HeadErrorRate*100)
 		}
 		b.WriteString("\n")
