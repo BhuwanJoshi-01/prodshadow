@@ -6,6 +6,7 @@ import (
 	"flag"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -200,5 +201,36 @@ func TestEffectiveConfigIsRecorded(t *testing.T) {
 	}
 	if strings.Contains(s, `customer-\\d+`) {
 		t.Fatal("redaction patterns must not be echoed")
+	}
+}
+
+func TestMarkdownCompatibilitySection(t *testing.T) {
+	r := Build(sampleInput(t))
+	if strings.Contains(r.Markdown(), "Application compatibility") {
+		t.Fatal("no section without probes")
+	}
+	probes := func(broken bool) []experiment.Compatibility {
+		old := experiment.Compatibility{Version: "2026.10", Probe: "legacy_sku", BeforeOK: true, AfterOK: !broken}
+		if broken {
+			old.AfterSQLState, old.AfterError = "42703", `column "legacy_sku" does not exist`
+		}
+		return []experiment.Compatibility{old, {Version: "2026.11", Probe: "by_id", BeforeOK: true, AfterOK: true}}
+	}
+	n := 0
+	for i := range r.Phases {
+		if r.Phases[i].Kind == "candidate" {
+			r.Phases[i].Compatibility = probes(n == 0)
+			n++
+		}
+	}
+	md := r.Markdown()
+	for _, want := range []string{
+		"## Application compatibility",
+		"| 2026.10 | legacy_sku | ok | failed (42703: column \"legacy_sku\" does not exist) | 1 of " + strconv.Itoa(n) + " |",
+		"| 2026.11 | by_id | ok | ok | 0 of " + strconv.Itoa(n) + " |",
+	} {
+		if !strings.Contains(md, want) {
+			t.Errorf("markdown lacks %q:\n%s", want, md)
+		}
 	}
 }

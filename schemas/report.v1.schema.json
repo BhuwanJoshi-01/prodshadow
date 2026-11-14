@@ -65,7 +65,12 @@
       }
     },
     "comparisons": {"type": "array", "items": {"$ref": "#/$defs/comparison"}},
-    "phases": {"type": "array", "items": {"type": "object", "required": ["kind", "repeat", "scenarios", "locks"], "properties": {"kind": {"enum": ["baseline", "candidate"]}}}},
+    "phases": {"type": "array", "items": {"type": "object", "required": ["kind", "repeat", "scenarios", "locks"], "properties": {
+      "kind": {"enum": ["baseline", "candidate"]},
+      "compatibility": {"type": "array", "items": {"type": "object", "required": ["version", "probe", "before_ok", "after_ok"], "properties": {
+        "version": {"type": "string"}, "probe": {"type": "string"}, "before_ok": {"type": "boolean"}, "after_ok": {"type": "boolean"},
+        "before_sqlstate": {"type": "string"}, "after_sqlstate": {"type": "string"}, "before_error": {"type": "string"}, "after_error": {"type": "string"}}}}
+    }}},
     "quality": {"type": "object", "required": ["representation", "limitations"]},
     "findings": {"type": "array", "items": {"$ref": "#/$defs/finding"}},
     "decision": {

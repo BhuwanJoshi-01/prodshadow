@@ -25,6 +25,11 @@
 * additive, optional fields bump the **minor** version;
 * removing or changing the meaning of a field bumps the **major** version.
 
+| Version | Change |
+|---|---|
+| 1.1.0 | `phases[].compatibility`: compatibility probe outcomes. |
+| 1.0.0 | First release. |
+
 Consumers should ignore unknown fields. `prodshadow report` refuses reports
 with a different major version instead of misreading them.
 
@@ -37,7 +42,7 @@ with a different major version instead of misreading them.
 | `decision` | Outcome, exit code, message, failed / inconclusive / suppressed rule IDs, expired suppressions. |
 | `findings` | Every finding, most severe first; suppressed findings last. |
 | `comparisons` | Per scenario: baseline and candidate medians across repeats (`p50/p95/p99`, throughput, error rate, max observed), the during-migration window, ratios, error-rate delta in percentage points, throughput change, baseline noise (coefficient of variation) and stall. |
-| `phases` | Every baseline and candidate phase: scenario statistics, per-second timeline, lock telemetry summary, database counters (WAL bytes, deadlocks, …) and the migration outcome per statement. |
+| `phases` | Every baseline and candidate phase: scenario statistics, per-second timeline, lock telemetry summary, database counters (WAL bytes, deadlocks, …), the migration outcome per statement and, in candidate phases, each compatibility probe's result before and after the migration (`compatibility`, since 1.1.0). |
 | `migration` | Files, timeouts, transaction mode and every statement with location, kind, predicted locks, transaction requirement and fingerprint. |
 | `quality` | Pairs completed, minimum samples, baseline noise, sampling interval and gaps, connection failures, limitations. |
 | `representativeness` | Fixture level (`manual-fixture`, `synthetic`) and limitations. |

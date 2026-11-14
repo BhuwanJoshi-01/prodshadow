@@ -20,7 +20,7 @@ import (
 
 // SchemaVersion follows semantic versioning: additive fields bump the
 // minor version, removals or meaning changes bump the major version.
-const SchemaVersion = "1.0.0"
+const SchemaVersion = "1.1.0"
 
 // Run statuses.
 const (
@@ -168,12 +168,16 @@ type Phase struct {
 	LoggedWaits     telemetry.LogSummary     `json:"logged_waits"`
 	Counters        telemetry.Counters       `json:"counters"`
 	Migration       *migrate.Outcome         `json:"migration,omitempty"`
+	// Compatibility lists the compatibility probes' outcomes before and
+	// after the migration (since schema 1.1.0).
+	Compatibility []experiment.Compatibility `json:"compatibility,omitempty"`
 }
 
 func phaseOf(p experiment.PhaseResult) Phase {
 	return Phase{Kind: string(p.Kind), Repeat: p.Repeat, MeasuredSec: p.MeasuredSec, Sessions: p.Sessions,
 		Scenarios: p.Scenarios, DuringMigration: p.DuringMigration, Timeline: p.Timeline,
-		Locks: p.Locks, LoggedWaits: p.LoggedWaits, Counters: p.Counters, Migration: p.Migration}
+		Locks: p.Locks, LoggedWaits: p.LoggedWaits, Counters: p.Counters, Migration: p.Migration,
+		Compatibility: p.Compatibility}
 }
 
 // Environment records where and how the run happened.
