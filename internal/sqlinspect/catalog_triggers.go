@@ -46,12 +46,18 @@ func (c *Catalog) learnFunction(s *Statement, st *pg_query.CreateFunctionStmt) {
 	var queries []string
 	switch language {
 	case "plpgsql":
-		body, ok := plpgsqlStatements(s.SQL)
+		// libpg_query aborts the process on a PL/pgSQL function without a
+		// body (CREATE FUNCTION ... LANGUAGE plpgsql;), so only a function
+		// with exactly one AS string is handed to it.
+		if len(body) != 1 || st.SqlBody != nil {
+			return
+		}
+		parsed, ok := plpgsqlStatements(s.SQL)
 		if !ok {
 			return
 		}
-		queries = body.static
-		if body.dynamic {
+		queries = parsed.static
+		if parsed.dynamic {
 			c.dynamicFunctions[catalogKey(strings.Join(names, "."))] = true
 		}
 	case "sql":

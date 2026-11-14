@@ -699,3 +699,12 @@ DROP TABLE archive.customers;
 		t.Error("the foreign key went with its column, so archive.customers can be dropped")
 	}
 }
+
+// A PL/pgSQL function without a body makes libpg_query abort the process
+// (found by FuzzCatalogResolve); the catalog must not hand it over.
+func TestCatalogSkipsFunctionsWithoutBody(t *testing.T) {
+	c := NewCatalog(parse(t, "CREATE FUNCTION f() RETURNS trigger LANGUAGE plpgsql;\nCREATE PROCEDURE p() LANGUAGE plpgsql;"))
+	if len(c.functionLocks) != 0 {
+		t.Fatalf("functions without a body have no locks: %+v", c.functionLocks)
+	}
+}
