@@ -11,12 +11,17 @@ import (
 )
 
 func runVersion(_ context.Context, env *Env, args []string) int {
-	fs := newFlags(env, "version", "[--json]")
+	fs := newFlags(env, "version", "[--json | --short]")
 	asJSON := fs.Bool("json", false, "print machine-readable JSON")
+	short := fs.Bool("short", false, "print only the version number")
 	if code := parseFlags(fs, args); code >= 0 {
 		return code
 	}
 	info := version.Get()
+	if *short {
+		fmt.Fprintln(env.Stdout, info.Version)
+		return ExitOK
+	}
 	if *asJSON {
 		out := struct {
 			version.Info

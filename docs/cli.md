@@ -138,5 +138,6 @@ remove anything else.
   or name, to see their details and a link to their documentation page,
   for example `prodshadow rules PS103 OBS002`.
 * `prodshadow schema config|workload|report` prints a JSON Schema.
-* `prodshadow version [--json]` prints the version, commit, report schema
-  version and parser grammar.
+* `prodshadow version [--json | --short]` prints the version, commit, report
+  schema version and parser grammar. `--short` prints only the version
+  number, for scripts that pin or compare it.

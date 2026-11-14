@@ -358,3 +358,10 @@ func TestRulesSelection(t *testing.T) {
 		t.Fatalf("invalid kind: %+v", r)
 	}
 }
+
+func TestVersionShort(t *testing.T) {
+	r := run(t, "", nil, "version", "--short")
+	if r.code != ExitOK || strings.Count(r.stdout, "\n") != 1 || strings.Contains(r.stdout, " ") {
+		t.Fatalf("version --short: %+v", r)
+	}
+}
