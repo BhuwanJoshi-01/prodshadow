@@ -157,6 +157,18 @@ versioning; the report schema (`schema_version`) is versioned separately.
   `prodshadow rules` marks rules that need the schema; the GitHub Action
   appends `plan --markdown` to the job summary (`plan-summary`); ADRs 0011
   and 0012.
+- Triggers fired by a trigger function's own writes are followed; DDL in
+  `fixture.seed_sql` (such as indexes built after loading data) feeds the
+  schema catalog too.
+- Reports list waits by relation (Markdown and HTML) with whether each was
+  predicted, and record what the analysis learned from the fixture schema
+  (`fixture.schema_summary`, report schema 1.10.0); `inspect` (text, JSON,
+  Markdown), `plan --json` and `doctor` say the same, or that no schema was
+  used; `validate` warns about schema statements the parser cannot read;
+  `plan` notes when a conflicting lock is held until a later commit.
+- Every example's waits must be predicted (no QUAL015) in the example
+  integration test; the lock oracle treats data-dependent locks (foreign
+  key checks, row-level triggers, pruned partitions) as optional.
 - Example `foreign-key-drop`; the backfill example now shows OBS017;
   a unit test pins every example's predicted conflicts; the catalog is
   fuzzed nightly.
@@ -187,6 +199,8 @@ versioning; the report schema (`schema_version`) is versioned separately.
   `COMMENT ON`, `DROP TRIGGER/POLICY/RULE`, `CREATE/ALTER POLICY`,
   `CREATE RULE`, `CREATE STATISTICS`, `MERGE` and data-modifying `WITH`
   clauses, all found by the lock oracle.
+- QUAL011 counts tables a workload reaches through views, foreign keys,
+  triggers and partitions as exercised.
 - A `CREATE FUNCTION ... LANGUAGE plpgsql` without a body no longer aborts
   the process (found by fuzzing); PS109 and PS112 no longer report tables
   a statement only locks implicitly; PS157 no longer reports a table whose
