@@ -578,3 +578,44 @@ CREATE RULE staging_archived AS ON DELETE TO staging DO INSTEAD INSERT INTO arch
 		t.Errorf("no rule on UPDATE: %+v", stmts[2].Locks)
 	}
 }
+
+func TestCatalogFollowsRenames(t *testing.T) {
+	schema := parse(t, `
+CREATE TABLE customers (id int PRIMARY KEY);
+CREATE TABLE invoices (id int, customer_id int CONSTRAINT invoices_customer_fk REFERENCES customers);
+CREATE TABLE events (id int, at date) PARTITION BY RANGE (at);
+CREATE TABLE events_2026 PARTITION OF events FOR VALUES FROM ('2026-01-01') TO ('2027-01-01');
+CREATE TABLE orders (id int, status text);
+CREATE INDEX orders_status_idx ON orders (status);
+CREATE VIEW open_orders AS SELECT id, status FROM orders;
+`)
+	stmts := parse(t, `
+ALTER TABLE customers RENAME TO clients;
+ALTER TABLE invoices DROP CONSTRAINT invoices_customer_fk;
+ALTER TABLE events RENAME TO events_v2;
+ALTER TABLE events_v2 ADD COLUMN source text;
+ALTER INDEX orders_status_idx RENAME TO orders_state_idx;
+DROP INDEX orders_state_idx;
+ALTER TABLE orders RENAME COLUMN status TO state;
+ALTER TABLE orders DROP COLUMN state;
+`)
+	NewCatalog(schema).Resolve(stmts)
+	if l, ok := lockOn(stmts[1], "clients"); !ok || l.Mode != pglock.AccessExclusive {
+		t.Errorf("the foreign key now references clients: %+v", stmts[1].Locks)
+	}
+	if _, ok := lockOn(stmts[3], "events_2026"); !ok {
+		t.Errorf("the renamed table keeps its partitions: %+v", stmts[3].Locks)
+	}
+	if _, ok := lockOn(stmts[5], "orders"); !ok {
+		t.Errorf("the renamed index still belongs to orders: %+v", stmts[5].Locks)
+	}
+	var ps159 int
+	for _, f := range Analyze(stmts, Options{}) {
+		if f.RuleID == "PS159" && f.StatementID == "1.8" {
+			ps159++
+		}
+	}
+	if ps159 != 1 {
+		t.Error("the view reads the renamed column, so dropping it fails")
+	}
+}

@@ -218,6 +218,8 @@ func (c *Catalog) learn(s *Statement) {
 		c.learnTrigger(x.CreateTrigStmt)
 	case *pg_query.Node_RuleStmt:
 		c.learnRule(x.RuleStmt)
+	case *pg_query.Node_RenameStmt:
+		c.learnRename(x.RenameStmt)
 	case *pg_query.Node_DropStmt:
 		switch x.DropStmt.RemoveType {
 		case pg_query.ObjectType_OBJECT_VIEW, pg_query.ObjectType_OBJECT_MATVIEW:
