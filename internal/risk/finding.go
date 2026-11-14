@@ -93,8 +93,9 @@ var ObservedRules = []ObservedRule{
 	{"QUAL005", "sampler-starved", "Telemetry sampling fell behind; the test host may be overloaded", evidence.Warning},
 	{"QUAL006", "connect-failures", "Workload sessions failed to connect", evidence.Warning},
 	{"QUAL007", "no-experiment", "No workload or fixture; only static analysis was performed", evidence.Inconclusive},
-	{"QUAL009", "compatibility-probe-invalid", "A compatibility probe failed before the migration, so that version was not checked", evidence.Inconclusive},
 	{"QUAL008", "no-blocker-modelled", "No session holds a transaction open while the migration runs, so lock queues behind long transactions are not exercised", evidence.Info},
+	{"QUAL009", "compatibility-probe-invalid", "A compatibility probe failed before the migration, so that version was not checked", evidence.Inconclusive},
+	{"QUAL010", "write-blocking-not-exercised", "The migration blocks writes but the workload has no write scenario, so the stall is not measured", evidence.Info},
 }
 
 // Where describes what a finding is about for one-line displays: the

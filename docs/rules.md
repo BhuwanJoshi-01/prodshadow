@@ -111,6 +111,7 @@ and is lowered when only client-side evidence exists.
 | [`QUAL007`](rules/QUAL007.md) | no-experiment | inconclusive | No workload or no fixture; only static analysis ran. |
 | [`QUAL008`](rules/QUAL008.md) | no-blocker-modelled | info | No session holds a transaction open when the migration starts, so the most common outage pattern — a lock queue behind a long transaction — is not exercised. |
 | [`QUAL009`](rules/QUAL009.md) | compatibility-probe-invalid | inconclusive | A compatibility probe failed on the unchanged schema, so its version was not checked. |
+| [`QUAL010`](rules/QUAL010.md) | write-blocking-not-exercised | info | The migration blocks writes but the workload has no write scenario, so the stall is not measured. |
 
 ## Suppressions
 

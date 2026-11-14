@@ -10,6 +10,7 @@ import (
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/config"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/evidence"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/experiment"
+	"github.com/BhuwanJoshi-01/Open-Source-1/internal/pglock"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/sqlinspect"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/workload"
 )
@@ -82,6 +83,9 @@ func Evaluate(in Input) Assessment {
 	if in.NoExperiment == "" && in.Workload != nil && !modelsBlocker(cfg, in.Workload) {
 		findings = append(findings, newFinding("QUAL008", evidence.High, "derived from the workload definition",
 			"No session keeps a transaction open while the migration starts. Most migration outages need one: a long transaction makes the migration's lock request wait, and every query queues behind it. Add a background session with hold_ms to rehearse that case."))
+	}
+	if in.NoExperiment == "" && in.Workload != nil {
+		findings = append(findings, writeBlockingUnexercised(in.Workload, in.Statements)...)
 	}
 
 	findings = applyOverrides(findings, cfg.Policy.Rules)
@@ -246,4 +250,27 @@ func appendUnique(xs []string, x string) []string {
 		return xs
 	}
 	return append(xs, x)
+}
+
+// writeBlockingUnexercised reports migrations whose strongest lock blocks
+// writes but not reads, run against a workload without write scenarios:
+// the experiment cannot show their effect (QUAL010).
+func writeBlockingUnexercised(wl *workload.Spec, stmts []*sqlinspect.Statement) []Finding {
+	for _, sc := range wl.Scenarios {
+		if sc.Mode == "write" {
+			return nil
+		}
+	}
+	for _, s := range stmts {
+		for _, l := range s.Locks {
+			if l.Mode.Impact() != pglock.ImpactWrites {
+				continue
+			}
+			f := newFinding("QUAL010", evidence.High, "derived from the migration's locks and the workload's scenario modes",
+				fmt.Sprintf("Statement %s takes %s on %s, which blocks writes but not reads, and the workload has no write scenario, so the experiment cannot show the stall writers would see. Add a write scenario on %s.", s.ID, l.Mode, l.Table, l.Table))
+			f.StatementID, f.File, f.Line, f.Table, f.Lock = s.ID, s.File, s.StartLine, l.Table, l.Mode.String()
+			return []Finding{f}
+		}
+	}
+	return nil
 }

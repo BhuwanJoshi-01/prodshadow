@@ -7,6 +7,8 @@ import (
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/evidence"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/experiment"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/migrate"
+	"github.com/BhuwanJoshi-01/Open-Source-1/internal/sqlinspect"
+	"github.com/BhuwanJoshi-01/Open-Source-1/internal/workload"
 )
 
 func failingWith(state, msg string) *experiment.Result {
@@ -201,5 +203,25 @@ func TestTempFileSpill(t *testing.T) {
 	}
 	if byRule(Evaluate(Input{Config: testConfig(), Result: quietResult()}), "OBS016") != nil {
 		t.Fatal("no spill, no finding")
+	}
+}
+
+func TestWriteBlockingNotExercised(t *testing.T) {
+	stmts, err := sqlinspect.ParseSources([]sqlinspect.Source{{Path: "m.sql", Content: "CREATE INDEX orders_status_idx ON orders (status);\n"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	readOnly := &workload.Spec{Scenarios: []workload.Scenario{{ID: "read", Mode: "read"}}}
+	a := Evaluate(Input{Config: testConfig(), Result: quietResult(), Statements: stmts, Workload: readOnly})
+	if f := byRule(a, "QUAL010"); f == nil || f.Line != 1 || f.Lock != "SHARE" || f.Severity != evidence.Info {
+		t.Fatalf("QUAL010 = %+v", f)
+	}
+	withWrites := &workload.Spec{Scenarios: []workload.Scenario{{ID: "read", Mode: "read"}, {ID: "write", Mode: "write"}}}
+	if byRule(Evaluate(Input{Config: testConfig(), Result: quietResult(), Statements: stmts, Workload: withWrites}), "QUAL010") != nil {
+		t.Fatal("a write scenario exercises the lock")
+	}
+	alter, _ := sqlinspect.ParseSources([]sqlinspect.Source{{Path: "m.sql", Content: "ALTER TABLE orders ADD COLUMN note text;\n"}})
+	if byRule(Evaluate(Input{Config: testConfig(), Result: quietResult(), Statements: alter, Workload: readOnly}), "QUAL010") != nil {
+		t.Fatal("ACCESS EXCLUSIVE blocks reads too, which the read scenario shows")
 	}
 }
