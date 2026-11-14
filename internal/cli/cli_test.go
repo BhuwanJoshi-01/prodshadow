@@ -150,7 +150,7 @@ func TestInspectResolvesLocksFromFixtureSchema(t *testing.T) {
 	if r.code != ExitOK || !strings.Contains(r.stdout, "ACCESS EXCLUSIVE on orders (via index orders_note_lookup, blocks-reads-and-writes)") {
 		t.Fatalf("the index's table should be resolved from the fixture schema: %+v", r)
 	}
-	if r := run(t, dir, nil, "inspect", "--migration", "drop.sql"); strings.Contains(r.stdout, "via index") {
+	if r := run(t, dir, nil, "inspect", "--migration", "drop.sql"); strings.Contains(r.stdout, "via index") || !strings.Contains(r.stdout, "Schema: not given") {
 		t.Fatalf("without a configuration there is no schema to resolve from: %s", r.stdout)
 	}
 }

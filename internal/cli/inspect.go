@@ -121,6 +121,8 @@ func runInspect(_ context.Context, env *Env, args []string) int {
 		} else {
 			if opts.Catalog != nil {
 				fmt.Fprintf(env.Stdout, "Schema: %s\n", opts.Catalog.Summary())
+			} else {
+				fmt.Fprintln(env.Stdout, "Schema: not given; locks on tables a statement does not name (foreign keys, partitions, views, triggers) are not predicted, and PS157-PS161 are off. Pass --schema or --config.")
 			}
 			printInspectText(env.Stdout, stmts, findings)
 		}
