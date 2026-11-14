@@ -43,6 +43,7 @@ type planOutput struct {
 	EstimatedSeconds float64             `json:"estimated_seconds"`
 	Migration        []planGroup         `json:"migration"`
 	MigrationTiming  string              `json:"migration_timing"`
+	SchemaSummary    string              `json:"schema_summary,omitempty"`
 	Conflicts        []workload.Conflict `json:"conflicts,omitempty"`
 	Unblocked        []string            `json:"unblocked,omitempty"`
 	Warnings         []string            `json:"warnings,omitempty"`
@@ -179,7 +180,8 @@ func buildPlan(cfg *config.Config, stmts []*sqlinspect.Statement, in *experiment
 	}
 	out.Fixture = append(out.Fixture, "hash "+in.fixtureHash)
 	if c := fixtureCatalog(cfg); c != nil {
-		out.Fixture = append(out.Fixture, "schema has "+c.Summary())
+		out.SchemaSummary = c.Summary()
+		out.Fixture = append(out.Fixture, "schema has "+out.SchemaSummary)
 	}
 
 	if in.workload != nil {

@@ -153,9 +153,10 @@ func runInspect(_ context.Context, env *Env, args []string) int {
 	case "json":
 		out := struct {
 			Parser     string                  `json:"parser_grammar"`
+			Schema     string                  `json:"schema_summary,omitempty"`
 			Statements []*sqlinspect.Statement `json:"statements"`
 			Findings   []sqlinspect.Finding    `json:"findings"`
-		}{sqlinspect.ParserGrammar, stmts, findings}
+		}{sqlinspect.ParserGrammar, opts.Catalog.Summary(), stmts, findings}
 		if out.Findings == nil {
 			out.Findings = []sqlinspect.Finding{}
 		}

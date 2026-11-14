@@ -163,6 +163,13 @@ func TestInspectSchemaFlag(t *testing.T) {
 	if !strings.Contains(r.stdout, "ACCESS EXCLUSIVE on orders (via index orders_id_idx") || !strings.Contains(r.stdout, "PS159") {
 		t.Fatalf("--schema should resolve locks and feed the rules: %+v", r)
 	}
+	r = run(t, dir, nil, "inspect", "--schema", "schema.sql", "--migration", "m.sql", "--format", "json")
+	var js struct {
+		Schema string `json:"schema_summary"`
+	}
+	if err := json.Unmarshal([]byte(r.stdout), &js); err != nil || js.Schema != "1 table, 1 index, 1 view" {
+		t.Fatalf("inspect --format json schema_summary: %v %q", err, js.Schema)
+	}
 	if r := run(t, dir, nil, "inspect", "--schema", "missing.sql", "--migration", "m.sql"); r.code != ExitInvalid || !strings.Contains(r.stderr, "--schema") {
 		t.Fatalf("a missing schema file is an error: %+v", r)
 	}
