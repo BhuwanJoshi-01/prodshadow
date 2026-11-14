@@ -71,6 +71,7 @@ Measured with `go test -bench` on the same host:
 | Summarise a histogram (percentiles) | ~2 µs |
 | Draw an `int_range` / `zipf` / `uuid` parameter | ~17 / ~66 / ~314 ns |
 | Split SQL | ~180 MB/s |
+| Build a schema catalog of 500 tables (foreign keys, indexes, views, triggers, partitions) and resolve a 302-statement migration against it | ~31 ms |
 
 The measurement machinery is therefore negligible next to a round trip to
 the database (0.1–1 ms in these examples).
