@@ -1,16 +1,31 @@
 name: Integration
 
+# Integration tests start real PostgreSQL containers and take minutes per
+# job. Pull requests run them on PostgreSQL 17 when database-facing code
+# changes; the full version matrix runs nightly and on demand.
 on:
-  push:
-    branches: [main]
   pull_request:
+    paths:
+      - "internal/isolation/**"
+      - "internal/experiment/**"
+      - "internal/migrate/**"
+      - "internal/telemetry/**"
+      - "internal/workload/**"
+      - "internal/fixture/**"
+      - "internal/postgres/**"
+      - "internal/pgtest/**"
+      - "go.mod"
+      - "go.sum"
+      - ".github/workflows/integration.yml"
+  schedule:
+    - cron: "47 5 * * *"
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: integration-${{ github.ref }}
+  group: integration-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -21,7 +36,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        postgres: ["15", "16", "17", "18"]
+        postgres: ${{ fromJSON(github.event_name == 'pull_request' && '["17"]' || '["15", "16", "17", "18"]') }}
     env:
       PRODSHADOW_IT_IMAGE: postgres:${{ matrix.postgres }}-alpine
       PRODSHADOW_IT_MAJOR: ${{ matrix.postgres }}
