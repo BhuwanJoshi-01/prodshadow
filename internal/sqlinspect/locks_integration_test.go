@@ -5,6 +5,7 @@ package sqlinspect
 import (
 	"context"
 	"errors"
+	"maps"
 	"sort"
 	"strings"
 	"testing"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	pg_query "github.com/pganalyze/pg_query_go/v6"
 )
 
 // The lock oracle runs each statement inside a transaction on a real
@@ -153,6 +155,10 @@ var oracleStatements = []string{
 	"DROP INDEX orders_status_idx",
 	"LOCK TABLE ONLY events IN ACCESS EXCLUSIVE MODE",
 	"LOCK TABLE events IN SHARE MODE",
+	"ALTER INDEX orders_status_idx RENAME TO orders_state_idx",
+	"ALTER INDEX orders_status_idx SET (fillfactor = 70)",
+	"ALTER INDEX orders_status_idx RESET (fillfactor)",
+	"ALTER INDEX orders_status_idx SET TABLESPACE pg_default",
 	"ALTER SEQUENCE invoice_numbers RESTART WITH 1000",
 	"ALTER SEQUENCE invoice_numbers INCREMENT BY 10",
 	"ALTER SEQUENCE invoice_numbers OWNED BY orders.id",
@@ -243,6 +249,22 @@ func TestLockOracle(t *testing.T) {
 		existing[r.OID] = r.Name
 		byName[r.Name] = true
 	}
+	// Indexes are compared only for the statements that name them (DROP
+	// INDEX, REINDEX INDEX, ALTER INDEX): DML and DDL lock every index of
+	// their table, which the classifier deliberately leaves out.
+	rows, err = conn.Query(ctx, `SELECT c.oid, c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+		WHERE n.nspname = 'public' AND c.relkind IN ('i', 'I')`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	idx, err := pgx.CollectRows(rows, pgx.RowToStructByPos[relation])
+	if err != nil {
+		t.Fatal(err)
+	}
+	indexOID := map[string]uint32{}
+	for _, r := range idx {
+		indexOID[r.Name] = r.OID
+	}
 
 	schema, err := ParseSources([]Source{{Path: "schema.sql", Content: oracleSchema}})
 	if err != nil {
@@ -259,13 +281,23 @@ func TestLockOracle(t *testing.T) {
 			NewCatalog(schema).Resolve(stmts)
 			s := stmts[0]
 			predicted := map[string]pglock.Mode{}
+			compared := maps.Clone(existing)
+			for _, name := range namedIndexes(s) {
+				if oid, ok := indexOID[name]; ok {
+					compared[oid] = name
+				}
+			}
 			for _, l := range s.Locks {
 				name := strings.TrimPrefix(l.Table, "public.")
+				if oid, ok := indexOID[name]; ok && s.OnIndex(l) {
+					compared[oid] = name
+					predicted[name] = pglock.Strongest(predicted[name], l.Mode)
+				}
 				if byName[name] {
 					predicted[name] = pglock.Strongest(predicted[name], l.Mode)
 				}
 			}
-			observed := observeLocks(ctx, t, conn, sql, existing)
+			observed := observeLocks(ctx, t, conn, sql, compared)
 			for name, mode := range observed {
 				if _, predictedToo := predicted[name]; !predictedToo && knownGap(sql, name) == mode.String() {
 					delete(observed, name)
@@ -448,4 +480,21 @@ func TestFailingStatementsOracle(t *testing.T) {
 			}
 		})
 	}
+}
+
+// namedIndexes returns the indexes a DROP INDEX, REINDEX INDEX or ALTER
+// INDEX statement names.
+func namedIndexes(s *Statement) []string {
+	n := s.node
+	switch {
+	case n.GetDropStmt().GetRemoveType() == pg_query.ObjectType_OBJECT_INDEX:
+		return dropObjectNames(n.GetDropStmt().Objects)
+	case n.GetReindexStmt().GetKind() == pg_query.ReindexObjectType_REINDEX_OBJECT_INDEX:
+		return []string{n.GetReindexStmt().Relation.GetRelname()}
+	case n.GetRenameStmt().GetRenameType() == pg_query.ObjectType_OBJECT_INDEX:
+		return []string{n.GetRenameStmt().Relation.GetRelname()}
+	case n.GetAlterTableStmt().GetObjtype() == pg_query.ObjectType_OBJECT_INDEX:
+		return []string{n.GetAlterTableStmt().Relation.GetRelname()}
+	}
+	return nil
 }
