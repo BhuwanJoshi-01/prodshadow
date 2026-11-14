@@ -137,19 +137,22 @@ var oracleStatements = []string{
 	"CREATE INDEX events_id_idx ON events (id)",
 	"DROP INDEX orders_status_idx",
 	"LOCK TABLE ONLY events IN ACCESS EXCLUSIVE MODE",
+	"LOCK TABLE events IN SHARE MODE",
+	"CREATE INDEX events_at_idx ON ONLY events (at)",
+	"ALTER TABLE events ADD COLUMN kind text",
+	"ALTER TABLE events ALTER COLUMN id SET NOT NULL",
+	"TRUNCATE events",
+	"DROP TABLE events",
+	"DROP INDEX tags_id_idx",
+	"DROP INDEX order_totals_customer",
+	"REINDEX INDEX customers_pkey",
 }
 
 // oracleKnownGaps lists observed locks the classifier does not predict,
-// keyed by statement and relation. Some depend on objects a migration file
-// does not show: the tables behind a materialized view, the table an index
-// belongs to, the partitions of a partitioned table.
-var oracleKnownGaps = map[string]map[string]string{
-	"REFRESH MATERIALIZED VIEW order_totals":              {"orders": "ACCESS SHARE"},
-	"REFRESH MATERIALIZED VIEW CONCURRENTLY order_totals": {"orders": "ACCESS SHARE"},
-	"REINDEX INDEX orders_status_idx":                     {"orders": "SHARE"},
-	"DROP INDEX orders_status_idx":                        {"orders": "ACCESS EXCLUSIVE"},
-	"CREATE INDEX events_id_idx ON events (id)":           {"events_2026": "SHARE"},
-}
+// keyed by statement and relation. The tables behind a materialized view,
+// the table an index belongs to and the partitions of a partitioned table
+// are resolved from the schema (see Catalog); nothing is missing today.
+var oracleKnownGaps = map[string]map[string]string{}
 
 // oracleVersionGaps adds gaps that only some PostgreSQL majors show.
 // Since PostgreSQL 18, GRANT and REVOKE on a table take ACCESS SHARE on it.
@@ -198,12 +201,19 @@ func TestLockOracle(t *testing.T) {
 		byName[r.Name] = true
 	}
 
+	schema, err := ParseSources([]Source{{Path: "schema.sql", Content: oracleSchema}})
+	if err != nil {
+		t.Fatal(err)
+	}
 	for _, sql := range oracleStatements {
 		t.Run(sql, func(t *testing.T) {
 			stmts, err := ParseSources([]Source{{Path: "oracle.sql", Content: sql + ";"}})
 			if err != nil || len(stmts) != 1 || !stmts[0].Parsed {
 				t.Fatalf("parse: %v", err)
 			}
+			// A fresh catalog per statement: each runs on the original
+			// schema, and Resolve learns from what it resolves.
+			NewCatalog(schema).Resolve(stmts)
 			s := stmts[0]
 			predicted := map[string]pglock.Mode{}
 			for _, l := range s.Locks {

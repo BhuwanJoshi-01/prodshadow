@@ -68,6 +68,10 @@ type TableLock struct {
 	// created Table. Such a lock cannot block the application: nothing
 	// uses the relation yet.
 	CreatedBy string `json:"created_by,omitempty"`
+	// Via names the object that implies a lock on a relation the statement
+	// does not name, such as "index orders_status_idx" or "partition of
+	// events". It is set only when a Catalog resolved the lock.
+	Via string `json:"via,omitempty"`
 }
 
 // Statement is one analysed migration statement.
@@ -143,6 +147,21 @@ func (s *Statement) Tables() []string {
 
 // Node exposes the parse tree to rules. It is nil when parsing failed.
 func (s *Statement) Node() *pg_query.Node { return s.node }
+
+// addImpliedLock records a lock on a relation the statement does not name.
+// An existing lock on the relation keeps its origin.
+func (s *Statement) addImpliedLock(table string, mode pglock.Mode, via string) {
+	if table == "" || mode == pglock.None {
+		return
+	}
+	for i, l := range s.Locks {
+		if catalogKey(l.Table) == catalogKey(table) {
+			s.Locks[i].Mode = pglock.Strongest(l.Mode, mode)
+			return
+		}
+	}
+	s.Locks = append(s.Locks, TableLock{Table: table, Mode: mode, Via: via})
+}
 
 func (s *Statement) addLock(table string, mode pglock.Mode) {
 	if table == "" || mode == pglock.None {

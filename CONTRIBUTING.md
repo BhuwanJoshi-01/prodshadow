@@ -74,9 +74,11 @@ tests. When you add or change a prediction, also add the statement to
 `oracleStatements` in `internal/sqlinspect/locks_integration_test.go`: the
 lock oracle runs it in a transaction on a real server and compares the
 locks in `pg_locks` with the prediction, on every PostgreSQL version of the
-nightly matrix. Locks the classifier cannot know from the migration text
-(such as the tables behind a materialized view) go into `oracleKnownGaps`
-with a comment saying why.
+nightly matrix. Locks on relations a statement does not name (an index's
+table, the partitions of a partitioned table, the tables behind a
+materialized view) are resolved by `sqlinspect.Catalog` from the schema;
+the oracle uses its own schema for that. Anything still unpredictable goes
+into `oracleKnownGaps` with a comment saying why.
 
 ## Adding a static rule
 
