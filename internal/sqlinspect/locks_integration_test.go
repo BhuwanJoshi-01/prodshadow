@@ -39,6 +39,8 @@ CREATE TRIGGER orders_audit BEFORE UPDATE ON orders FOR EACH ROW EXECUTE FUNCTIO
 CREATE TABLE tags (id int NOT NULL, name text);
 CREATE TABLE invoices (id int PRIMARY KEY, customer_id int CONSTRAINT invoices_customer_fk REFERENCES customers (id));
 CREATE UNIQUE INDEX tags_id_idx ON tags (id);
+CREATE POLICY tags_visible ON tags USING (true);
+CREATE RULE tags_keep AS ON DELETE TO tags DO INSTEAD NOTHING;
 INSERT INTO customers SELECT g, 'c' || g FROM generate_series(1, 100) g;
 INSERT INTO orders SELECT g, 1 + g % 100, 'new', g, NULL FROM generate_series(1, 1000) g;
 `
@@ -117,6 +119,8 @@ var oracleStatements = []string{
 	"ALTER TABLE invoices ALTER CONSTRAINT invoices_customer_fk DEFERRABLE",
 	"ALTER TRIGGER orders_audit ON orders RENAME TO orders_audit_v2",
 	"DROP TRIGGER orders_audit ON orders",
+	"DROP POLICY tags_visible ON tags",
+	"DROP RULE tags_keep ON tags",
 	"CREATE POLICY orders_owner ON orders USING (customer_id = 1)",
 	"CREATE RULE orders_no_delete AS ON DELETE TO orders DO INSTEAD NOTHING",
 	"CREATE STATISTICS orders_stats ON customer_id, status FROM orders",
@@ -143,7 +147,6 @@ var oracleKnownGaps = map[string]map[string]string{
 	"DROP INDEX orders_status_idx":                        {"orders": "ACCESS EXCLUSIVE"},
 	"CREATE INDEX events_id_idx ON events (id)":           {"events_2026": "SHARE"},
 	// Not yet classified.
-	"DROP TRIGGER orders_audit ON orders":                                                               {"orders": "ACCESS EXCLUSIVE"},
 	"CREATE POLICY orders_owner ON orders USING (customer_id = 1)":                                      {"orders": "ACCESS EXCLUSIVE"},
 	"CREATE RULE orders_no_delete AS ON DELETE TO orders DO INSTEAD NOTHING":                            {"orders": "ACCESS EXCLUSIVE"},
 	"CREATE STATISTICS orders_stats ON customer_id, status FROM orders":                                 {"orders": "SHARE UPDATE EXCLUSIVE"},

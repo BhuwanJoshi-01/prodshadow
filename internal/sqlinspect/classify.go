@@ -214,6 +214,17 @@ func classifyDrop(s *Statement, st *pg_query.DropStmt) {
 		for _, n := range names {
 			s.addLock(n, pglock.AccessExclusive)
 		}
+	case pg_query.ObjectType_OBJECT_TRIGGER, pg_query.ObjectType_OBJECT_POLICY, pg_query.ObjectType_OBJECT_RULE:
+		// DROP TRIGGER/POLICY/RULE name ON table takes ACCESS EXCLUSIVE
+		// on the table. Each object is the table's name followed by the
+		// object's own name.
+		s.Kind = KindDropOther
+		s.Tag = "DROP " + strings.TrimPrefix(st.RemoveType.String(), "OBJECT_")
+		for _, o := range st.Objects {
+			if items := stringItems(o.GetList().GetItems()); len(items) > 1 {
+				s.addLock(strings.Join(items[:len(items)-1], "."), pglock.AccessExclusive)
+			}
+		}
 	default:
 		s.Kind = KindDropOther
 		s.Tag = "DROP " + strings.TrimPrefix(st.RemoveType.String(), "OBJECT_")
