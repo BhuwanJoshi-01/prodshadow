@@ -45,6 +45,7 @@ migration, because nothing else uses them yet.
 | [`PS125`](rules/PS125.md) | integrity-checks-disabled | warning | `session_replication_role = replica` or `DISABLE TRIGGER ALL` switches off foreign key enforcement. |
 | [`PS126`](rules/PS126.md) | database-wide-maintenance | warning | `VACUUM`, `ANALYZE` or `REINDEX` without a table name processes the whole database or schema. |
 | [`PS127`](rules/PS127.md) | extension-requires-preload | warning | The extension needs its library in `shared_preload_libraries`, which takes a restart. |
+| [`PS128`](rules/PS128.md) | enum-value-used-before-commit | critical | A value added with `ALTER TYPE ... ADD VALUE` is used before the transaction commits. |
 
 ## Observed rules
 
