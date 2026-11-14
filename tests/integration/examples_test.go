@@ -33,6 +33,7 @@ var expectations = []expectation{
 	{example: "partition-maintenance", exit: cli.ExitBlock, mustHave: []string{"OBS002", "PS141"}},
 	{example: "partition-maintenance", migration: "alternatives/0031_events_2027.sql", mustNot: []string{"OBS002", "PS141", "PS123"}, exit: cli.ExitOK},
 	{example: "matview-refresh", exit: cli.ExitBlock, mustHave: []string{"OBS001", "OBS011", "PS113"}},
+	{example: "foreign-key-drop", exit: cli.ExitBlock, mustHave: []string{"OBS002", "OBS011", "PS114"}},
 	// The concurrent refresh blocks no reader, but competes for CPU; an
 	// occasional contention stall can still exceed the budget, so only the
 	// absence of lock queueing is asserted.

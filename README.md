@@ -110,6 +110,7 @@ JUnit XML on request) and exits with:
 | [rolling-deploy](examples/rolling-deploy) | Dropping a column the old app version still reads | block (OBS007, OBS013) |
 | [partition-maintenance](examples/partition-maintenance) | `PARTITION OF` locks the whole partitioned table | block (OBS002) |
 | [matview-refresh](examples/matview-refresh) | A plain refresh blocks every reader of the view | block (OBS001) |
+| [foreign-key-drop](examples/foreign-key-drop) | Dropping a foreign key locks the referenced table too | block (OBS002) |
 
 ## In CI
 

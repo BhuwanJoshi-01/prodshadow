@@ -17,6 +17,7 @@ prodshadow verify --config examples/<name>/prodshadow.yaml
 | [rolling-deploy](rolling-deploy) | `DROP COLUMN legacy_sku` | The previous application version still selects the column and fails. | `block` — OBS007, OBS013 |
 | [partition-maintenance](partition-maintenance) | `CREATE TABLE … PARTITION OF events` | The new partition needs `ACCESS EXCLUSIVE` on the partitioned table; it queues behind an export and every query on every partition queues behind it. Attaching a prepared table does not block. | `block` — OBS002 |
 | [matview-refresh](matview-refresh) | `REFRESH MATERIALIZED VIEW daily_revenue` | The refresh holds `ACCESS EXCLUSIVE` on the view for seconds; every dashboard query waits. `CONCURRENTLY` lets reads continue but takes four times as long. | `block` — OBS001 |
+| [foreign-key-drop](foreign-key-drop) | `ALTER TABLE invoices DROP CONSTRAINT invoices_customer_fk` | Dropping the foreign key also takes `ACCESS EXCLUSIVE` on `customers`; it waits for an export that only reads customers, and invoice traffic queues behind it. | `block` — OBS002 |
 
 `go test -tags integration -run TestExamples ./tests/integration/` runs all
 of them and checks these outcomes; CI does the same weekly.

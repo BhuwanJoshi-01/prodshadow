@@ -29,7 +29,7 @@ and reports what everybody else experienced. It complements linters
 | Risk evaluation with noise bands and inconclusive handling | done |
 | JSON, Markdown and HTML reports with redaction | done |
 | GitHub Action, CI workflows for PostgreSQL 15–18 | done |
-| Seven end-to-end examples with documented outcomes | done |
+| Eight end-to-end examples with documented outcomes | done |
 
 **Exit criterion:** an external developer can add ProdShadow to a pull
 request workflow without a service account, and the examples produce their
@@ -99,6 +99,6 @@ ProdShadow to the blocker-injection rehearsal rather than broadening it.
 | PS-011 | P0 | JSON and Markdown report | Golden tests, schema validation |
 | PS-012 | P0 | Cleanup and sandbox hardening | Leftover check in CI, cleanup command |
 | PS-013 | P1 | GitHub Actions integration | Composite action, documented workflow |
-| PS-014 | P1 | Realistic benchmark fixtures | Seven examples with expected outcomes |
+| PS-014 | P1 | Realistic benchmark fixtures | Eight examples with expected outcomes |
 | PS-015 | P1 | Read-only statistics adapter | Security review, approval, redaction |
 | PS-016 | P2 | Web report viewer | Static, no hosted service |

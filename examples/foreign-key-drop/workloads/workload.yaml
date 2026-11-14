@@ -1,0 +1,34 @@
+version: 1
+name: billing-api
+scenarios:
+  - id: customer_profile
+    weight: 40
+    mode: read
+    sql: "SELECT email, country FROM customers WHERE id = $1"
+    parameters:
+      - {generator: zipf, min: 1, max: 50000, s: 1.1}
+  - id: customer_invoices
+    weight: 40
+    mode: read
+    sql: "SELECT id, amount, issued_at FROM invoices WHERE customer_id = $1 ORDER BY issued_at DESC LIMIT 20"
+    parameters:
+      - {generator: zipf, min: 1, max: 50000, s: 1.1}
+  # Inserting an invoice checks the customer through the foreign key, which
+  # takes ROW SHARE on customers.
+  - id: issue_invoice
+    weight: 20
+    mode: write
+    sql: "INSERT INTO invoices (id, customer_id, amount) VALUES ($1, $2, 49.00) ON CONFLICT (id) DO NOTHING"
+    parameters:
+      - {generator: int_range, min: 1000000, max: 1000000000000}
+      - {generator: int_range, min: 1, max: 50000}
+background:
+  # A marketing export reads customers only. It never touches invoices.
+  - id: customer_export
+    sessions: 1
+    start_after_seconds: 2
+    repeat: true
+    transaction:
+      statements:
+        - "SELECT country, count(*) FROM customers GROUP BY country"
+      hold_ms: 6000

@@ -29,6 +29,8 @@ are **not** limits or guarantees.
 | matview-refresh | 1,500,000 | block (OBS001) | 127 s | 6419, 1551, 1257 ms | 8 | 6397 ms | 7.2 % |
 | matview-refresh, `CONCURRENTLY` (run 1) | 1,500,000 | block (OBS001, low confidence) | 127 s | 6512, 5790, 5540 ms | 0 | 290 ms | 5.5 % |
 | matview-refresh, `CONCURRENTLY` (run 2) | 1,500,000 | pass | 127 s | 5695, 5883, 5911 ms | 0 | 30 ms | 6.2 % |
+| foreign-key-drop | 350,000 | block (OBS002) | 123 s | 2002, 2002, 2002 ms (lock timeout) | 8 | 2004 ms | 18 % |
+| foreign-key-drop, 1 s `lock_timeout` + retries | 350,000 | pass (OBS014) | 123 s | 4013, 4008, 4012 ms (2 retries each) | 8 | 1001 ms | 3.7 % |
 
 Observations:
 
@@ -77,7 +79,7 @@ the database (0.1–1 ms in these examples).
 
 ```bash
 make build
-for e in safe-add-column long-running-transaction blocking-index backfill-heavy rolling-deploy partition-maintenance matview-refresh; do
+for e in safe-add-column long-running-transaction blocking-index backfill-heavy rolling-deploy partition-maintenance matview-refresh foreign-key-drop; do
   ./bin/prodshadow verify --config examples/$e/prodshadow.yaml --output /tmp/ps-$e
 done
 ```
