@@ -48,7 +48,7 @@ Static analysis only; needs no database or container engine.
 
 | Flag | Default | |
 |---|---|---|
-| `--migration` | — | Migration file; repeat for several, executed in order. |
+| `--migration` | — | Migration file; repeat for several, executed in order. `--migration -` reads a single migration from standard input, reported as `<stdin>`. |
 | `--config` | — | Use rule overrides, transaction mode and `migration.files` from a configuration. |
 | `--transaction` | `auto` | `auto`, `per-file` or `none`. |
 | `--format` | `text` | `text`, `json`, `markdown` or `sarif`. |

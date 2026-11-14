@@ -2,6 +2,7 @@ package sqlinspect
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"unicode/utf8"
@@ -38,9 +39,23 @@ func ReadSource(path, display string) (Source, error) {
 	if fi.Size() > MaxSourceSize {
 		return Source{}, fmt.Errorf("%s is larger than %d bytes", display, MaxSourceSize)
 	}
-	b, err := os.ReadFile(path)
+	f, err := os.Open(path)
 	if err != nil {
 		return Source{}, err
+	}
+	defer f.Close()
+	return ReadSourceFrom(f, display)
+}
+
+// ReadSourceFrom loads a migration from r, for example standard input,
+// enforcing the same size and encoding limits as ReadSource.
+func ReadSourceFrom(r io.Reader, display string) (Source, error) {
+	b, err := io.ReadAll(io.LimitReader(r, MaxSourceSize+1))
+	if err != nil {
+		return Source{}, fmt.Errorf("reading %s: %w", display, err)
+	}
+	if len(b) > MaxSourceSize {
+		return Source{}, fmt.Errorf("%s is larger than %d bytes", display, MaxSourceSize)
 	}
 	if !utf8.Valid(b) {
 		return Source{}, fmt.Errorf("%s is not valid UTF-8", display)

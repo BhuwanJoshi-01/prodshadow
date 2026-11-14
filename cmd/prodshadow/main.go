@@ -14,7 +14,7 @@ import (
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	dir, _ := os.Getwd()
-	code := cli.Main(ctx, os.Args[1:], &cli.Env{Stdout: os.Stdout, Stderr: os.Stderr, Getenv: os.LookupEnv, Dir: dir})
+	code := cli.Main(ctx, os.Args[1:], &cli.Env{Stdin: os.Stdin, Stdout: os.Stdout, Stderr: os.Stderr, Getenv: os.LookupEnv, Dir: dir})
 	stop()
 	os.Exit(code)
 }

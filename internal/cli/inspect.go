@@ -17,7 +17,7 @@ import (
 func runInspect(_ context.Context, env *Env, args []string) int {
 	fs := newFlags(env, "inspect", "--migration FILE [--migration FILE ...] [flags]")
 	var files multiFlag
-	fs.Var(&files, "migration", "migration file (repeatable, executed in order)")
+	fs.Var(&files, "migration", "migration file (repeatable, executed in order); - reads one migration from standard input")
 	cfgPath := fs.String("config", "", "optional configuration for rule overrides and transaction mode")
 	txn := fs.String("transaction", "", "transaction mode: auto, per-file or none (default from config, else auto)")
 	format := fs.String("format", "text", "output format: text, json, markdown or sarif")
@@ -64,7 +64,13 @@ func runInspect(_ context.Context, env *Env, args []string) int {
 		threshold = sev.Rank()
 	}
 
-	stmts, err := loadMigrations(base, files)
+	var stmts []*sqlinspect.Statement
+	var err error
+	if len(files) == 1 && files[0] == "-" {
+		stmts, err = readStdinMigration(env)
+	} else {
+		stmts, err = loadMigrations(base, files)
+	}
 	if err != nil {
 		fmt.Fprintf(env.Stderr, "prodshadow: %v\n", err)
 		return ExitInvalid
@@ -116,6 +122,19 @@ func runInspect(_ context.Context, env *Env, args []string) int {
 		}
 	}
 	return ExitOK
+}
+
+// readStdinMigration parses a single migration read from standard input,
+// for editor integrations and pipelines that do not write a file.
+func readStdinMigration(env *Env) ([]*sqlinspect.Statement, error) {
+	if env.Stdin == nil {
+		return nil, fmt.Errorf("--migration -: no standard input")
+	}
+	src, err := sqlinspect.ReadSourceFrom(env.Stdin, "<stdin>")
+	if err != nil {
+		return nil, err
+	}
+	return sqlinspect.ParseSources([]sqlinspect.Source{src})
 }
 
 func lockSummary(s *sqlinspect.Statement) string {

@@ -25,6 +25,7 @@ const (
 
 // Env abstracts the process environment for testing.
 type Env struct {
+	Stdin  io.Reader
 	Stdout io.Writer
 	Stderr io.Writer
 	Getenv func(string) (string, bool)

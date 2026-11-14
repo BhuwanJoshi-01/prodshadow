@@ -365,3 +365,32 @@ func TestVersionShort(t *testing.T) {
 		t.Fatalf("version --short: %+v", r)
 	}
 }
+
+func TestInspectReadsStdin(t *testing.T) {
+	var out, errOut bytes.Buffer
+	code := Main(context.Background(), []string{"inspect", "--migration", "-", "--format", "json"}, &Env{
+		Stdin:  strings.NewReader("ALTER TABLE orders ADD COLUMN note text NOT NULL;\n"),
+		Stdout: &out, Stderr: &errOut,
+		Getenv: func(string) (string, bool) { return "", false },
+	})
+	if code != ExitOK {
+		t.Fatalf("exit %d: %s", code, errOut.String())
+	}
+	var doc struct {
+		Statements []struct {
+			File string `json:"file"`
+		} `json:"statements"`
+		Findings []struct {
+			RuleID string `json:"rule_id"`
+		} `json:"findings"`
+	}
+	if err := json.Unmarshal(out.Bytes(), &doc); err != nil {
+		t.Fatal(err)
+	}
+	if len(doc.Statements) != 1 || doc.Statements[0].File != "<stdin>" || len(doc.Findings) == 0 {
+		t.Fatalf("unexpected output: %s", out.String())
+	}
+	if r := run(t, "", nil, "inspect", "--migration", "-"); r.code != ExitInvalid {
+		t.Fatalf("no stdin: %+v", r)
+	}
+}
