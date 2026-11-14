@@ -81,6 +81,7 @@ Runs the experiment and writes reports.
 | `--repeats` | `workload.repeats` | Number of baseline/candidate pairs. |
 | `--keep` | `false` | Keep the server after the run for local debugging. Never use in CI. |
 | `--quiet` | `false` | No progress output. |
+| `--changed-since` | — | Only the migration files git reports as added, modified or renamed since this ref (as for `inspect`). Exits 0 without starting a server when none changed. `plan` accepts it too. |
 
 In GitHub Actions the Markdown report is appended to `$GITHUB_STEP_SUMMARY`.
 Interrupting the command (Ctrl-C, SIGTERM) stops the run and removes the

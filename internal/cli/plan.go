@@ -51,6 +51,7 @@ func runPlan(_ context.Context, env *Env, args []string) int {
 	var files multiFlag
 	fs.Var(&files, "migration", "migration file, overriding migration.files (repeatable)")
 	asJSON := fs.Bool("json", false, "print machine-readable JSON")
+	changedSince := fs.String("changed-since", "", "only migrations git reports as added or changed since this ref (e.g. origin/main)")
 	if code := parseFlags(fs, args); code >= 0 {
 		return code
 	}
@@ -67,6 +68,18 @@ func runPlan(_ context.Context, env *Env, args []string) int {
 	migFiles, base := cfg.Migration.Files, cfg.BaseDir()
 	if len(files) > 0 {
 		migFiles, base = files, env.Dir
+	}
+	if *changedSince != "" {
+		changed, err := changedMigrations(base, migFiles, *changedSince)
+		if err != nil {
+			fmt.Fprintf(env.Stderr, "prodshadow: --changed-since: %v\n", err)
+			return ExitInvalid
+		}
+		if len(changed) == 0 {
+			fmt.Fprintf(env.Stdout, "No migration changed since %s; verify would have nothing to run.\n", *changedSince)
+			return ExitOK
+		}
+		migFiles = changed
 	}
 	stmts, err := loadMigrations(base, migFiles)
 	if err != nil {

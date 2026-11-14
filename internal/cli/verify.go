@@ -29,6 +29,7 @@ type verifyFlags struct {
 	repeats    int
 	keep       bool
 	quiet      bool
+	changed    string
 }
 
 func runVerify(ctx context.Context, env *Env, args []string) int {
@@ -41,6 +42,7 @@ func runVerify(ctx context.Context, env *Env, args []string) int {
 	fs.IntVar(&vf.repeats, "repeats", 0, "number of baseline/candidate pairs, overriding workload.repeats")
 	fs.BoolVar(&vf.keep, "keep", false, "keep the disposable server after the run (local debugging only)")
 	fs.BoolVar(&vf.quiet, "quiet", false, "suppress progress output")
+	fs.StringVar(&vf.changed, "changed-since", "", "only migrations git reports as added or changed since this ref (e.g. origin/main)")
 	if code := parseFlags(fs, args); code >= 0 {
 		return code
 	}
@@ -72,6 +74,21 @@ func runVerify(ctx context.Context, env *Env, args []string) int {
 		cfg.Migration.Files = nil
 		for _, m := range vf.migrations {
 			cfg.Migration.Files = append(cfg.Migration.Files, display(cfg.BaseDir(), env.abs(m)))
+		}
+	}
+	if vf.changed != "" {
+		changed, err := changedMigrations(base, files, vf.changed)
+		if err != nil {
+			fmt.Fprintf(env.Stderr, "prodshadow: --changed-since: %v\n", err)
+			return ExitInvalid
+		}
+		if len(changed) == 0 {
+			fmt.Fprintf(env.Stdout, "No migration changed since %s; nothing to verify.\n", vf.changed)
+			return ExitOK
+		}
+		files, cfg.Migration.Files = changed, nil
+		for _, c := range changed {
+			cfg.Migration.Files = append(cfg.Migration.Files, display(cfg.BaseDir(), c))
 		}
 	}
 	problems := append(p.problems, cfg.Validate()...)

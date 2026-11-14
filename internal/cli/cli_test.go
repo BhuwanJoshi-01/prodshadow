@@ -658,3 +658,23 @@ func TestInspectChangedSince(t *testing.T) {
 		t.Fatal("an option-like ref reached git")
 	}
 }
+
+func TestPlanAndVerifyChangedSince(t *testing.T) {
+	dir := gitRepo(t)
+	init := run(t, dir, nil, "init", "--project", "demo", "--dir", "app")
+	if init.code != ExitOK {
+		t.Fatalf("init: %+v", init)
+	}
+	cfg := filepath.Join(dir, "app", "prodshadow.yaml")
+	raw, _ := os.ReadFile(cfg)
+	writeFile(t, cfg, strings.Replace(string(raw), "    - ./migrations/0001_add_order_note.sql\n", "    - ../migrations/*.sql\n", 1))
+	r := run(t, dir, nil, "plan", "--config", "app/prodshadow.yaml", "--changed-since", "main")
+	if r.code != ExitOK || !strings.Contains(r.stdout, "0002_new.sql") || strings.Contains(r.stdout, "0001_old.sql") {
+		t.Fatalf("plan --changed-since: %+v", r)
+	}
+	// Nothing changed: verify exits before starting a server.
+	r = run(t, dir, nil, "verify", "--config", "app/prodshadow.yaml", "--changed-since", "HEAD")
+	if r.code != ExitOK || !strings.Contains(r.stdout, "nothing to verify") {
+		t.Fatalf("verify --changed-since HEAD: %+v", r)
+	}
+}
