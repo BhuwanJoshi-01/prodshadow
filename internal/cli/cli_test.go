@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"github.com/BhuwanJoshi-01/Open-Source-1/internal/config"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -642,6 +643,25 @@ func TestValidateWarnsAboutUnreachableQueueBudget(t *testing.T) {
 }
 
 type fakeEngine struct{ isolation.Provider }
+
+func TestDoctorSchemaCheck(t *testing.T) {
+	dir := initProject(t)
+	cfg, _, err := config.Load(filepath.Join(dir, "prodshadow.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, ok := schemaCheck(cfg)
+	if !ok || !c.ok || c.warn || !strings.Contains(c.detail, "2 tables") || !strings.Contains(c.detail, "1 foreign key") {
+		t.Fatalf("schema check = %+v", c)
+	}
+	schema := filepath.Join(dir, "fixtures", "schema.sql")
+	raw, _ := os.ReadFile(schema)
+	writeFile(t, schema, string(raw)+"\nCREATE TABLE broken (id int,;\n")
+	c, _ = schemaCheck(cfg)
+	if !c.ok || !c.warn || !strings.Contains(c.detail, "1 statement(s) could not be parsed") {
+		t.Fatalf("an unparsable statement should warn: %+v", c)
+	}
+}
 
 func TestDoctorResourceCheck(t *testing.T) {
 	// resourceCheck only needs EngineResources, which reports ErrNoCleanup

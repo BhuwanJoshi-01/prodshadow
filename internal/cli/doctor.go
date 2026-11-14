@@ -3,6 +3,8 @@ package cli
 import (
 	"context"
 	"fmt"
+	"github.com/BhuwanJoshi-01/Open-Source-1/internal/config"
+	"github.com/BhuwanJoshi-01/Open-Source-1/internal/sqlinspect"
 	"os"
 	"runtime"
 	"time"
@@ -45,6 +47,9 @@ func runDoctor(ctx context.Context, env *Env, args []string) int {
 			add(check{name: "configuration", detail: fmt.Sprintf("%d error(s); run 'prodshadow validate'", len(p.problems.Errors()))})
 		default:
 			add(check{name: "configuration", ok: true, detail: display(env.Dir, p.cfg.Path())})
+			if c, ok := schemaCheck(p.cfg); ok {
+				add(c)
+			}
 			provider, binary, network = p.cfg.Postgres.Isolation.Provider, p.cfg.Postgres.Isolation.Binary, p.cfg.Postgres.Isolation.Network
 			image = p.cfg.Postgres.Image
 			memoryMB, cpus = p.cfg.Postgres.Isolation.MemoryMB, p.cfg.Postgres.Isolation.CPUs
@@ -130,4 +135,29 @@ func compareResources(engineMB, ncpu, memoryMB int, cpus float64) check {
 	default:
 		return check{name: "resources", ok: true, detail: detail}
 	}
+}
+
+// schemaCheck parses the fixture schema the way the static analysis does
+// and reports what it learned, so a schema the parser cannot read (and
+// whose foreign keys, partitions and views are therefore unknown) shows up
+// before a run.
+func schemaCheck(cfg *config.Config) (check, bool) {
+	if cfg.Fixture.Schema == "" {
+		return check{}, false
+	}
+	stmts, err := schemaStatements(cfg.Resolve(cfg.Fixture.Schema), cfg.Fixture.Schema)
+	if err != nil {
+		return check{name: "schema", detail: err.Error()}, true
+	}
+	unparsed := 0
+	for _, s := range stmts {
+		if !s.Parsed {
+			unparsed++
+		}
+	}
+	summary := sqlinspect.NewCatalog(stmts).Summary()
+	if unparsed > 0 {
+		return check{name: "schema", ok: true, warn: true, detail: fmt.Sprintf("%s; %d statement(s) could not be parsed, so what they define is not used for lock prediction", summary, unparsed)}, true
+	}
+	return check{name: "schema", ok: true, detail: summary}, true
 }
