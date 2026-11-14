@@ -145,6 +145,19 @@ func classify(s *Statement) {
 			s.Tag = "CREATE OR REPLACE VIEW"
 			s.addLock(relName(x.ViewStmt.View), pglock.AccessExclusive)
 		}
+	case *pg_query.Node_AlterSeqStmt:
+		// Every ALTER SEQUENCE takes SHARE ROW EXCLUSIVE, which conflicts
+		// with the ROW EXCLUSIVE lock nextval() takes: inserts that draw
+		// from the sequence wait for it.
+		s.Kind, s.Tag = KindOtherDDL, "ALTER SEQUENCE"
+		s.addLock(relName(x.AlterSeqStmt.Sequence), pglock.ShareRowExclusive)
+		for _, o := range x.AlterSeqStmt.Options {
+			if d := o.GetDefElem(); d != nil && d.Defname == "owned_by" {
+				if items := stringItems(d.GetArg().GetList().GetItems()); len(items) > 1 {
+					s.addLock(strings.Join(items[:len(items)-1], "."), pglock.AccessShare)
+				}
+			}
+		}
 	case *pg_query.Node_CreateStatsStmt:
 		// Extended statistics take SHARE UPDATE EXCLUSIVE, like ANALYZE.
 		s.Kind, s.Tag = KindOtherDDL, "CREATE STATISTICS"
@@ -172,6 +185,64 @@ func classify(s *Statement) {
 		s.Kind = KindOtherDDL
 		s.Tag = strings.ToUpper(strings.TrimSuffix(strings.TrimPrefix(nodeTypeName(s.node), "Node_"), "Stmt"))
 	}
+	addSequenceFunctionLocks(s)
+}
+
+// addSequenceFunctionLocks records the locks of nextval, setval and
+// currval calls on a sequence named by a literal. When the statement runs
+// the call, nextval and setval take ROW EXCLUSIVE and currval ACCESS SHARE;
+// in a definition (a column default, a view) the sequence is only
+// referenced, which takes ACCESS SHARE.
+func addSequenceFunctionLocks(s *Statement) {
+	executed := false
+	switch s.Kind {
+	case KindSelect, KindInsert, KindUpdate, KindDelete, KindMerge:
+		executed = true
+	}
+	if ctas := s.node.GetCreateTableAsStmt(); ctas != nil && !ctas.GetInto().GetSkipData() {
+		executed = true
+	}
+	walk(s.node, func(m protoreflect.Message) bool {
+		fc, ok := m.Interface().(*pg_query.FuncCall)
+		if !ok || len(fc.Args) == 0 {
+			return true
+		}
+		names := stringItems(fc.Funcname)
+		if len(names) == 0 {
+			return true
+		}
+		fn := strings.ToLower(names[len(names)-1])
+		if fn != "nextval" && fn != "setval" && fn != "currval" {
+			return true
+		}
+		seq := regclassLiteral(fc.Args[0])
+		if seq == "" {
+			return true
+		}
+		mode := pglock.AccessShare
+		if executed && fn != "currval" {
+			mode = pglock.RowExclusive
+		}
+		s.addLock(seq, mode)
+		return true
+	})
+}
+
+// regclassLiteral returns the relation named by a string literal such as
+// 'orders_id_seq' or 'public.orders_id_seq'::regclass, or "".
+func regclassLiteral(n *pg_query.Node) string {
+	if tc := n.GetTypeCast(); tc != nil {
+		n = tc.Arg
+	}
+	c := n.GetAConst()
+	if c == nil || c.GetSval() == nil {
+		return ""
+	}
+	name := c.GetSval().Sval
+	if strings.Contains(name, `"`) {
+		return strings.ReplaceAll(name, `"`, "")
+	}
+	return strings.ToLower(name)
 }
 
 func classifyCreateIndex(s *Statement, st *pg_query.IndexStmt) {

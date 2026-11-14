@@ -35,6 +35,8 @@ CREATE TABLE events_2027 (id bigint, at timestamptz NOT NULL);
 CREATE MATERIALIZED VIEW order_totals AS SELECT customer_id, sum(amount) AS total FROM orders GROUP BY 1;
 CREATE UNIQUE INDEX order_totals_customer ON order_totals (customer_id);
 CREATE TABLE legacy (id int);
+CREATE SEQUENCE invoice_numbers;
+CREATE TABLE tickets (id bigserial PRIMARY KEY, title text);
 CREATE VIEW recent_orders AS SELECT id, status FROM orders;
 CREATE TRIGGER orders_audit BEFORE UPDATE ON orders FOR EACH ROW EXECUTE FUNCTION suppress_redundant_updates_trigger();
 CREATE TABLE tags (id int NOT NULL, name text);
@@ -139,6 +141,14 @@ var oracleStatements = []string{
 	"DROP INDEX orders_status_idx",
 	"LOCK TABLE ONLY events IN ACCESS EXCLUSIVE MODE",
 	"LOCK TABLE events IN SHARE MODE",
+	"ALTER SEQUENCE invoice_numbers RESTART WITH 1000",
+	"ALTER SEQUENCE invoice_numbers INCREMENT BY 10",
+	"ALTER SEQUENCE invoice_numbers OWNED BY orders.id",
+	"SELECT nextval('invoice_numbers')",
+	"SELECT setval('invoice_numbers', 500)",
+	"INSERT INTO tickets (title) VALUES ('x')",
+	"ALTER TABLE tickets ALTER COLUMN id SET DEFAULT nextval('invoice_numbers')",
+	"DROP SEQUENCE invoice_numbers",
 	"CREATE INDEX events_at_idx ON ONLY events (at)",
 	"ALTER TABLE events ADD COLUMN kind text",
 	"ALTER TABLE events ALTER COLUMN id SET NOT NULL",
@@ -152,8 +162,11 @@ var oracleStatements = []string{
 // oracleKnownGaps lists observed locks the classifier does not predict,
 // keyed by statement and relation. The tables behind a materialized view,
 // the table an index belongs to and the partitions of a partitioned table
-// are resolved from the schema (see Catalog); nothing is missing today.
-var oracleKnownGaps = map[string]map[string]string{}
+// are resolved from the schema (see Catalog).
+var oracleKnownGaps = map[string]map[string]string{
+	// Not yet resolved: the sequence behind a serial column.
+	"INSERT INTO tickets (title) VALUES ('x')": {"tickets_id_seq": "ROW EXCLUSIVE"},
+}
 
 // oracleVersionGaps adds gaps that only some PostgreSQL majors show.
 // Since PostgreSQL 18, GRANT and REVOKE on a table take ACCESS SHARE on it.
@@ -187,7 +200,7 @@ func TestLockOracle(t *testing.T) {
 		Name string
 	}
 	rows, err := conn.Query(ctx, `SELECT c.oid, c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-		WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p', 'm', 'v')`)
+		WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p', 'm', 'v', 'S')`)
 	if err != nil {
 		t.Fatal(err)
 	}
