@@ -51,7 +51,7 @@ Static analysis only; needs no database or container engine.
 | `--migration` | — | Migration file; repeat for several, executed in order. `--migration -` reads a single migration from standard input, reported as `<stdin>`. |
 | `--config` | — | Use rule overrides, transaction mode and `migration.files` from a configuration. |
 | `--transaction` | `auto` | `auto`, `per-file` or `none`. |
-| `--format` | `text` | `text`, `json`, `markdown` or `sarif`. |
+| `--format` | `text` | `text`, `json`, `markdown`, `sarif` or `junit`. With `junit`, findings at or above `--fail-on` are failing test cases; without `--fail-on` every finding passes and carries its message. |
 | `--fail-on` | — | Exit 2 if an unsuppressed finding is at least this severe (`info`, `warning`, `critical`; inconclusive findings count as more severe than critical). |
 
 ## `prodshadow plan`

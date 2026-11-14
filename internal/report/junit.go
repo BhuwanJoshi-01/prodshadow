@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+
+	"github.com/BhuwanJoshi-01/Open-Source-1/internal/evidence"
+	"github.com/BhuwanJoshi-01/Open-Source-1/internal/risk"
 )
 
 // JUnit XML lets CI systems that understand test reports (GitLab, Jenkins,
@@ -69,24 +72,47 @@ func (r *Report) JUnit() ([]byte, error) {
 	suite.Cases = append(suite.Cases, decision)
 
 	for _, f := range r.Findings {
-		c := junitCase{
-			ClassName: "prodshadow." + string(f.Evidence),
-			Name:      fmt.Sprintf("%s %s (%s)", f.RuleID, f.Rule, f.Where("–")),
-		}
-		detail := f.Message
-		if f.Remediation != "" {
-			detail += "\nRemediation: " + f.Remediation
-		}
-		switch {
-		case f.Suppressed:
-			c.Skipped = &junitSkipped{Message: "suppressed: " + f.SuppressionReason}
-		case failsCI(f.RuleID):
-			c.Failure = &junitFailure{Message: f.Message, Type: string(f.Severity), Text: detail}
-		default:
-			c.SystemOut = fmt.Sprintf("[%s, confidence %s] %s", f.Severity, f.Confidence, detail)
-		}
-		suite.Cases = append(suite.Cases, c)
+		suite.Cases = append(suite.Cases, junitCaseOf(f, failsCI(f.RuleID)))
 	}
+	return encodeJUnit(suite)
+}
+
+// StaticJUnit renders static analysis findings (prodshadow inspect) as
+// JUnit XML. Unsuppressed findings at or above failAt fail; with failAt 0
+// every finding passes and only carries its message.
+func StaticJUnit(findings []risk.Finding, failAt evidence.Severity) ([]byte, error) {
+	suite := junitSuite{Name: "prodshadow/inspect"}
+	for _, f := range findings {
+		fails := failAt != "" && f.Severity.Rank() >= failAt.Rank()
+		suite.Cases = append(suite.Cases, junitCaseOf(f, fails))
+	}
+	if len(suite.Cases) == 0 {
+		suite.Cases = append(suite.Cases, junitCase{ClassName: "prodshadow.static", Name: "no static findings"})
+	}
+	return encodeJUnit(suite)
+}
+
+func junitCaseOf(f risk.Finding, fails bool) junitCase {
+	c := junitCase{
+		ClassName: "prodshadow." + string(f.Evidence),
+		Name:      fmt.Sprintf("%s %s (%s)", f.RuleID, f.Rule, f.Where("–")),
+	}
+	detail := f.Message
+	if f.Remediation != "" {
+		detail += "\nRemediation: " + f.Remediation
+	}
+	switch {
+	case f.Suppressed:
+		c.Skipped = &junitSkipped{Message: "suppressed: " + f.SuppressionReason}
+	case fails:
+		c.Failure = &junitFailure{Message: f.Message, Type: string(f.Severity), Text: detail}
+	default:
+		c.SystemOut = fmt.Sprintf("[%s, confidence %s] %s", f.Severity, f.Confidence, detail)
+	}
+	return c
+}
+
+func encodeJUnit(suite junitSuite) ([]byte, error) {
 	for _, c := range suite.Cases {
 		suite.Tests++
 		if c.Failure != nil {

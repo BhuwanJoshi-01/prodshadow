@@ -20,7 +20,7 @@ func runInspect(_ context.Context, env *Env, args []string) int {
 	fs.Var(&files, "migration", "migration file (repeatable, executed in order); - reads one migration from standard input")
 	cfgPath := fs.String("config", "", "optional configuration for rule overrides and transaction mode")
 	txn := fs.String("transaction", "", "transaction mode: auto, per-file or none (default from config, else auto)")
-	format := fs.String("format", "text", "output format: text, json, markdown or sarif")
+	format := fs.String("format", "text", "output format: text, json, markdown, sarif or junit")
 	failOn := fs.String("fail-on", "", "exit 2 if an unsuppressed finding has at least this severity (info, warning, critical)")
 	if code := parseFlags(fs, args); code >= 0 {
 		return code
@@ -55,13 +55,14 @@ func runInspect(_ context.Context, env *Env, args []string) int {
 		}
 	}
 	threshold := 0
+	var failAt evidence.Severity
 	if *failOn != "" {
 		sev, err := evidence.ParseSeverity(*failOn)
 		if err != nil || sev == evidence.Inconclusive {
 			fmt.Fprintf(env.Stderr, "prodshadow: invalid --fail-on %q\n", *failOn)
 			return ExitInvalid
 		}
-		threshold = sev.Rank()
+		threshold, failAt = sev.Rank(), sev
 	}
 
 	var stmts []*sqlinspect.Statement
@@ -88,6 +89,15 @@ func runInspect(_ context.Context, env *Env, args []string) int {
 			fallback = stmts[0].File
 		}
 		out, err := report.SARIF(risk.FromStatic(findings), version.Get().Version, fallback)
+		if err != nil {
+			fmt.Fprintf(env.Stderr, "prodshadow: %v\n", err)
+			return ExitInternal
+		}
+		if _, err := env.Stdout.Write(out); err != nil {
+			return ExitInternal
+		}
+	case "junit":
+		out, err := report.StaticJUnit(risk.FromStatic(findings), failAt)
 		if err != nil {
 			fmt.Fprintf(env.Stderr, "prodshadow: %v\n", err)
 			return ExitInternal

@@ -493,3 +493,23 @@ func TestLocks(t *testing.T) {
 		t.Fatalf("unknown mode: %+v", r)
 	}
 }
+
+func TestInspectJUnit(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "m.sql"), "-- prodshadow:ignore PS114 reason=\"lock_timeout is set by the deploy tool\"\nCREATE INDEX orders_note_idx ON orders (note);\nALTER TABLE orders ADD COLUMN region text;\n")
+	r := run(t, dir, nil, "inspect", "--migration", "m.sql", "--format", "junit", "--fail-on", "warning")
+	if r.code != ExitBlock || !strings.HasPrefix(r.stdout, "<?xml") || !strings.Contains(r.stdout, `<failure message=`) || !strings.Contains(r.stdout, "PS101 create-index-blocks-writes (m.sql:2)") {
+		t.Fatalf("inspect --format junit --fail-on warning: %+v", r)
+	}
+	if !strings.Contains(r.stdout, `<skipped message="suppressed: lock_timeout is set by the deploy tool">`) {
+		t.Errorf("suppressed finding should be skipped:\n%s", r.stdout)
+	}
+	r = run(t, dir, nil, "inspect", "--migration", "m.sql", "--format", "junit")
+	if r.code != ExitOK || strings.Contains(r.stdout, "<failure") {
+		t.Fatalf("without --fail-on nothing fails: %+v", r)
+	}
+	writeFile(t, filepath.Join(dir, "ok.sql"), "SELECT 1;\n")
+	if r := run(t, dir, nil, "inspect", "--migration", "ok.sql", "--format", "junit"); !strings.Contains(r.stdout, `name="no static findings"`) {
+		t.Fatalf("empty result needs a test case: %+v", r)
+	}
+}
