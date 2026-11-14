@@ -35,6 +35,10 @@ CREATE MATERIALIZED VIEW order_totals AS SELECT customer_id, sum(amount) AS tota
 CREATE UNIQUE INDEX order_totals_customer ON order_totals (customer_id);
 CREATE TABLE legacy (id int);
 CREATE VIEW recent_orders AS SELECT id, status FROM orders;
+CREATE TRIGGER orders_audit BEFORE UPDATE ON orders FOR EACH ROW EXECUTE FUNCTION suppress_redundant_updates_trigger();
+CREATE TABLE tags (id int NOT NULL, name text);
+CREATE TABLE invoices (id int PRIMARY KEY, customer_id int CONSTRAINT invoices_customer_fk REFERENCES customers (id));
+CREATE UNIQUE INDEX tags_id_idx ON tags (id);
 INSERT INTO customers SELECT g, 'c' || g FROM generate_series(1, 100) g;
 INSERT INTO orders SELECT g, 1 + g % 100, 'new', g, NULL FROM generate_series(1, 1000) g;
 `
@@ -92,13 +96,58 @@ var oracleStatements = []string{
 	"GRANT SELECT ON orders TO PUBLIC",
 	"CREATE OR REPLACE VIEW recent_orders AS SELECT id, status FROM orders",
 	"DROP VIEW recent_orders",
+	"ALTER TABLE tags ADD CONSTRAINT tags_pkey PRIMARY KEY USING INDEX tags_id_idx",
+	"ALTER TABLE customers ADD CONSTRAINT customers_email_key UNIQUE (email)",
+	"ALTER TABLE orders ALTER COLUMN status DROP NOT NULL",
+	"ALTER TABLE orders ALTER COLUMN status DROP DEFAULT",
+	"ALTER TABLE orders ALTER COLUMN amount SET (n_distinct = 100)",
+	"ALTER TABLE orders ALTER COLUMN note SET STORAGE EXTERNAL",
+	"ALTER TABLE orders ALTER COLUMN note SET COMPRESSION pglz",
+	"ALTER TABLE orders ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY",
+	"ALTER TABLE orders ADD COLUMN total_cents bigint GENERATED ALWAYS AS (amount * 100) STORED",
+	"ALTER TABLE orders DROP CONSTRAINT orders_amount_check",
+	"ALTER TABLE orders RESET (fillfactor)",
+	"ALTER TABLE orders SET WITHOUT CLUSTER",
+	"ALTER TABLE orders SET UNLOGGED",
+	"ALTER TABLE orders OWNER TO CURRENT_USER",
+	"ALTER TABLE orders DISABLE TRIGGER orders_audit",
+	"ALTER TABLE orders ENABLE REPLICA TRIGGER orders_audit",
+	"ALTER TABLE orders FORCE ROW LEVEL SECURITY",
+	"ALTER TABLE orders REPLICA IDENTITY USING INDEX orders_pkey",
+	"ALTER TABLE invoices ALTER CONSTRAINT invoices_customer_fk DEFERRABLE",
+	"ALTER TRIGGER orders_audit ON orders RENAME TO orders_audit_v2",
+	"DROP TRIGGER orders_audit ON orders",
+	"CREATE POLICY orders_owner ON orders USING (customer_id = 1)",
+	"CREATE RULE orders_no_delete AS ON DELETE TO orders DO INSTEAD NOTHING",
+	"CREATE STATISTICS orders_stats ON customer_id, status FROM orders",
+	"REINDEX INDEX orders_status_idx",
+	"REFRESH MATERIALIZED VIEW CONCURRENTLY order_totals",
+	"ALTER MATERIALIZED VIEW order_totals RENAME TO order_sums",
+	"ALTER VIEW recent_orders RENAME TO latest_orders",
+	"MERGE INTO orders o USING staging s ON s.id = o.id WHEN MATCHED THEN UPDATE SET status = s.status",
+	"DELETE FROM orders o USING staging s WHERE s.id = o.id",
+	"SELECT * FROM orders WHERE id = 1 FOR KEY SHARE",
+	"CREATE INDEX events_id_idx ON events (id)",
+	"DROP INDEX orders_status_idx",
+	"LOCK TABLE ONLY events IN ACCESS EXCLUSIVE MODE",
 }
 
 // oracleKnownGaps lists observed locks the classifier does not predict,
-// keyed by statement and relation. REFRESH MATERIALIZED VIEW reads the
-// tables of the view's stored query, which a migration file does not show.
+// keyed by statement and relation. Some depend on objects a migration file
+// does not show: the tables behind a materialized view, the table an index
+// belongs to, the partitions of a partitioned table.
 var oracleKnownGaps = map[string]map[string]string{
-	"REFRESH MATERIALIZED VIEW order_totals": {"orders": "ACCESS SHARE"},
+	"REFRESH MATERIALIZED VIEW order_totals":              {"orders": "ACCESS SHARE"},
+	"REFRESH MATERIALIZED VIEW CONCURRENTLY order_totals": {"orders": "ACCESS SHARE"},
+	"REINDEX INDEX orders_status_idx":                     {"orders": "SHARE"},
+	"DROP INDEX orders_status_idx":                        {"orders": "ACCESS EXCLUSIVE"},
+	"CREATE INDEX events_id_idx ON events (id)":           {"events_2026": "SHARE"},
+	// Not yet classified.
+	"DROP TRIGGER orders_audit ON orders":                                                               {"orders": "ACCESS EXCLUSIVE"},
+	"CREATE POLICY orders_owner ON orders USING (customer_id = 1)":                                      {"orders": "ACCESS EXCLUSIVE"},
+	"CREATE RULE orders_no_delete AS ON DELETE TO orders DO INSTEAD NOTHING":                            {"orders": "ACCESS EXCLUSIVE"},
+	"CREATE STATISTICS orders_stats ON customer_id, status FROM orders":                                 {"orders": "SHARE UPDATE EXCLUSIVE"},
+	"MERGE INTO orders o USING staging s ON s.id = o.id WHEN MATCHED THEN UPDATE SET status = s.status": {"orders": "ROW EXCLUSIVE", "staging": "ACCESS SHARE"},
 }
 
 // oracleVersionGaps adds gaps that only some PostgreSQL majors show.
