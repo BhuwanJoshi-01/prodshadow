@@ -106,6 +106,9 @@ type Statement struct {
 	// dependentViews are views that make a DROP COLUMN, ALTER COLUMN TYPE
 	// or DROP TABLE fail; set by Catalog.Resolve.
 	dependentViews []viewDependency
+	// viewReplaceProblem says why a CREATE OR REPLACE VIEW will be
+	// rejected; set by Catalog.Resolve.
+	viewReplaceProblem string
 }
 
 // ExistingLock returns the strongest lock the statement takes on a relation

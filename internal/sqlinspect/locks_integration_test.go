@@ -411,6 +411,8 @@ func TestFailingStatementsOracle(t *testing.T) {
 		{"ALTER TABLE orders DROP COLUMN status", "PS159", "2BP01"},
 		{"ALTER TABLE orders ALTER COLUMN amount TYPE bigint", "PS159", "0A000"},
 		{"DROP TABLE orders", "PS159", "2BP01"},
+		{"CREATE OR REPLACE VIEW recent_orders AS SELECT id FROM orders", "PS160", "42P16"},
+		{"CREATE OR REPLACE VIEW recent_orders AS SELECT status, id FROM orders", "PS160", "42P16"},
 	} {
 		t.Run(c.sql, func(t *testing.T) {
 			stmts, err := ParseSources([]Source{{Path: "oracle.sql", Content: c.sql + ";"}})

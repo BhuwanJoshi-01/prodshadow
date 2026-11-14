@@ -325,3 +325,33 @@ CREATE VIEW everything AS SELECT * FROM customers;
 	expectCount(t, analyse("DROP VIEW recent_orders;\nDROP MATERIALIZED VIEW totals;\nALTER TABLE orders DROP COLUMN status;"), 0)
 	expectCount(t, analyse("ALTER TABLE orders RENAME COLUMN status TO state;"), 0)
 }
+
+func TestPS160ViewReplace(t *testing.T) {
+	schema := parse(t, `
+CREATE TABLE orders (id int, status text, amount int);
+CREATE VIEW recent_orders AS SELECT o.id, o.status AS state, count(*) FROM orders o GROUP BY 1, 2;
+CREATE VIEW all_orders AS SELECT * FROM orders;
+`)
+	analyse := func(migration string) []Finding {
+		stmts := parse(t, migration)
+		NewCatalog(schema).Resolve(stmts)
+		var out []Finding
+		for _, f := range Analyze(stmts, Options{}) {
+			if f.RuleID == "PS160" {
+				out = append(out, f)
+			}
+		}
+		return out
+	}
+	if got := analyse("CREATE OR REPLACE VIEW recent_orders AS SELECT o.id, o.status AS state FROM orders o;"); len(got) != 1 || !strings.Contains(got[0].Message, "drops column count") {
+		t.Fatalf("dropped column: %+v", got)
+	}
+	if got := analyse("CREATE OR REPLACE VIEW recent_orders AS SELECT o.status AS state, o.id, count(*) FROM orders o GROUP BY 1, 2;"); len(got) != 1 || !strings.Contains(got[0].Message, "column 1 is state instead of id") {
+		t.Fatalf("reordered: %+v", got)
+	}
+	expectCount(t, analyse("CREATE OR REPLACE VIEW recent_orders AS SELECT o.id, o.status AS state, count(*), max(o.amount) FROM orders o GROUP BY 1, 2;"), 0)
+	expectCount(t, analyse("CREATE OR REPLACE VIEW all_orders AS SELECT id, status FROM orders;"), 1)
+	expectCount(t, analyse("CREATE OR REPLACE VIEW all_orders (id, status, amount, note) AS SELECT id, status, amount, 'x' FROM orders;"), 0)
+	expectCount(t, analyse("CREATE VIEW new_view AS SELECT id FROM orders;"), 0)
+	expectCount(t, analyse("DROP VIEW recent_orders;\nCREATE OR REPLACE VIEW recent_orders AS SELECT id FROM orders;"), 0)
+}

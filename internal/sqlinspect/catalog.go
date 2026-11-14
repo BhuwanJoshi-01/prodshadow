@@ -26,6 +26,8 @@ type Catalog struct {
 	plainUnique map[string]bool
 	// viewColumns maps table -> column -> views that read the column.
 	viewColumns map[string]map[string][]string
+	// viewOutputs lists the output column names of each plain view.
+	viewOutputs map[string][]string
 	columns     map[string][]string // table -> column names in order
 	sequences   map[string][]columnSequence
 	foreignKeys []catalogFK
@@ -48,7 +50,8 @@ type columnSequence struct {
 func NewCatalog(schema []*Statement) *Catalog {
 	c := &Catalog{indexTable: map[string]string{}, partitions: map[string][]string{}, partitioned: map[string]bool{}, viewReads: map[string][]string{},
 		matviews: map[string]bool{}, plainUnique: map[string]bool{}, viewColumns: map[string]map[string][]string{},
-		columns: map[string][]string{}, sequences: map[string][]columnSequence{}, primaryKeys: map[string][]string{},
+		viewOutputs: map[string][]string{},
+		columns:     map[string][]string{}, sequences: map[string][]columnSequence{}, primaryKeys: map[string][]string{},
 		primaryKeyName: map[string]string{}, keys: map[string]map[string][]string{}}
 	for _, s := range schema {
 		c.learn(s)
@@ -209,6 +212,7 @@ func (c *Catalog) learn(s *Statement) {
 		}
 		c.viewReads[catalogKey(view)] = reads
 		c.learnViewColumns(view, x.ViewStmt.Query)
+		c.viewOutputs[catalogKey(view)] = c.outputColumns(x.ViewStmt)
 	}
 }
 
@@ -357,6 +361,9 @@ func (c *Catalog) Resolve(stmts []*Statement) {
 			// Before learning: a dropped foreign key is forgotten here.
 			c.ddlForeignKeyLocks(s)
 			c.viewDependencies(s)
+			if v := s.node.GetViewStmt(); v != nil {
+				s.viewReplaceProblem = c.viewReplaceProblem(v)
+			}
 		}
 		c.learn(s)
 	}

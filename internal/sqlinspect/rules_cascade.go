@@ -12,6 +12,14 @@ import (
 
 func init() {
 	register(Rule{
+		ID:       "PS160",
+		Name:     "view-replace-incompatible",
+		Summary:  "CREATE OR REPLACE VIEW fails when it drops, renames or reorders the view's columns",
+		Severity: evidence.Critical,
+		DocsURL:  "https://www.postgresql.org/docs/current/sql-createview.html",
+		check:    checkViewReplace,
+	})
+	register(Rule{
 		ID:       "PS159",
 		Name:     "dependent-view",
 		Summary:  "Dropping or retyping a column, or dropping a table, fails while a view depends on it",
@@ -160,5 +168,19 @@ func checkDependentView(c *Context, s *Statement) []Finding {
 	f := at(s, msg)
 	f.Table = table
 	f.Remediation = "Drop the view first and recreate it after the change, in the same transaction; CASCADE drops it silently (see PS124), and the application then fails on the missing view."
+	return []Finding{f}
+}
+
+// checkViewReplace reports CREATE OR REPLACE VIEW statements whose new
+// column list does not extend the existing one.
+func checkViewReplace(c *Context, s *Statement) []Finding {
+	if s.viewReplaceProblem == "" {
+		return nil
+	}
+	view := relName(s.node.GetViewStmt().View)
+	f := at(s, fmt.Sprintf("CREATE OR REPLACE VIEW %s fails: %s. A replacement must keep the existing columns with the same names, types and order, and may only add columns at the end (SQLSTATE 42P16).", view, s.viewReplaceProblem))
+	f.Table = view
+	f.Confidence = evidence.Medium
+	f.Remediation = "DROP VIEW and CREATE VIEW in the same transaction instead, after checking that nothing else depends on the view."
 	return []Finding{f}
 }

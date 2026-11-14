@@ -1,6 +1,7 @@
 package sqlinspect
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 
@@ -92,6 +93,7 @@ func (c *Catalog) learnViewColumns(view string, query *pg_query.Node) {
 // forgetView removes a view's column dependencies, when it is dropped or
 // replaced.
 func (c *Catalog) forgetView(view string) {
+	delete(c.viewOutputs, catalogKey(view))
 	for _, cols := range c.viewColumns {
 		for col, views := range cols {
 			cols[col] = slices.DeleteFunc(views, func(v string) bool { return catalogKey(v) == catalogKey(view) })
@@ -146,6 +148,77 @@ func (c *Catalog) viewDependencies(s *Statement) {
 			}
 		}
 	}
+}
+
+// outputColumns returns the column names a view defines: its explicit
+// column list, or the names PostgreSQL derives from the select list (the
+// alias, the column, the function name, or ?column?). SELECT * expands to
+// the table's known columns. It returns nil when it cannot tell.
+func (c *Catalog) outputColumns(st *pg_query.ViewStmt) []string {
+	sel := st.Query.GetSelectStmt()
+	if sel == nil || len(sel.TargetList) == 0 {
+		return nil
+	}
+	var cols []string
+	for _, t := range sel.TargetList {
+		rt := t.GetResTarget()
+		switch {
+		case rt.Name != "":
+			cols = append(cols, rt.Name)
+		case rt.Val.GetColumnRef() != nil:
+			fields := rt.Val.GetColumnRef().Fields
+			last := fields[len(fields)-1]
+			if last.GetAStar() != nil {
+				if len(sel.FromClause) != 1 || sel.FromClause[0].GetRangeVar() == nil {
+					return nil
+				}
+				known := c.columns[catalogKey(relName(sel.FromClause[0].GetRangeVar()))]
+				if len(known) == 0 {
+					return nil
+				}
+				cols = append(cols, known...)
+				continue
+			}
+			cols = append(cols, last.GetString_().GetSval())
+		case rt.Val.GetFuncCall() != nil:
+			names := stringItems(rt.Val.GetFuncCall().Funcname)
+			cols = append(cols, names[len(names)-1])
+		case rt.Val.GetTypeCast() != nil && rt.Val.GetTypeCast().Arg.GetColumnRef() != nil:
+			fields := rt.Val.GetTypeCast().Arg.GetColumnRef().Fields
+			cols = append(cols, fields[len(fields)-1].GetString_().GetSval())
+		default:
+			cols = append(cols, "?column?")
+		}
+	}
+	if aliases := stringItems(st.Aliases); len(aliases) > 0 {
+		for i := range min(len(aliases), len(cols)) {
+			cols[i] = aliases[i]
+		}
+	}
+	return cols
+}
+
+// viewReplaceProblem explains why CREATE OR REPLACE VIEW will be rejected:
+// the new definition must keep the existing columns, with the same names,
+// in the same order, and may only add columns at the end.
+func (c *Catalog) viewReplaceProblem(st *pg_query.ViewStmt) string {
+	if !st.Replace {
+		return ""
+	}
+	old := c.viewOutputs[catalogKey(relName(st.View))]
+	cols := c.outputColumns(st)
+	if old == nil || cols == nil {
+		return ""
+	}
+	for i, name := range old {
+		switch {
+		case i >= len(cols):
+			return fmt.Sprintf("it drops column %s (PostgreSQL cannot drop columns from a view)", name)
+		case cols[i] != name:
+			return fmt.Sprintf("column %d is %s instead of %s (columns cannot be renamed or reordered)", i+1, cols[i], name)
+		}
+	}
+	return ""
 }
 
 // viewDependency is a view that makes a statement fail.
