@@ -16,3 +16,5 @@ supersedes it.
 | [0008](0008-statistics-from-exported-files.md) | Import production statistics from exported files, not connections | accepted |
 | [0009](0009-compatibility-probes.md) | Check application versions with probes, not with the traffic mix | accepted |
 | [0010](0010-rehearse-lock-retries.md) | Rehearse the deploy tool's lock retries | accepted |
+| [0011](0011-schema-catalog.md) | Predict locks on relations a statement does not name | accepted |
+| [0012](0012-lock-oracle.md) | The lock oracle is the classifier's acceptance test | accepted |
