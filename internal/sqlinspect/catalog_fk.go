@@ -45,17 +45,136 @@ func (c *Catalog) learnForeignKey(rel *pg_query.RangeVar, column string, con *pg
 	})
 }
 
-// learnKey records the columns of a PRIMARY KEY constraint, which foreign
-// keys without a column list refer to.
+// learnKey records the name and columns of a PRIMARY KEY or UNIQUE
+// constraint; foreign keys refer to one of them (without a column list, to
+// the primary key).
 func (c *Catalog) learnKey(rel *pg_query.RangeVar, column string, con *pg_query.Constraint) {
-	if con.Contype != pg_query.ConstrType_CONSTR_PRIMARY {
+	if con.Contype != pg_query.ConstrType_CONSTR_PRIMARY && con.Contype != pg_query.ConstrType_CONSTR_UNIQUE {
 		return
 	}
 	cols := stringItems(con.Keys)
 	if len(cols) == 0 && column != "" {
 		cols = []string{column}
 	}
-	c.primaryKeys[catalogKey(relName(rel))] = cols
+	table := catalogKey(relName(rel))
+	name := constraintIndexName(rel.GetRelname(), con)
+	if con.Contype == pg_query.ConstrType_CONSTR_PRIMARY {
+		c.primaryKeys[table] = cols
+		c.primaryKeyName[table] = name
+	}
+	if name != "" {
+		if c.keys[table] == nil {
+			c.keys[table] = map[string][]string{}
+		}
+		c.keys[table][name] = cols
+	}
+}
+
+// dependsOn reports whether fk refers to the key constraint name of its
+// referenced table.
+func (c *Catalog) dependsOn(fk catalogFK, name string) bool {
+	table := catalogKey(fk.refTable)
+	if len(fk.refColumns) == 0 {
+		return c.primaryKeyName[table] == name
+	}
+	return slices.Equal(c.keys[table][name], fk.refColumns)
+}
+
+// foreignKeyNamed returns table's foreign key called name.
+func (c *Catalog) foreignKeyNamed(table, name string) (catalogFK, bool) {
+	for _, fk := range c.referencedBy(table) {
+		if fk.name == name {
+			return fk, true
+		}
+	}
+	return catalogFK{}, false
+}
+
+// forgetForeignKeys drops foreign keys matching drop from the catalog, so
+// later statements of the migration no longer see them.
+func (c *Catalog) forgetForeignKeys(drop func(catalogFK) bool) {
+	c.foreignKeys = slices.DeleteFunc(c.foreignKeys, drop)
+}
+
+// ddlForeignKeyLocks adds the locks DDL takes on tables at the other end
+// of a foreign key. Validating a foreign key reads the referenced table
+// (ROW SHARE). Dropping a foreign key, or a table or column that has one,
+// removes the constraint's triggers from the referenced table (ACCESS
+// EXCLUSIVE). CASCADE on a dropped key or table, and TRUNCATE ... CASCADE,
+// reach the referencing tables (ACCESS EXCLUSIVE).
+func (c *Catalog) ddlForeignKeyLocks(s *Statement) {
+	switch x := s.node.Node.(type) {
+	case *pg_query.Node_AlterTableStmt:
+		table := relName(x.AlterTableStmt.Relation)
+		for _, n := range x.AlterTableStmt.Cmds {
+			at := n.GetAlterTableCmd()
+			switch at.GetSubtype() {
+			case pg_query.AlterTableType_AT_ValidateConstraint:
+				if fk, ok := c.foreignKeyNamed(table, at.Name); ok {
+					s.addImpliedLock(fk.refTable, pglock.RowShare, "foreign key "+fk.name)
+				}
+			case pg_query.AlterTableType_AT_DropConstraint:
+				if fk, ok := c.foreignKeyNamed(table, at.Name); ok {
+					s.addImpliedLock(fk.refTable, pglock.AccessExclusive, "foreign key "+fk.name)
+					c.forgetForeignKeys(func(o catalogFK) bool { return o.name == fk.name && o.table == fk.table })
+					continue
+				}
+				if at.Behavior == pg_query.DropBehavior_DROP_CASCADE {
+					for _, fk := range c.referencing(table) {
+						if c.dependsOn(fk, at.Name) {
+							s.addImpliedLock(fk.table, pglock.AccessExclusive, "foreign key "+fk.name)
+						}
+					}
+					c.forgetForeignKeys(func(o catalogFK) bool {
+						return catalogKey(o.refTable) == catalogKey(table) && c.dependsOn(o, at.Name)
+					})
+				}
+			case pg_query.AlterTableType_AT_DropColumn:
+				for _, fk := range c.referencedBy(table) {
+					if slices.Contains(fk.columns, at.Name) {
+						s.addImpliedLock(fk.refTable, pglock.AccessExclusive, "foreign key "+fk.name)
+					}
+				}
+			}
+		}
+	case *pg_query.Node_DropStmt:
+		if x.DropStmt.RemoveType != pg_query.ObjectType_OBJECT_TABLE {
+			return
+		}
+		for _, table := range dropObjectNames(x.DropStmt.Objects) {
+			for _, fk := range c.referencedBy(table) {
+				if catalogKey(fk.refTable) != catalogKey(table) {
+					s.addImpliedLock(fk.refTable, pglock.AccessExclusive, "foreign key "+fk.name)
+				}
+			}
+			if x.DropStmt.Behavior == pg_query.DropBehavior_DROP_CASCADE {
+				for _, fk := range c.referencing(table) {
+					if catalogKey(fk.table) != catalogKey(table) {
+						s.addImpliedLock(fk.table, pglock.AccessExclusive, "foreign key "+fk.name)
+					}
+				}
+			}
+		}
+	case *pg_query.Node_TruncateStmt:
+		if x.TruncateStmt.Behavior != pg_query.DropBehavior_DROP_CASCADE {
+			return
+		}
+		seen := map[string]bool{}
+		var visit func(string)
+		visit = func(table string) {
+			if seen[catalogKey(table)] {
+				return
+			}
+			seen[catalogKey(table)] = true
+			for _, fk := range c.referencing(table) {
+				s.addImpliedLock(fk.table, pglock.AccessExclusive, "foreign key "+fk.name)
+				visit(fk.table)
+			}
+		}
+		for _, r := range x.TruncateStmt.Relations {
+			visit(relName(r.GetRangeVar()))
+		}
+	}
 }
 
 // learnTableConstraints records keys and foreign keys of a CREATE TABLE.

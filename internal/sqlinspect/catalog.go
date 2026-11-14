@@ -23,6 +23,10 @@ type Catalog struct {
 	sequences   map[string][]columnSequence
 	foreignKeys []catalogFK
 	primaryKeys map[string][]string // table -> primary key columns
+	// primaryKeyName and keys name the primary key and unique
+	// constraints of each table (keys: constraint -> columns).
+	primaryKeyName map[string]string
+	keys           map[string]map[string][]string
 }
 
 // columnSequence is a column filled from a sequence by default: serial,
@@ -36,7 +40,8 @@ type columnSequence struct {
 // typically the parsed fixture schema.
 func NewCatalog(schema []*Statement) *Catalog {
 	c := &Catalog{indexTable: map[string]string{}, partitions: map[string][]string{}, partitioned: map[string]bool{}, viewReads: map[string][]string{},
-		columns: map[string][]string{}, sequences: map[string][]columnSequence{}, primaryKeys: map[string][]string{}}
+		columns: map[string][]string{}, sequences: map[string][]columnSequence{}, primaryKeys: map[string][]string{},
+		primaryKeyName: map[string]string{}, keys: map[string]map[string][]string{}}
 	for _, s := range schema {
 		c.learn(s)
 	}
@@ -322,6 +327,10 @@ func (c *Catalog) Resolve(stmts []*Statement) {
 	}
 	for _, s := range stmts {
 		c.resolve(s)
+		if s.node != nil {
+			// Before learning: a dropped foreign key is forgotten here.
+			c.ddlForeignKeyLocks(s)
+		}
 		c.learn(s)
 	}
 	markCreated(stmts)

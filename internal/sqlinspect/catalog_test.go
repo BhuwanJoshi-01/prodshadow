@@ -221,3 +221,37 @@ DELETE FROM invoices WHERE id = 1;
 		t.Error("updating a column no foreign key refers to runs no referential trigger")
 	}
 }
+
+func TestCatalogForeignKeyDDLLocks(t *testing.T) {
+	stmts := parse(t, `
+ALTER TABLE invoices VALIDATE CONSTRAINT invoices_customer_id_fkey;
+ALTER TABLE line_items DROP COLUMN invoice_id;
+DROP TABLE customers CASCADE;
+TRUNCATE invoices CASCADE;
+ALTER TABLE line_items DROP CONSTRAINT line_items_pkey CASCADE;
+ALTER TABLE invoices DROP CONSTRAINT invoices_customer_id_fkey;
+DROP TABLE invoices;
+`)
+	NewCatalog(parse(t, fkSchema)).Resolve(stmts)
+	cases := []struct {
+		stmt  int
+		table string
+		mode  pglock.Mode
+	}{
+		{0, "customers", pglock.RowShare},
+		{1, "invoices", pglock.AccessExclusive},
+		{2, "invoices", pglock.AccessExclusive},
+		{3, "line_items", pglock.AccessExclusive},
+		{3, "notes", pglock.AccessExclusive},
+		{4, "notes", pglock.AccessExclusive},
+		{5, "customers", pglock.AccessExclusive},
+	}
+	for _, c := range cases {
+		if l, ok := lockOn(stmts[c.stmt], c.table); !ok || l.Mode != c.mode {
+			t.Errorf("statement %d: lock on %s = %+v (found %v), want %s", c.stmt, c.table, l, ok, c.mode)
+		}
+	}
+	if _, ok := lockOn(stmts[6], "customers"); ok {
+		t.Error("the foreign key to customers was dropped by an earlier statement")
+	}
+}
