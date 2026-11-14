@@ -9,7 +9,7 @@ a real server by the lock oracle integration test, on each PostgreSQL
 version in the nightly matrix.
 
 ProdShadow learns the objects involved from the fixture schema
-(`fixture.schema`). `plan`, `verify` and `inspect --config` list such locks
+(`fixture.schema`, and DDL in `fixture.seed_sql`). `plan`, `verify` and `inspect --config` list such locks
 with their origin, for example
 `ACCESS EXCLUSIVE on orders (via index orders_status_idx)`.
 

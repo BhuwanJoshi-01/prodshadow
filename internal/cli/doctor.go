@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/config"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/sqlinspect"
 	"os"
 	"runtime"
 	"time"
@@ -142,20 +141,26 @@ func compareResources(engineMB, ncpu, memoryMB int, cpus float64) check {
 // whose foreign keys, partitions and views are therefore unknown) shows up
 // before a run.
 func schemaCheck(cfg *config.Config) (check, bool) {
-	if cfg.Fixture.Schema == "" {
+	if cfg.Fixture.Schema == "" && cfg.Fixture.SeedSQL == "" {
 		return check{}, false
 	}
-	stmts, err := schemaStatements(cfg.Resolve(cfg.Fixture.Schema), cfg.Fixture.Schema)
-	if err != nil {
-		return check{name: "schema", detail: err.Error()}, true
-	}
 	unparsed := 0
-	for _, s := range stmts {
-		if !s.Parsed {
-			unparsed++
+	if f := cfg.Fixture.Schema; f != "" {
+		stmts, err := schemaStatements(cfg.Resolve(f), f)
+		if err != nil {
+			return check{name: "schema", detail: err.Error()}, true
+		}
+		for _, s := range stmts {
+			if !s.Parsed {
+				unparsed++
+			}
 		}
 	}
-	summary := sqlinspect.NewCatalog(stmts).Summary()
+	catalog := fixtureCatalog(cfg)
+	if catalog == nil {
+		return check{name: "schema", detail: "the fixture seed cannot be read"}, true
+	}
+	summary := catalog.Summary()
 	if unparsed > 0 {
 		return check{name: "schema", ok: true, warn: true, detail: fmt.Sprintf("%s; %d statement(s) could not be parsed, so what they define is not used for lock prediction", summary, unparsed)}, true
 	}

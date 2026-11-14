@@ -50,7 +50,7 @@ Static analysis only; needs no database or container engine.
 |---|---|---|
 | `--migration` | — | Migration file; repeat for several, executed in order. `--migration -` reads a single migration from standard input, reported as `<stdin>`. |
 | `--config` | — | Use rule overrides, transaction mode and `migration.files` from a configuration, and resolve locks from its fixture schema (see below). |
-| `--schema` | `fixture.schema` of `--config` | SQL file with the schema before the migration; text output starts with what was learned from it (`Schema: 2 tables, ...`), JSON has `schema_summary`. Used to resolve locks on relations statements do not name and by rules that need the existing schema (PS154, PS156–PS160). |
+| `--schema` | `fixture.schema` and `fixture.seed_sql` of `--config` | SQL file with the schema before the migration; text output starts with what was learned from it (`Schema: 2 tables, ...`), JSON has `schema_summary`. Used to resolve locks on relations statements do not name and by rules that need the existing schema (PS154, PS156–PS160). |
 | `--transaction` | `auto` | `auto`, `per-file` or `none`. |
 | `--format` | `text` | `text`, `json`, `markdown`, `sarif` or `junit`. With `junit`, findings at or above `--fail-on` are failing test cases; without `--fail-on` every finding passes and carries its message. |
 | `--quiet` | `false` | Text format only: print the findings without the list of analysed statements. |
@@ -63,7 +63,8 @@ reads the tables of the view's query. With `--schema` or `--config`,
 `inspect` learns indexes, partitions, views, sequences and foreign keys
 from the schema and lists those locks too, marked `via index ...`,
 `via partition of ...`, `via foreign key ...` and so on. `plan` and
-`verify` always do this with `fixture.schema`.
+`verify` always do this with `fixture.schema` and the DDL in
+`fixture.seed_sql` (indexes built after loading data, for example).
 
 ## `prodshadow plan`
 
@@ -209,7 +210,7 @@ prodshadow draft-fixture --schema fixtures/schema.sql --rows counts.csv --scale 
 ## `prodshadow doctor`
 
 Checks the platform, the configuration (if present), what the static
-analysis learns from `fixture.schema` (and whether any of its statements
+analysis learns from `fixture.schema` and `fixture.seed_sql` (and whether any schema statements
 cannot be parsed), the container engine, whether the engine has enough
 memory and CPUs for `postgres.isolation` (Docker Desktop and Podman
 machines are often smaller than the host), and leftovers from interrupted
