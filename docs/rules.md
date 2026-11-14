@@ -48,6 +48,7 @@ migration, because nothing else uses them yet.
 | [`PS128`](rules/PS128.md) | enum-value-used-before-commit | critical | A value added with `ALTER TYPE ... ADD VALUE` is used before the transaction commits. |
 | [`PS129`](rules/PS129.md) | server-setting-change | warning | `ALTER SYSTEM`, `ALTER DATABASE ... SET` or `ALTER ROLE ... SET` changes settings for other sessions. |
 | [`PS130`](rules/PS130.md) | sequence-reset | warning | Restarting a sequence at a fixed value can hand out ids that are already in use. |
+| [`PS131`](rules/PS131.md) | server-file-access | warning | `COPY` with a server file or `PROGRAM`, or a file-reading function, runs on the database server's filesystem. |
 
 ## Observed rules
 
