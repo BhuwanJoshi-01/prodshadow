@@ -116,7 +116,26 @@ versioning; the report schema (`schema_version`) is versioned separately.
   table, attaching a prepared table does not.
 - `inspect` and `plan` mark locks on tables the migration itself created.
 - A lock oracle integration test checks the classifier's predictions for
-  80 statements against `pg_locks` on a real server.
+  more than 120 statements against `pg_locks` on a real server, including
+  sequences, foreign keys and partitions.
+- Schema catalog: `inspect --config`, `plan` and `verify` learn indexes,
+  partitions, views, sequences and foreign keys from the fixture schema and
+  predict the locks statements take on relations they do not name (an
+  index's table, partitions, view sources, the sequence behind a serial
+  column, referential checks and cascades), marked `via ...` (report schema
+  1.7.0); locks on relations the migration created are marked `created_by`
+  (1.6.0).
+- `plan` predicts which scenarios conflict with which migration
+  statements; reports show the prediction next to the measured stall
+  (`predicted_conflicts`, schema 1.8.0).
+- Static rules PS156 (`ALTER SEQUENCE` blocks inserts) and PS157 (dropping
+  or truncating a table other tables reference); observed rule OBS017
+  (stalls no table lock explains). PS122 names the index's table and PS154
+  recognises tables partitioned in the existing schema.
+- `MERGE` in workloads; `validate` warns when the server version predates
+  it.
+- Example `matview-refresh`; guide "Locks beyond the named table"; the
+  integration tests are linted.
 - Every rule has a documentation page under `docs/rules/`, linked from
   SARIF results.
 - Guides for Alembic, Atlas, Django, Prisma, Flyway/Liquibase,
@@ -134,6 +153,9 @@ versioning; the report schema (`schema_version`) is versioned separately.
 - `SELECT` statements, and the tables read by `INSERT ... SELECT`,
   `UPDATE ... FROM` and `DELETE ... USING`, now record their locks.
 - `on` and `off` in storage parameters are read correctly.
+- `REINDEX TABLE` and `CLUSTER` on a partitioned table are recognised as
+  statements that cannot run in a transaction block; `ALTER SEQUENCE`,
+  sequence functions and QUAL011 on index names are classified correctly.
 - Lock predictions for `CREATE TABLE ... (LIKE ...)` and `INHERITS`,
   `CREATE TABLE AS`, `CREATE [MATERIALIZED] VIEW`, `CREATE OR REPLACE VIEW`,
   `COMMENT ON`, `DROP TRIGGER/POLICY/RULE`, `CREATE/ALTER POLICY`,
