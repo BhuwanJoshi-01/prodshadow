@@ -715,3 +715,13 @@ func TestValidateWarnsAboutUnknownWorkloadTables(t *testing.T) {
 		t.Fatalf("starter project warned: %+v", r)
 	}
 }
+
+func TestValidateWarnsAboutUnknownMigrationTables(t *testing.T) {
+	dir := initProject(t)
+	writeFile(t, filepath.Join(dir, "migrations", "0001_add_order_note.sql"), "CREATE TABLE refunds (id bigint PRIMARY KEY);\nALTER TABLE refunds ADD COLUMN note text;\nALTER TABLE invoice ADD COLUMN note text;\nALTER TABLE orders ADD COLUMN note text;\n")
+	r := run(t, dir, nil, "validate")
+	if r.code != ExitOK || !strings.Contains(r.stdout, "changes table invoice, which the fixture schema does not create") ||
+		strings.Contains(r.stdout, "table refunds") || strings.Contains(r.stdout, "table orders") {
+		t.Fatalf("validate: %+v", r)
+	}
+}

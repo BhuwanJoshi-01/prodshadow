@@ -95,8 +95,13 @@ func validateReferences(cfg *config.Config) config.Problems {
 		}
 	}
 	if len(cfg.Migration.Files) > 0 {
-		if _, err := loadMigrations(cfg.BaseDir(), cfg.Migration.Files); err != nil {
+		stmts, err := loadMigrations(cfg.BaseDir(), cfg.Migration.Files)
+		if err != nil {
 			add("migration.files", err)
+		} else if known != nil {
+			for _, t := range migrationTablesMissing(known, stmts) {
+				warn("migration.files", fmt.Sprintf("the migration changes table %s, which the fixture schema does not create; the rehearsal will fail where production may not", t))
+			}
 		}
 	}
 	return ps
@@ -196,6 +201,38 @@ func missingRelations(known map[string]bool, sqls []string) []string {
 			}
 			seen[name] = true
 			out = append(out, t)
+		}
+	}
+	return out
+}
+
+// migrationTablesMissing lists tables the migration locks that neither the
+// fixture schema nor an earlier statement of the migration creates. Index
+// names (locks recorded by DROP INDEX) are skipped.
+func migrationTablesMissing(known map[string]bool, stmts []*sqlinspect.Statement) []string {
+	created := map[string]bool{}
+	seen := map[string]bool{}
+	var out []string
+	for _, s := range stmts {
+		if s.Kind != sqlinspect.KindDropIndex {
+			for _, t := range s.Tables() {
+				name := t[strings.LastIndex(t, ".")+1:]
+				if known[name] || created[name] || seen[name] || strings.HasPrefix(name, "pg_") {
+					continue
+				}
+				seen[name] = true
+				out = append(out, t)
+			}
+		}
+		if n := s.Node(); n != nil {
+			switch {
+			case n.GetCreateStmt() != nil:
+				created[n.GetCreateStmt().GetRelation().GetRelname()] = true
+			case n.GetCreateTableAsStmt() != nil:
+				created[n.GetCreateTableAsStmt().GetInto().GetRel().GetRelname()] = true
+			case n.GetViewStmt() != nil:
+				created[n.GetViewStmt().GetView().GetRelname()] = true
+			}
 		}
 	}
 	return out
