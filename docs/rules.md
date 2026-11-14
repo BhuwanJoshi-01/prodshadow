@@ -67,6 +67,7 @@ migration, because nothing else uses them yet.
 | [`OBS010`](rules/OBS010.md) | deadlocks | warning | Deadlocks counted in candidate phases. |
 | [`OBS011`](rules/OBS011.md) | sessions-queued-behind-migration | info | How many sessions queued behind the migration's lock request, and what the migration waited for. |
 | [`OBS012`](rules/OBS012.md) | queued-session-budget | critical | More sessions queued behind the migration at once than `policy.max_queued_sessions` (optional). |
+| [`OBS013`](rules/OBS013.md) | app-version-incompatible | critical | A deployed application version's compatibility probe worked before the migration and failed after it. |
 
 Confidence of observed findings is `high` when every one of at least three
 candidate repeats shows the effect, `medium` for a majority, `low` otherwise,
@@ -84,6 +85,7 @@ and is lowered when only client-side evidence exists.
 | [`QUAL006`](rules/QUAL006.md) | connect-failures | warning | Workload sessions failed to connect. |
 | [`QUAL007`](rules/QUAL007.md) | no-experiment | inconclusive | No workload or no fixture; only static analysis ran. |
 | [`QUAL008`](rules/QUAL008.md) | no-blocker-modelled | info | No session holds a transaction open when the migration starts, so the most common outage pattern — a lock queue behind a long transaction — is not exercised. |
+| [`QUAL009`](rules/QUAL009.md) | compatibility-probe-invalid | inconclusive | A compatibility probe failed on the unchanged schema, so its version was not checked. |
 
 ## Suppressions
 

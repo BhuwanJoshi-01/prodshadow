@@ -79,6 +79,49 @@ wait, and everything queues behind that request.
 | `parameters` | Generators, as above. |
 | `repeat` | Start a new transaction after each one finishes. |
 
+## Compatibility probes
+
+During a rolling deploy, and while old workers or scheduled jobs keep
+running, the previous application version runs against the new schema.
+List the queries each still-deployed version depends on, and ProdShadow
+checks that they keep working:
+
+```yaml
+compatibility:
+  - version: "2026.10"            # release still running during the deploy
+    probes:
+      - id: product_by_sku
+        sql: "SELECT id, legacy_sku FROM products WHERE id = $1"
+        parameters:
+          - {generator: int_range, min: 1, max: 100}
+      - id: create_order
+        sql: "INSERT INTO orders (customer_id, status) VALUES ($1, 'new')"
+        parameters:
+          - {generator: int_range, min: 1, max: 500}
+  - version: "2026.11"            # the release that ships with the migration
+    probes:
+      - id: product_by_id
+        sql: "SELECT id, sku FROM products WHERE id = 1"
+```
+
+| Key | Description |
+|---|---|
+| `version` | Release name, shown in findings (unique, up to 64 characters). |
+| `probes[].id` | Identifier, unique within the version. |
+| `probes[].sql` | One DML statement, as for scenarios. |
+| `probes[].parameters` | Generators for `$1`, `$2`, ... |
+
+In every candidate phase each probe runs once on the fresh database before
+the workload starts and once after the migration has finished, as the
+application role, inside a transaction that is rolled back (so `INSERT`,
+`UPDATE` and `DELETE` probes leave no trace), with a 5 s statement timeout.
+The same parameter values are used before and after.
+
+A probe that worked before and fails after is reported as
+[`OBS013`](rules/OBS013.md) for its version; a probe that already fails
+before the migration is [`QUAL009`](rules/QUAL009.md), because that version
+was not checked. At most 200 probes are allowed.
+
 ## Scheduling
 
 * **Closed loop** (default): `workload.concurrency` sessions run operations

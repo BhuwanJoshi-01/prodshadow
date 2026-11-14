@@ -102,3 +102,34 @@ func TestSamplerStarvedAndConnectFailures(t *testing.T) {
 		t.Fatalf("quality findings missing: %+v", a.Findings)
 	}
 }
+
+func TestCompatibilityFindings(t *testing.T) {
+	res := quietResult()
+	for i := range res.Phases {
+		if res.Phases[i].Kind != experiment.Candidate {
+			continue
+		}
+		res.Phases[i].Compatibility = []experiment.Compatibility{
+			{Version: "2026.10", Probe: "legacy_sku", BeforeOK: true, AfterOK: false, AfterSQLState: "42703", AfterError: `column "legacy_sku" does not exist`},
+			{Version: "2026.10", Probe: "by_id", BeforeOK: true, AfterOK: true},
+			{Version: "2026.11", Probe: "by_id", BeforeOK: true, AfterOK: true},
+			{Version: "2026.09", Probe: "typo", BeforeOK: false, BeforeSQLState: "42P01", BeforeError: `relation "prodcts" does not exist`},
+		}
+	}
+	a := Evaluate(Input{Config: testConfig(), Result: res})
+	f := byRule(a, "OBS013")
+	if f == nil || f.Severity != evidence.Critical || f.Confidence != evidence.High || *f.Observed != 1 ||
+		!strings.Contains(f.Message, "2026.10") || !strings.Contains(f.Message, "legacy_sku (42703") || strings.Contains(f.Message, "by_id") {
+		t.Fatalf("OBS013 = %+v", f)
+	}
+	q := byRule(a, "QUAL009")
+	if q == nil || q.Severity != evidence.Inconclusive || !strings.Contains(q.Message, "typo of version 2026.09") {
+		t.Fatalf("QUAL009 = %+v", q)
+	}
+	if a.Decision.Outcome != "block" {
+		t.Fatalf("a broken version must block: %+v", a.Decision)
+	}
+	if byRule(Evaluate(Input{Config: testConfig(), Result: quietResult()}), "OBS013") != nil {
+		t.Fatal("no probes, no finding")
+	}
+}

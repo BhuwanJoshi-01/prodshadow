@@ -175,6 +175,7 @@ func observedFindings(cfg *config.Config, res *experiment.Result, comps []Compar
 	}
 
 	out = append(out, migrationFindings(cfg, cands, stmts, blockers)...)
+	out = append(out, compatibilityFindings(cands)...)
 	out = append(out, regressionFindings(cfg, comps, len(cands))...)
 
 	deadlocks := int64(0)
@@ -348,4 +349,78 @@ func uniq(xs []string) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// compatibilityFindings reports application versions whose probes worked
+// before the migration and failed after it (OBS013), and probes that
+// already failed before it (QUAL009), which leaves their version unchecked.
+func compatibilityFindings(cands []experiment.PhaseResult) []Finding {
+	type probeKey struct{ version, probe string }
+	broken := map[probeKey]experiment.Compatibility{}
+	hits := map[probeKey]int{}
+	invalid := map[probeKey]experiment.Compatibility{}
+	var order []probeKey
+	runs := 0
+	for _, ph := range cands {
+		if len(ph.Compatibility) > 0 {
+			runs++
+		}
+		for _, c := range ph.Compatibility {
+			k := probeKey{c.Version, c.Probe}
+			if _, seen := hits[k]; !seen {
+				order = append(order, k)
+				hits[k] = 0
+			}
+			switch {
+			case !c.BeforeOK:
+				invalid[k] = c
+			case c.Broken():
+				hits[k]++
+				broken[k] = c
+			}
+		}
+	}
+	var out []Finding
+	byVersion := map[string][]probeKey{}
+	var versions []string
+	for _, k := range order {
+		if _, ok := broken[k]; ok {
+			if len(byVersion[k.version]) == 0 {
+				versions = append(versions, k.version)
+			}
+			byVersion[k.version] = append(byVersion[k.version], k)
+		}
+	}
+	for _, v := range versions {
+		keys := byVersion[v]
+		var parts []string
+		minHits := runs
+		for _, k := range keys {
+			c := broken[k]
+			parts = append(parts, fmt.Sprintf("%s (%s)", k.probe, probeFailure(c.AfterSQLState, c.AfterError)))
+			minHits = min(minHits, hits[k])
+		}
+		conf, reason := consistency(minHits, runs)
+		f := newFinding("OBS013", conf, reason, fmt.Sprintf("Application version %s stops working once the migration has run: %s worked before it and failed after it. Instances of that version that are still deployed will fail these queries.", v, strings.Join(parts, "; ")))
+		f.Observed, f.Unit = ptr(float64(len(keys))), "probes"
+		f.Remediation = "Make the change backward compatible (expand, migrate the code, then contract in a later release), or deploy the migration only after no instance of this version is running."
+		out = append(out, f)
+	}
+	for _, k := range order {
+		c, ok := invalid[k]
+		if !ok {
+			continue
+		}
+		f := newFinding("QUAL009", evidence.High, "the probe failed on the unchanged schema",
+			fmt.Sprintf("Compatibility probe %s of version %s failed before the migration ran (%s), so the probe does not match the fixture and that version's compatibility was not checked.", k.probe, k.version, probeFailure(c.BeforeSQLState, c.BeforeError)))
+		out = append(out, f)
+	}
+	return out
+}
+
+func probeFailure(state, msg string) string {
+	if state == "" {
+		return msg
+	}
+	return state + ": " + msg
 }

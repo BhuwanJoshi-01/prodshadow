@@ -77,6 +77,7 @@ var ObservedRules = []ObservedRule{
 	{"OBS010", "deadlocks", "Deadlocks occurred while the migration ran", evidence.Warning},
 	{"OBS011", "sessions-queued-behind-migration", "Workload sessions queued behind the migration's lock request", evidence.Info},
 	{"OBS012", "queued-session-budget", "More workload sessions queued behind the migration than policy.max_queued_sessions", evidence.Critical},
+	{"OBS013", "app-version-incompatible", "A compatibility probe of a deployed application version worked before the migration and failed after it", evidence.Critical},
 	{"QUAL001", "insufficient-samples", "Too few successful operations to compare latency", evidence.Inconclusive},
 	{"QUAL002", "unstable-baseline", "Baseline latency varied too much between repeats to judge a regression", evidence.Inconclusive},
 	{"QUAL003", "representativeness", "The fixture's relation to production data", evidence.Info},
@@ -84,5 +85,6 @@ var ObservedRules = []ObservedRule{
 	{"QUAL005", "sampler-starved", "Telemetry sampling fell behind; the test host may be overloaded", evidence.Warning},
 	{"QUAL006", "connect-failures", "Workload sessions failed to connect", evidence.Warning},
 	{"QUAL007", "no-experiment", "No workload or fixture; only static analysis was performed", evidence.Inconclusive},
+	{"QUAL009", "compatibility-probe-invalid", "A compatibility probe failed before the migration, so that version was not checked", evidence.Inconclusive},
 	{"QUAL008", "no-blocker-modelled", "No session holds a transaction open while the migration runs, so lock queues behind long transactions are not exercised", evidence.Info},
 }
