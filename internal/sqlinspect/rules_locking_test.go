@@ -25,6 +25,11 @@ func TestPS113RewriteMaintenance(t *testing.T) {
 	for _, sql := range []string{"VACUUM orders;", "REINDEX TABLE CONCURRENTLY orders;", "REFRESH MATERIALIZED VIEW CONCURRENTLY mv;", "REINDEX SCHEMA CONCURRENTLY public;"} {
 		expectCount(t, findings(t, "PS113", Options{}, sql), 0)
 	}
+	all := findings(t, "PS113", Options{}, "CLUSTER;")
+	expectCount(t, all, 1)
+	if all[0].Lock != pglock.AccessExclusive || !strings.Contains(all[0].Message, "every previously clustered table") {
+		t.Errorf("database-wide CLUSTER finding: %+v", all[0])
+	}
 	wide := findings(t, "PS113", Options{}, "REINDEX SCHEMA public;")
 	expectCount(t, wide, 1)
 	if wide[0].Lock != pglock.Share || !strings.Contains(wide[0].Message, "one table at a time") {

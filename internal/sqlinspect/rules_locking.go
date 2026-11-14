@@ -127,10 +127,14 @@ func checkRewriteMaintenance(c *Context, s *Statement) []Finding {
 	}
 	mode := s.StrongestLock()
 	msg := fmt.Sprintf("%s while holding %s, which %s for the full duration.", what, mode, impactPhrase(mode))
-	if s.Kind == KindReindex && mode == pglock.None && !strings.HasSuffix(s.Tag, "CONCURRENTLY") {
+	switch {
+	case s.Kind == KindReindex && mode == pglock.None && !strings.HasSuffix(s.Tag, "CONCURRENTLY"):
 		// REINDEX SCHEMA, DATABASE and SYSTEM name no table.
 		mode = pglock.Share
 		msg = fmt.Sprintf("%s rebuilds every index it covers one table at a time, holding SHARE on each table (which %s) and ACCESS EXCLUSIVE on each index while it is rebuilt.", s.Tag, impactPhrase(mode))
+	case s.Kind == KindCluster && mode == pglock.None:
+		mode = pglock.AccessExclusive
+		msg = fmt.Sprintf("CLUSTER without a table rewrites every previously clustered table of the database one at a time, holding ACCESS EXCLUSIVE on each, which %s while that table is rewritten.", impactPhrase(mode))
 	}
 	f := at(s, msg)
 	f.Table, f.Lock = table, mode

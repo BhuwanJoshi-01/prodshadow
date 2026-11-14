@@ -53,6 +53,11 @@ func classify(s *Statement) {
 		classifyVacuum(s, x.VacuumStmt)
 	case *pg_query.Node_ClusterStmt:
 		s.Kind, s.Tag = KindCluster, "CLUSTER"
+		if x.ClusterStmt.Relation == nil {
+			// Reclusters every previously clustered table, one
+			// transaction per table.
+			s.Txn = TxnNotInBlock
+		}
 		s.addLock(relName(x.ClusterStmt.Relation), pglock.AccessExclusive)
 	case *pg_query.Node_ReindexStmt:
 		classifyReindex(s, x.ReindexStmt)
@@ -100,6 +105,16 @@ func classify(s *Statement) {
 		s.addLock(relName(x.CopyStmt.Relation), mode)
 	case *pg_query.Node_CommentStmt:
 		s.Kind, s.Tag = KindComment, "COMMENT"
+	case *pg_query.Node_AlterSystemStmt:
+		s.Kind, s.Tag, s.Txn = KindOtherDDL, "ALTER SYSTEM", TxnNotInBlock
+	case *pg_query.Node_CreatedbStmt:
+		s.Kind, s.Tag, s.Txn = KindOtherDDL, "CREATE DATABASE", TxnNotInBlock
+	case *pg_query.Node_DropdbStmt:
+		s.Kind, s.Tag, s.Txn = KindOtherDDL, "DROP DATABASE", TxnNotInBlock
+	case *pg_query.Node_CreateTableSpaceStmt:
+		s.Kind, s.Tag, s.Txn = KindOtherDDL, "CREATE TABLESPACE", TxnNotInBlock
+	case *pg_query.Node_DropTableSpaceStmt:
+		s.Kind, s.Tag, s.Txn = KindOtherDDL, "DROP TABLESPACE", TxnNotInBlock
 	default:
 		s.Kind = KindOtherDDL
 		s.Tag = strings.ToUpper(strings.TrimSuffix(strings.TrimPrefix(nodeTypeName(s.node), "Node_"), "Stmt"))

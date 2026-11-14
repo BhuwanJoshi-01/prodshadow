@@ -143,3 +143,22 @@ func TestClassifyWideReindex(t *testing.T) {
 		}
 	}
 }
+
+func TestClassifyStatementsOutsideTransactions(t *testing.T) {
+	for sql, tag := range map[string]string{
+		"ALTER SYSTEM SET work_mem = '64MB'":          "ALTER SYSTEM",
+		"CREATE DATABASE scratch":                     "CREATE DATABASE",
+		"DROP DATABASE IF EXISTS scratch":             "DROP DATABASE",
+		"CREATE TABLESPACE fast LOCATION '/mnt/fast'": "CREATE TABLESPACE",
+		"DROP TABLESPACE fast":                        "DROP TABLESPACE",
+		"CLUSTER":                                     "CLUSTER",
+	} {
+		st := one(t, sql)
+		if st.Tag != tag || st.Txn != TxnNotInBlock {
+			t.Errorf("%s: tag %q txn %s, want %q %s", sql, st.Tag, st.Txn, tag, TxnNotInBlock)
+		}
+	}
+	if st := one(t, "CLUSTER orders USING orders_pkey"); st.Txn != TxnAny {
+		t.Errorf("CLUSTER of one table may run in a transaction block, got %s", st.Txn)
+	}
+}
