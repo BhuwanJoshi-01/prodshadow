@@ -38,6 +38,30 @@ Yes, after rendering migrations to SQL (for example `manage.py sqlmigrate`,
 applied migrations into the fixture schema and pass the new one with
 `--migration`. The [guides](guides/README.md) show the steps per tool.
 
+**How do I check that the previous release keeps working?**
+List the queries each deployed release depends on in the workload's
+`compatibility` section. They run before and after the migration in every
+candidate phase, and a release whose queries break is reported as `OBS013`.
+See [compatibility probes](workload.md#compatibility-probes) and the
+[rolling-deploy example](../examples/rolling-deploy).
+
+**Do I have to write the workload by hand?**
+Not entirely. Export `query` and `calls` from `pg_stat_statements` on a
+replica and run `prodshadow draft-workload --stats stats.csv`; it writes a
+draft with one scenario per statement, weighted by calls. You still choose
+parameter ranges and add background sessions; see
+[modelling a workload](guides/modelling-traffic.md). ProdShadow itself never
+connects to that database.
+
+**Can I see whether migrations are getting slower over time?**
+Keep each run's `report.json` and run `prodshadow history reports/`, or
+`--html` for a page with charts. Runs whose fixture, workload or PostgreSQL
+version changed are marked, so you do not compare unlike runs.
+
+**A suppression stopped working. Why?**
+Check `PS148` (the directive is malformed and ignored), `PS149` (it expired)
+and `PS150` (it names a rule that reports nothing for that statement).
+
 **How long does a run take?**
 Roughly start-up + seeding + `repeats × 2 × (warmup + measurement + ~3 s)`.
 The examples take about two minutes on a 4-CPU machine.
