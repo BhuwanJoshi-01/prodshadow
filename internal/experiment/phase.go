@@ -175,7 +175,18 @@ func runPhase(ctx context.Context, plan Plan, srv *isolation.Server, step Step) 
 			pr.DuringMigration = workload.Summarize(res, during)
 		}
 	}
+	redactScenarioErrors(plan, pr.Scenarios, pr.PreMigration, pr.DuringMigration)
 	return pr, nil
+}
+
+// redactScenarioErrors removes secrets from sample error messages, which
+// can quote query parameters.
+func redactScenarioErrors(plan Plan, sets ...[]workload.ScenarioStats) {
+	for _, set := range sets {
+		for i := range set {
+			set[i].SampleError = plan.Redactor.String(set[i].SampleError)
+		}
+	}
 }
 
 // runMigration waits for migration.start_after_seconds into the

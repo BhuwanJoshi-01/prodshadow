@@ -27,6 +27,7 @@
 
 | Version | Change |
 |---|---|
+| 1.4.0 | `phases[].scenarios[].sample_error`: the first (redacted) error message of a scenario that failed. |
 | 1.3.0 | `phases[].migration.retries`: attempts that hit `lock_timeout` and were retried. |
 | 1.2.0 | `findings[].app_version`: the application version of `OBS013` and `QUAL009` findings. |
 | 1.1.0 | `phases[].compatibility`: compatibility probe outcomes. |

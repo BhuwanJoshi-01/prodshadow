@@ -70,3 +70,13 @@ func TestRetryAllowance(t *testing.T) {
 		t.Fatalf("allowance = %v", got)
 	}
 }
+
+func TestRedactScenarioErrors(t *testing.T) {
+	r, _ := security.NewRedactor(nil)
+	all := []workload.ScenarioStats{{ID: "a", SampleError: "22P02: invalid input syntax: password=hunter2secret"}}
+	during := []workload.ScenarioStats{{ID: "a", SampleError: "token ghp_" + strings.Repeat("x", 36)}}
+	redactScenarioErrors(Plan{Redactor: r}, all, nil, during)
+	if strings.Contains(all[0].SampleError, "hunter2secret") || strings.Contains(during[0].SampleError, "ghp_") || !strings.HasPrefix(all[0].SampleError, "22P02") {
+		t.Fatalf("redaction: %q %q", all[0].SampleError, during[0].SampleError)
+	}
+}
