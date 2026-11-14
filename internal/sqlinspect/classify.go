@@ -329,6 +329,12 @@ func defElemTrue(d *pg_query.DefElem) bool {
 	if i := d.Arg.GetInteger(); i != nil {
 		return i.Ival != 0
 	}
+	// Unreserved words such as on and off parse as type names in
+	// option lists.
+	if tn := d.Arg.GetTypeName(); tn != nil {
+		v := typeName(tn)
+		return v == "true" || v == "on" || v == "yes" || v == "1"
+	}
 	return true
 }
 

@@ -195,3 +195,24 @@ func TestClassifyReadLocks(t *testing.T) {
 		}
 	}
 }
+
+func TestDefElemTrueReadsOptionWords(t *testing.T) {
+	// In storage parameters, unreserved words such as on and off parse as
+	// type names rather than strings.
+	cases := map[string]bool{
+		"ALTER TABLE t SET (autovacuum_enabled = off)":   false,
+		"ALTER TABLE t SET (autovacuum_enabled = on)":    true,
+		"ALTER TABLE t SET (autovacuum_enabled = false)": false,
+		"ALTER TABLE t SET (autovacuum_enabled = true)":  true,
+		"ALTER TABLE t SET (autovacuum_enabled = 0)":     false,
+		"ALTER TABLE t SET (autovacuum_enabled)":         true,
+	}
+	for sql, want := range cases {
+		st := one(t, sql)
+		cmd := st.Node().GetAlterTableStmt().Cmds[0].GetAlterTableCmd()
+		d := cmd.Def.GetList().Items[0].GetDefElem()
+		if got := defElemTrue(d); got != want {
+			t.Errorf("%s: defElemTrue = %v, want %v", sql, got, want)
+		}
+	}
+}
