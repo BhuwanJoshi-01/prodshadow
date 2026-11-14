@@ -42,7 +42,9 @@ strong_migrations, and to clone-based checkers such as DBLab.
 
 1. **Static analysis** – every migration statement is parsed with the
    PostgreSQL grammar; ProdShadow records the locks it takes, where in the
-   file it is, and a small set of hazards (`prodshadow rules`).
+   file it is, and the hazards it can see from the SQL alone, from blocking
+   index builds to grants to `PUBLIC` (`prodshadow rules`; each rule has a
+   page under [docs/rules](docs/rules.md)).
 2. **Disposable server** – a PostgreSQL container with no network, a
    read-only root file system, a size-capped tmpfs data directory, all
    capabilities dropped except those the image needs, and CPU, memory and
@@ -57,7 +59,10 @@ strong_migrations, and to clone-based checkers such as DBLab.
 5. **Evidence** – every operation is timed on the client; `pg_stat_activity`
    and `pg_locks` are sampled to attribute waits (*who blocked whom*);
    counters record WAL and deadlocks.
-6. **Decision** – transparent rules compare candidate with baseline against
+6. **Compatibility** – optional probes run the queries of each still-deployed
+   application version before and after the migration, so a release that
+   would break during a rolling deploy is named.
+7. **Decision** – transparent rules compare candidate with baseline against
    your policy. Unstable baselines, too few samples or missing inputs give
    `inconclusive` — never `pass`.
 
@@ -78,6 +83,11 @@ prodshadow verify  --config prodshadow.yaml   # the full experiment
 ```
 
 `prodshadow plan` shows what `verify` will do and roughly how long it takes.
+Other commands help around it: `draft-workload` turns a
+`pg_stat_statements` export into a draft workload, `history` charts stored
+reports over time, `diff` compares a migration with its rewrite, `locks`
+explains lock modes, and `completion` sets up shell completion. See the
+[CLI reference](docs/cli.md).
 `verify` writes `prodshadow-results/report.{json,md,html}` (plus SARIF and
 JUnit XML on request) and exits with:
 
