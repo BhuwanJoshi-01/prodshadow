@@ -159,12 +159,12 @@ func runVerify(ctx context.Context, env *Env, args []string) int {
 	}
 
 	assessment := risk.Evaluate(risk.Input{Config: cfg, Result: res, Statements: stmts, Static: static,
-		Suppressions: sups, NoExperiment: inputs.noExperiment, Workload: inputs.workload})
+		Suppressions: sups, NoExperiment: inputs.noExperiment, Workload: inputs.workload, Catalog: catalog})
 	rep := report.Build(report.Input{
 		Config: cfg, RunID: runID, Started: started, Finished: time.Now(), Statements: stmts,
 		Workload: inputs.workload, WorkloadHash: inputs.workloadHash, FixtureHash: inputs.fixtureHash,
 		Result: res, Assessment: assessment, Redactor: redactor, EnvOverrides: p.envApplied,
-		Errors: runErrs, Lookup: env.Getenv, Catalog: catalog,
+		Errors: runErrs, Lookup: env.Getenv,
 	})
 	written, err := writeReports(env, cfg, rep)
 	if err != nil {

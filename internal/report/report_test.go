@@ -80,7 +80,7 @@ scenarios:
 	red, _ := security.NewRedactor(nil)
 	red.Add(secret)
 	static := sqlinspect.Analyze(stmts, sqlinspect.Options{Now: time.Date(2026, 11, 13, 0, 0, 0, 0, time.UTC)})
-	a := risk.Evaluate(risk.Input{Config: cfg, Result: res, Statements: stmts, Static: static, Now: time.Date(2026, 11, 13, 0, 0, 0, 0, time.UTC)})
+	a := risk.Evaluate(risk.Input{Config: cfg, Result: res, Statements: stmts, Static: static, Workload: wl, Now: time.Date(2026, 11, 13, 0, 0, 0, 0, time.UTC)})
 	return Input{
 		Config: cfg, RunID: "run-1", Started: time.Date(2026, 11, 13, 10, 0, 0, 0, time.UTC), Finished: time.Date(2026, 11, 13, 10, 2, 5, 0, time.UTC),
 		Statements: stmts, Workload: wl, WorkloadHash: "sha256:wl", FixtureHash: "sha256:fx", Result: res, Assessment: a, Redactor: red,

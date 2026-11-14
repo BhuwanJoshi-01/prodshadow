@@ -109,6 +109,7 @@ migration, because nothing else uses them yet.
 | [`OBS014`](rules/OBS014.md) | migration-lock-retried | info | The migration timed out on a lock and only succeeded after retries (`migration.lock_retries`). |
 | [`OBS015`](rules/OBS015.md) | extra-wal-budget | critical | The migration wrote more WAL beyond its paired baseline than `policy.max_extra_wal_mb` (optional). |
 | [`OBS016`](rules/OBS016.md) | temp-file-spill | info | The migration spilled sorts or index builds to temporary files. |
+| [`OBS017`](rules/OBS017.md) | stall-without-lock-conflict | info | A scenario stalled while the migration ran although none of its table locks conflicts with the migration's (row locks, missing schema objects or contention). |
 
 Confidence of observed findings is `high` when every one of at least three
 candidate repeats shows the effect, `medium` for a majority, `low` otherwise,

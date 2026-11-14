@@ -289,3 +289,24 @@ func TestFailingScenarios(t *testing.T) {
 		t.Fatal("healthy scenarios")
 	}
 }
+
+func TestUnexplainedStalls(t *testing.T) {
+	cfg := testConfig()
+	budget := 250.0
+	cfg.Policy.MaxLockWaitMS = &budget
+	comps := []Comparison{
+		{Scenario: "update_balance", StallMS: 1800},
+		{Scenario: "read_order", StallMS: 2000},
+		{Scenario: "list_orders", StallMS: 40},
+		{Scenario: "nightly", Background: true, StallMS: 5000},
+	}
+	predicted := []workload.Conflict{{Session: "read_order", StatementID: "1.1", Table: "orders", MigrationLock: "ACCESS EXCLUSIVE", WorkloadLock: "ACCESS SHARE"}}
+	got := unexplainedStalls(cfg, comps, predicted)
+	if len(got) != 1 || got[0].RuleID != "OBS017" || got[0].Scenario != "update_balance" || *got[0].Observed != 1800 || !strings.Contains(got[0].Message, "row locks") {
+		t.Fatalf("OBS017 = %+v", got)
+	}
+	cfg.Policy.MaxLockWaitMS = nil
+	if got := unexplainedStalls(cfg, []Comparison{{Scenario: "x", StallMS: 400}}, nil); len(got) != 0 {
+		t.Fatalf("below the 500 ms default nothing needs explaining: %+v", got)
+	}
+}

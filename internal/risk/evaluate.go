@@ -37,7 +37,10 @@ type Input struct {
 	Workload *workload.Spec
 	// NoExperiment explains why no experiment ran (static-only runs).
 	NoExperiment string
-	Now          time.Time
+	// Catalog describes the fixture schema, for predicting which
+	// scenarios conflict with the migration; nil without a schema.
+	Catalog *sqlinspect.Catalog
+	Now     time.Time
 }
 
 // Decision is the CI outcome.
@@ -55,9 +58,12 @@ type Decision struct {
 // Assessment is the complete evaluation.
 type Assessment struct {
 	Comparisons []Comparison `json:"comparisons"`
-	Quality     Quality      `json:"quality"`
-	Findings    []Finding    `json:"findings"`
-	Decision    Decision     `json:"decision"`
+	// PredictedConflicts are the table-lock conflicts expected between the
+	// migration and each workload session, from the lock modes alone.
+	PredictedConflicts []workload.Conflict `json:"predicted_conflicts,omitempty"`
+	Quality            Quality             `json:"quality"`
+	Findings           []Finding           `json:"findings"`
+	Decision           Decision            `json:"decision"`
 }
 
 // Evaluate produces findings and a decision from static and observed
@@ -86,6 +92,12 @@ func Evaluate(in Input) Assessment {
 	if in.NoExperiment == "" && in.Workload != nil && !modelsBlocker(cfg, in.Workload) {
 		findings = append(findings, newFinding("QUAL008", evidence.High, "derived from the workload definition",
 			"No session keeps a transaction open while the migration starts. Most migration outages need one: a long transaction makes the migration's lock request wait, and every query queues behind it. Add a background session with hold_ms to rehearse that case."))
+	}
+	if in.Workload != nil {
+		a.PredictedConflicts, _ = workload.PredictConflicts(in.Workload, in.Statements, in.Catalog)
+	}
+	if in.Result != nil && in.Workload != nil {
+		findings = append(findings, unexplainedStalls(cfg, a.Comparisons, a.PredictedConflicts)...)
 	}
 	if in.NoExperiment == "" && in.Workload != nil {
 		findings = append(findings, writeBlockingUnexercised(in.Workload, in.Statements)...)
@@ -415,6 +427,41 @@ func failingScenarios(res *experiment.Result) []Finding {
 		f.Scenario = id
 		f.Observed, f.Threshold, f.Unit = ptr(float64(a.errors)/float64(a.ops)), ptr(FailingScenarioRate), "error rate"
 		f.Remediation = "Run the scenario's SQL against the fixture by hand: check table and column names, parameter types (add explicit casts such as $1::bigint) and the privileges of the application role."
+		out = append(out, f)
+	}
+	return out
+}
+
+// unexplainedStallMS is the stall above which OBS017 looks for an
+// explanation when no lock-wait budget is configured.
+const unexplainedStallMS = 500
+
+// unexplainedStalls reports scenarios that stalled while the migration ran
+// although none of their table locks conflicts with the migration's
+// (OBS017). Something table locks do not show caused the wait: row locks
+// on rows both change, a foreign key or partition the fixture schema
+// lacks, or contention for I/O and CPU.
+func unexplainedStalls(cfg *config.Config, comps []Comparison, predicted []workload.Conflict) []Finding {
+	limit := float64(unexplainedStallMS)
+	if b := cfg.Policy.MaxLockWaitMS; b != nil {
+		limit = *b
+	}
+	conflicting := map[string]bool{}
+	for _, c := range predicted {
+		if !c.Background {
+			conflicting[c.Session] = true
+		}
+	}
+	var out []Finding
+	for _, c := range comps {
+		if c.Background || conflicting[c.Scenario] || c.StallMS <= limit {
+			continue
+		}
+		f := newFinding("OBS017", evidence.Medium, "measured stall compared with the predicted table-lock conflicts",
+			fmt.Sprintf("Scenario %s stalled %.0f ms beyond its baseline p99 while the migration ran, but none of the table locks it takes conflicts with the migration's. The wait came from something table locks do not show: row locks on rows the migration also changes (an UPDATE or DELETE of the same rows), a foreign key, partition or trigger the fixture schema lacks, or contention for I/O and CPU.", c.Scenario, c.StallMS))
+		f.Scenario = c.Scenario
+		f.Observed, f.Threshold, f.Unit = ptr(c.StallMS), ptr(limit), "ms"
+		f.Remediation = "If the migration updates or deletes many rows, batch it so each transaction holds few row locks; otherwise check that the fixture schema matches production."
 		out = append(out, f)
 	}
 	return out
