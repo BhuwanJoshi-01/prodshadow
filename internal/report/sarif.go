@@ -101,16 +101,22 @@ func sarifLevel(s evidence.Severity) string {
 	}
 }
 
+// RulePageURL returns the address of a rule's documentation page, which
+// explains the hazard, shows an example and links the PostgreSQL manual.
+func RulePageURL(id string) string {
+	return toolURI + "/blob/main/docs/rules/" + id + ".md"
+}
+
 // ruleCatalog describes every known rule for the SARIF driver.
 func ruleCatalog() map[string]sarifRule {
 	out := map[string]sarifRule{}
 	for _, r := range sqlinspect.Rules() {
-		out[r.ID] = sarifRule{ID: r.ID, Name: r.Name, ShortDescription: sarifText{r.Summary}, HelpURI: r.DocsURL,
+		out[r.ID] = sarifRule{ID: r.ID, Name: r.Name, ShortDescription: sarifText{r.Summary}, HelpURI: RulePageURL(r.ID),
 			Default: sarifRuleDefaults{sarifLevel(r.Severity)}}
 	}
 	for _, r := range risk.ObservedRules {
 		out[r.ID] = sarifRule{ID: r.ID, Name: r.Name, ShortDescription: sarifText{r.Summary},
-			HelpURI: toolURI + "/blob/main/docs/rules.md", Default: sarifRuleDefaults{sarifLevel(r.Severity)}}
+			HelpURI: RulePageURL(r.ID), Default: sarifRuleDefaults{sarifLevel(r.Severity)}}
 	}
 	return out
 }

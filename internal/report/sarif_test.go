@@ -76,3 +76,14 @@ func TestSARIFSkipsFindingsWithoutAnyFile(t *testing.T) {
 		t.Fatalf("empty SARIF: %s %v", raw, err)
 	}
 }
+
+func TestSARIFRulesLinkTheirPages(t *testing.T) {
+	for id, r := range ruleCatalog() {
+		if want := RulePageURL(id); r.HelpURI != want {
+			t.Errorf("%s: helpUri %q, want %q", id, r.HelpURI, want)
+		}
+		if !strings.HasSuffix(r.HelpURI, "/docs/rules/"+id+".md") {
+			t.Errorf("%s: helpUri %q does not name the rule page", id, r.HelpURI)
+		}
+	}
+}
