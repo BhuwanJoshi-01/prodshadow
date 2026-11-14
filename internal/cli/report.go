@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -9,9 +10,9 @@ import (
 )
 
 func runReport(_ context.Context, env *Env, args []string) int {
-	fs := newFlags(env, "report", "--input report.json [--format markdown|html|json] [--output FILE]")
+	fs := newFlags(env, "report", "--input report.json [--format markdown|html|json|sarif|junit|text] [--output FILE]")
 	input := fs.String("input", "prodshadow-results/report.json", "JSON report to render")
-	format := fs.String("format", "markdown", "output format: markdown, html, json, sarif or junit")
+	format := fs.String("format", "markdown", "output format: markdown, html, json, sarif, junit or text (the summary verify prints)")
 	output := fs.String("output", "", "write to FILE instead of stdout")
 	if code := parseFlags(fs, args); code >= 0 {
 		return code
@@ -25,6 +26,10 @@ func runReport(_ context.Context, env *Env, args []string) int {
 	switch *format {
 	case "markdown":
 		out = []byte(rep.Markdown())
+	case "text":
+		var buf bytes.Buffer
+		writeSummary(&buf, rep, nil)
+		out = buf.Bytes()
 	case "html":
 		h, err := rep.HTML()
 		if err != nil {

@@ -226,6 +226,9 @@ func TestReportRerender(t *testing.T) {
 	if r := run(t, dir, nil, "report", "--input", "nope.json"); r.code != ExitInvalid {
 		t.Fatalf("missing input: %+v", r)
 	}
+	if r := run(t, dir, nil, "report", "--format", "text"); r.code != ExitOK || !strings.HasPrefix(r.stdout, "ProdShadow: INCONCLUSIVE (exit 5)") || !strings.Contains(r.stdout, "QUAL007") {
+		t.Fatalf("report text: %+v", r)
+	}
 }
 
 func TestStepSummaryIsWritten(t *testing.T) {

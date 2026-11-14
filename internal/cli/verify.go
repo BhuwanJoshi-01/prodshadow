@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -342,7 +343,12 @@ func appendFile(path, text string) error {
 }
 
 func printSummary(env *Env, rep *report.Report, written []string) {
-	w := env.Stdout
+	writeSummary(env.Stdout, rep, written)
+}
+
+// writeSummary prints the decision and the findings that matter for CI
+// logs: everything but info and suppressed findings.
+func writeSummary(w io.Writer, rep *report.Report, written []string) {
 	fmt.Fprintf(w, "ProdShadow: %s (exit %d) — %s\n", strings.ToUpper(rep.Decision.Outcome), rep.Decision.ExitCode, rep.Decision.Message)
 	for _, e := range rep.Errors {
 		fmt.Fprintf(w, "  error: %s\n", e)

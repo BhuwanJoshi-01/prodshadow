@@ -94,7 +94,7 @@ Re-renders a JSON report written by `verify`.
 | Flag | Default | |
 |---|---|---|
 | `--input` | `prodshadow-results/report.json` | Report to read. Reports with a newer major schema version are rejected. |
-| `--format` | `markdown` | `markdown`, `html`, `json`, `sarif` or `junit`. |
+| `--format` | `markdown` | `markdown`, `html`, `json`, `sarif`, `junit`, or `text` for the short summary `verify` prints (decision and non-informational findings), e.g. for CI logs. |
 | `--output` | stdout | Output file. |
 
 ## `prodshadow diff`
