@@ -318,11 +318,15 @@ func tablesNotExercised(wl *workload.Spec, stmts []*sqlinspect.Statement) []Find
 		for _, l := range s.Locks {
 			impact := l.Mode.Impact()
 			name := strings.TrimPrefix(l.Table, "public.")
-			if (impact != pglock.ImpactWrites && impact != pglock.ImpactAllTraffic) || touched[name] || created[name] || slices.Contains(missing, name) {
+			if (impact != pglock.ImpactWrites && impact != pglock.ImpactAllTraffic) || touched[name] || created[name] || l.CreatedBy != "" || slices.Contains(missing, name) {
 				continue
 			}
-			if s.Kind == sqlinspect.KindDropIndex {
-				continue // the lock is recorded against the index name
+			if s.OnIndex(l) {
+				continue // recorded against the index name, not a table
+			}
+			// Queries on a partitioned table reach its partitions.
+			if parent, ok := strings.CutPrefix(l.Via, "partition of "); ok && touched[strings.TrimPrefix(parent, "public.")] {
+				continue
 			}
 			missing = append(missing, name)
 			if first == nil {

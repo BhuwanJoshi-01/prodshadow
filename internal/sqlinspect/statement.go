@@ -112,6 +112,26 @@ func (s *Statement) ExistingLock() TableLock {
 	return best
 }
 
+// OnIndex reports whether l is the lock a DROP INDEX, REINDEX INDEX or
+// ALTER INDEX statement records against the index it names. Such a lock is
+// not a table lock; with a Catalog, the index's table gets its own entry.
+func (s *Statement) OnIndex(l TableLock) bool {
+	if l.Via != "" || s.node == nil {
+		return false
+	}
+	switch {
+	case s.node.GetDropStmt().GetRemoveType() == pg_query.ObjectType_OBJECT_INDEX:
+		return true
+	case s.node.GetReindexStmt().GetKind() == pg_query.ReindexObjectType_REINDEX_OBJECT_INDEX:
+		return true
+	case s.node.GetRenameStmt().GetRenameType() == pg_query.ObjectType_OBJECT_INDEX:
+		return true
+	case s.node.GetAlterTableStmt().GetObjtype() == pg_query.ObjectType_OBJECT_INDEX:
+		return true
+	}
+	return false
+}
+
 // StrongestLock returns the strongest lock mode the statement acquires.
 func (s *Statement) StrongestLock() pglock.Mode {
 	best := pglock.None

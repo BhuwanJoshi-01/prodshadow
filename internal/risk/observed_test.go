@@ -245,6 +245,22 @@ func TestTablesNotExercised(t *testing.T) {
 	}
 }
 
+func TestTablesNotExercisedWithResolvedLocks(t *testing.T) {
+	schema, _ := sqlinspect.ParseSources([]sqlinspect.Source{{Path: "schema.sql", Content: `
+CREATE TABLE events (id bigint, at timestamptz) PARTITION BY RANGE (at);
+CREATE TABLE events_2026 PARTITION OF events FOR VALUES FROM ('2026-01-01') TO ('2027-01-01');
+CREATE TABLE invoices (id bigint);
+CREATE INDEX invoices_id_idx ON invoices (id);
+`}})
+	stmts, _ := sqlinspect.ParseSources([]sqlinspect.Source{{Path: "m.sql", Content: "ALTER TABLE events ADD COLUMN kind text;\nREINDEX INDEX invoices_id_idx;\n"}})
+	sqlinspect.NewCatalog(schema).Resolve(stmts)
+	wl := &workload.Spec{Scenarios: []workload.Scenario{{ID: "read", Mode: "read", SQL: "SELECT count(*) FROM events"}}}
+	f := byRule(Evaluate(Input{Config: testConfig(), Result: quietResult(), Statements: stmts, Workload: wl}), "QUAL011")
+	if f == nil || !strings.Contains(f.Message, "on invoices,") || strings.Contains(f.Message, "events_2026") || strings.Contains(f.Message, "invoices_id_idx") {
+		t.Fatalf("QUAL011 should name the index's table only, not the partition or the index: %+v", f)
+	}
+}
+
 func TestCompatibilityNotChecked(t *testing.T) {
 	stmts, _ := sqlinspect.ParseSources([]sqlinspect.Source{{Path: "m.sql", Content: "ALTER TABLE products DROP COLUMN legacy_sku;\n"}})
 	static := sqlinspect.Analyze(stmts, sqlinspect.Options{})

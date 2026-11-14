@@ -106,6 +106,7 @@ func runVerify(ctx context.Context, env *Env, args []string) int {
 		fmt.Fprintf(env.Stderr, "prodshadow: %v\n", err)
 		return ExitInvalid
 	}
+	resolveFromFixture(cfg, stmts)
 	static := sqlinspect.Analyze(stmts, sqlinspect.Options{
 		Transaction: sqlinspect.TransactionMode(cfg.Migration.Transaction),
 		Overrides:   cfg.Policy.Rules,

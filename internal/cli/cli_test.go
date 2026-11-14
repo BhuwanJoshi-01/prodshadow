@@ -137,6 +137,23 @@ func TestInspectMarksLocksOnNewTables(t *testing.T) {
 	}
 }
 
+func TestInspectResolvesLocksFromFixtureSchema(t *testing.T) {
+	dir := initProject(t)
+	schema, err := os.ReadFile(filepath.Join(dir, "fixtures", "schema.sql"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(dir, "fixtures", "schema.sql"), string(schema)+"\nCREATE INDEX orders_note_lookup ON orders (id);\n")
+	writeFile(t, filepath.Join(dir, "drop.sql"), "DROP INDEX orders_note_lookup;\n")
+	r := run(t, dir, nil, "inspect", "--config", "prodshadow.yaml", "--migration", "drop.sql")
+	if r.code != ExitOK || !strings.Contains(r.stdout, "ACCESS EXCLUSIVE on orders (via index orders_note_lookup, blocks-reads-and-writes)") {
+		t.Fatalf("the index's table should be resolved from the fixture schema: %+v", r)
+	}
+	if r := run(t, dir, nil, "inspect", "--migration", "drop.sql"); strings.Contains(r.stdout, "via index") {
+		t.Fatalf("without a configuration there is no schema to resolve from: %s", r.stdout)
+	}
+}
+
 func TestInspect(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, filepath.Join(dir, "m.sql"), "CREATE INDEX idx ON orders (customer_id);\nALTER TABLE orders ADD COLUMN x int;\n")

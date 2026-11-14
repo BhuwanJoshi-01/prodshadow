@@ -7,6 +7,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/BhuwanJoshi-01/Open-Source-1/internal/config"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/evidence"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/report"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/risk"
@@ -30,6 +31,7 @@ func runInspect(_ context.Context, env *Env, args []string) int {
 
 	opts := sqlinspect.Options{Transaction: sqlinspect.TxnModeAuto}
 	base := env.Dir
+	var cfg *config.Config
 	if *cfgPath != "" {
 		p, err := loadProject(env, *cfgPath)
 		if err != nil {
@@ -40,6 +42,7 @@ func runInspect(_ context.Context, env *Env, args []string) int {
 			printProblems(env.Stderr, p.problems.Errors())
 			return ExitInvalid
 		}
+		cfg = p.cfg
 		opts.Transaction = sqlinspect.TransactionMode(p.cfg.Migration.Transaction)
 		opts.Overrides = p.cfg.Policy.Rules
 		if len(files) == 0 {
@@ -90,6 +93,7 @@ func runInspect(_ context.Context, env *Env, args []string) int {
 		fmt.Fprintf(env.Stderr, "prodshadow: %v\n", err)
 		return ExitInvalid
 	}
+	resolveFromFixture(cfg, stmts)
 	findings := sqlinspect.Analyze(stmts, opts)
 
 	switch *format {
@@ -174,8 +178,12 @@ func lockSummary(s *sqlinspect.Statement) string {
 	}
 	var parts []string
 	for _, l := range s.Locks {
-		if l.CreatedBy != "" {
+		switch {
+		case l.CreatedBy != "":
 			parts = append(parts, fmt.Sprintf("%s on %s (created by %s)", l.Mode, l.Table, l.CreatedBy))
+			continue
+		case l.Via != "":
+			parts = append(parts, fmt.Sprintf("%s on %s (via %s, %s)", l.Mode, l.Table, l.Via, l.Mode.Impact()))
 			continue
 		}
 		parts = append(parts, fmt.Sprintf("%s on %s (%s)", l.Mode, l.Table, l.Mode.Impact()))

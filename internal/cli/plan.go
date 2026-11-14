@@ -86,6 +86,7 @@ func runPlan(_ context.Context, env *Env, args []string) int {
 		fmt.Fprintf(env.Stderr, "prodshadow: %v\n", err)
 		return ExitInvalid
 	}
+	resolveFromFixture(cfg, stmts)
 	inputs, err := loadExperimentInputs(cfg)
 	if err != nil {
 		fmt.Fprintf(env.Stderr, "prodshadow: %v\n", err)

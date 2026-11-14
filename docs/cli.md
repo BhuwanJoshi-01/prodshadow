@@ -49,11 +49,19 @@ Static analysis only; needs no database or container engine.
 | Flag | Default | |
 |---|---|---|
 | `--migration` | — | Migration file; repeat for several, executed in order. `--migration -` reads a single migration from standard input, reported as `<stdin>`. |
-| `--config` | — | Use rule overrides, transaction mode and `migration.files` from a configuration. |
+| `--config` | — | Use rule overrides, transaction mode and `migration.files` from a configuration, and resolve locks from its fixture schema (see below). |
 | `--transaction` | `auto` | `auto`, `per-file` or `none`. |
 | `--format` | `text` | `text`, `json`, `markdown`, `sarif` or `junit`. With `junit`, findings at or above `--fail-on` are failing test cases; without `--fail-on` every finding passes and carries its message. |
 | `--quiet` | `false` | Text format only: print the findings without the list of analysed statements. |
 | `--fail-on` | — | Exit 2 if an unsuppressed finding is at least this severe (`info`, `warning`, `critical`; inconclusive findings count as more severe than critical). |
+
+Some statements lock relations they do not name: `DROP INDEX` and
+`REINDEX INDEX` lock the index's table, DDL on a partitioned table locks
+every partition (unless `ONLY` is given), and `REFRESH MATERIALIZED VIEW`
+reads the tables of the view's query. With `--config`, `inspect` learns
+indexes, partitions and views from `fixture.schema` and lists those locks
+too, marked `via index ...`, `via partition of ...` or `via materialized
+view ...`. `plan` and `verify` always do this.
 
 ## `prodshadow plan`
 
