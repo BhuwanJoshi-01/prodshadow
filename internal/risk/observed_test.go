@@ -368,3 +368,16 @@ func TestUnpredictedWaits(t *testing.T) {
 		t.Fatalf("predicted through the schema: %+v", got)
 	}
 }
+
+func TestTablesNotExercisedThroughViews(t *testing.T) {
+	stmts, _ := sqlinspect.ParseSources([]sqlinspect.Source{{Path: "m.sql", Content: "ALTER TABLE orders ADD COLUMN note text;\n"}})
+	wl := &workload.Spec{Scenarios: []workload.Scenario{{ID: "dashboard", Mode: "read", SQL: "SELECT * FROM open_orders WHERE id = $1"}}}
+	if byRule(Evaluate(Input{Config: testConfig(), Result: quietResult(), Statements: stmts, Workload: wl}), "QUAL011") == nil {
+		t.Fatal("without the schema the view's table is unknown")
+	}
+	schema, _ := sqlinspect.ParseSources([]sqlinspect.Source{{Path: "s.sql", Content: "CREATE TABLE orders (id int, status text);\nCREATE VIEW open_orders AS SELECT id, status FROM orders;\n"}})
+	catalog := sqlinspect.NewCatalog(schema)
+	if f := byRule(Evaluate(Input{Config: testConfig(), Result: quietResult(), Statements: stmts, Workload: wl, Catalog: catalog}), "QUAL011"); f != nil {
+		t.Fatalf("the dashboard reads orders through the view: %+v", f)
+	}
+}

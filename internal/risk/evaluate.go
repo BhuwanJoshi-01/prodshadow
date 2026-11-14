@@ -103,7 +103,7 @@ func Evaluate(in Input) Assessment {
 	}
 	if in.NoExperiment == "" && in.Workload != nil {
 		findings = append(findings, writeBlockingUnexercised(in.Workload, in.Statements)...)
-		findings = append(findings, tablesNotExercised(in.Workload, in.Statements)...)
+		findings = append(findings, tablesNotExercised(in.Workload, in.Statements, in.Catalog)...)
 		findings = append(findings, compatibilityNotChecked(in.Workload, in.Static)...)
 	}
 
@@ -297,7 +297,7 @@ func writeBlockingUnexercised(wl *workload.Spec, stmts []*sqlinspect.Statement) 
 // tablesNotExercised reports tables on which the migration takes a lock
 // that blocks reads or writes, but which no scenario or background session
 // touches: the experiment says nothing about them (QUAL011).
-func tablesNotExercised(wl *workload.Spec, stmts []*sqlinspect.Statement) []Finding {
+func tablesNotExercised(wl *workload.Spec, stmts []*sqlinspect.Statement, catalog *sqlinspect.Catalog) []Finding {
 	touched := map[string]bool{}
 	var sqls []string
 	for _, sc := range wl.Scenarios {
@@ -320,6 +320,14 @@ func tablesNotExercised(wl *workload.Spec, stmts []*sqlinspect.Statement) []Find
 		for _, t := range st.Tables() {
 			touched[t] = true
 			touched[strings.TrimPrefix(t, "public.")] = true
+		}
+		// Through the schema, a query on a view touches the view's tables,
+		// and an insert touches the tables its foreign keys and triggers
+		// reach.
+		catalog.Resolve([]*sqlinspect.Statement{st})
+		for _, l := range st.Locks {
+			touched[l.Table] = true
+			touched[strings.TrimPrefix(l.Table, "public.")] = true
 		}
 	}
 	created := map[string]bool{}
