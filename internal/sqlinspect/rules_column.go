@@ -119,6 +119,10 @@ func checkAddNotNullColumn(c *Context, s *Statement) []Finding {
 // related type can skip the rewrite (for example varchar(n) to text).
 var binaryCompatibleTargets = map[string]bool{"text": true, "varchar": true, "numeric": true, "cidr": true}
 
+// limitTargets are types whose length or precision limit can be raised
+// without a rewrite, e.g. varchar(50) to varchar(100).
+var limitTargets = map[string]bool{"varchar": true, "numeric": true, "varbit": true}
+
 func checkAlterColumnType(c *Context, s *Statement) []Finding {
 	table, cmds := alterCmds(c, s)
 	var out []Finding
@@ -131,8 +135,19 @@ func checkAlterColumnType(c *Context, s *Statement) []Finding {
 		f := at(s, fmt.Sprintf("Changing the type of %s.%s to %s takes ACCESS EXCLUSIVE and usually rewrites the table and rebuilds its indexes; reads and writes wait for the whole rewrite.", table, cmd.Name, target))
 		f.Table, f.Lock = table, pglock.AccessExclusive
 		f.Confidence, f.Evidence = evidence.Medium, evidence.Heuristic
-		if binaryCompatibleTargets[target] && len(col.GetTypeName().GetTypmods()) == 0 && col.GetRawDefault() == nil {
+		using := col.GetRawDefault()
+		typmods := len(col.GetTypeName().GetTypmods()) > 0
+		plain := using == nil || using.GetColumnRef() != nil // no USING, or USING the column itself
+		switch {
+		case !plain:
+			// The USING expression is computed for every row.
+			f.Message += " The USING expression converts every row, so the rewrite is certain."
+			f.Confidence = evidence.High
+		case binaryCompatibleTargets[target] && !typmods && plain:
 			f.Message += " Some conversions to " + target + " (such as varchar(n) to text) avoid the rewrite; the experiment shows which applies."
+			f.Confidence = evidence.Low
+		case limitTargets[target] && typmods && plain:
+			f.Message += " Raising the length or precision limit of a " + target + " column avoids the rewrite, but lowering it (or changing a numeric scale) does not; the old limit is not visible here and the experiment shows which applies."
 			f.Confidence = evidence.Low
 		}
 		f.Remediation = "Add a new column of the target type, backfill it in batches, switch the application, then drop the old column."

@@ -35,6 +35,22 @@ func TestPS105AlterColumnType(t *testing.T) {
 	if got[0].Confidence != evidence.Low {
 		t.Fatalf("text target should lower confidence, got %s", got[0].Confidence)
 	}
+	cases := map[string]evidence.Confidence{
+		"ALTER TABLE orders ALTER COLUMN code TYPE varchar(100);":                     evidence.Low,
+		"ALTER TABLE orders ALTER COLUMN price TYPE numeric(14, 2);":                  evidence.Low,
+		"ALTER TABLE orders ALTER COLUMN ref TYPE integer USING ref::integer;":        evidence.High,
+		"ALTER TABLE orders ALTER COLUMN note TYPE text USING lower(note);":           evidence.High,
+		"ALTER TABLE orders ALTER COLUMN note TYPE text USING note;":                  evidence.Low,
+		"ALTER TABLE orders ALTER COLUMN code TYPE varchar(10) USING left(code, 10);": evidence.High,
+		"ALTER TABLE orders ALTER COLUMN created TYPE timestamptz;":                   evidence.Medium,
+	}
+	for sql, want := range cases {
+		got := findings(t, "PS105", Options{}, sql)
+		expectCount(t, got, 1)
+		if got[0].Confidence != want {
+			t.Errorf("%s: confidence = %s, want %s", sql, got[0].Confidence, want)
+		}
+	}
 }
 
 func TestPS106SetNotNull(t *testing.T) {
