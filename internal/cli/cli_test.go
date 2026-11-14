@@ -431,6 +431,14 @@ func TestHistory(t *testing.T) {
 	if !strings.Contains(r.stderr, "skipping") || !strings.Contains(r.stderr, "notes.json") {
 		t.Errorf("non-report file not reported: %q", r.stderr)
 	}
+	r = run(t, dir, nil, "history", "reports", "--since", "2026-11-03", "--json")
+	got = nil
+	if r.code != ExitOK || json.Unmarshal([]byte(r.stdout), &got) != nil || len(got) != 2 || got[0].RunID != "run-b" {
+		t.Fatalf("history --since: %+v", r)
+	}
+	if r := run(t, dir, nil, "history", "reports", "--since", "yesterday"); r.code != ExitInvalid {
+		t.Fatalf("invalid --since: %+v", r)
+	}
 	r = run(t, dir, nil, "history", "--last", "1", "reports")
 	if r.code != ExitOK || !strings.Contains(r.stdout, "billing") || strings.Contains(r.stdout, "2026-11-02") {
 		t.Fatalf("history --last 1: %+v", r)

@@ -10,14 +10,16 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/report"
 )
 
 func runHistory(_ context.Context, env *Env, args []string) int {
-	flags := newFlags(env, "history", "[--project NAME] [--last N] [--json | --markdown | --html] REPORT|DIR ...")
+	flags := newFlags(env, "history", "[--project NAME] [--since DATE] [--last N] [--json | --markdown | --html] REPORT|DIR ...")
 	project := flags.String("project", "", "only include runs of this project")
 	last := flags.Int("last", 0, "only show the N most recent runs (0 shows all)")
+	since := flags.String("since", "", "only runs started on or after this date (YYYY-MM-DD, UTC)")
 	asJSON := flags.Bool("json", false, "print machine-readable JSON")
 	asMarkdown := flags.Bool("markdown", false, "print a Markdown table, e.g. for a job summary")
 	asHTML := flags.Bool("html", false, "print a self-contained HTML page with charts")
@@ -33,20 +35,27 @@ func runHistory(_ context.Context, env *Env, args []string) int {
 		fmt.Fprintln(env.Stderr, "prodshadow: --last must not be negative")
 		return ExitInvalid
 	}
+	var from time.Time
+	if *since != "" {
+		t, err := time.Parse(time.DateOnly, *since)
+		if err != nil {
+			fmt.Fprintf(env.Stderr, "prodshadow: --since %q must be a date in YYYY-MM-DD form\n", *since)
+			return ExitInvalid
+		}
+		from = t
+	}
 	entries, err := loadHistory(env, paths)
 	if err != nil {
 		fmt.Fprintf(env.Stderr, "prodshadow: %v\n", err)
 		return ExitInvalid
 	}
-	if *project != "" {
-		kept := entries[:0]
-		for _, e := range entries {
-			if e.Project == *project {
-				kept = append(kept, e)
-			}
+	kept := entries[:0]
+	for _, e := range entries {
+		if (*project == "" || e.Project == *project) && !e.StartedAt.Before(from) {
+			kept = append(kept, e)
 		}
-		entries = kept
 	}
+	entries = kept
 	report.SortHistory(entries)
 	if *last > 0 && len(entries) > *last {
 		entries = entries[len(entries)-*last:]
