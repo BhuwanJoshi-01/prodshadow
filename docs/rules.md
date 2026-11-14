@@ -42,6 +42,7 @@ migration, because nothing else uses them yet.
 | [`PS122`](rules/PS122.md) | drop-index-blocks-traffic | warning | `DROP INDEX` without `CONCURRENTLY` takes `ACCESS EXCLUSIVE` on the owning table. |
 | [`PS123`](rules/PS123.md) | attach-partition-scans | warning | `ATTACH PARTITION` scans the partition under `ACCESS EXCLUSIVE` unless a `CHECK` constraint implies its bounds. |
 | [`PS124`](rules/PS124.md) | cascade-drop | warning | `CASCADE` drops or truncates dependent objects the migration does not name |
+| [`PS125`](rules/PS125.md) | integrity-checks-disabled | warning | `session_replication_role = replica` or `DISABLE TRIGGER ALL` switches off foreign key enforcement |
 
 ## Observed rules
 
