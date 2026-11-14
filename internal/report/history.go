@@ -123,3 +123,39 @@ func orDash(s string) string {
 	}
 	return s
 }
+
+// WriteHistoryMarkdown renders entries as a Markdown table for job
+// summaries and pull request comments.
+func WriteHistoryMarkdown(w io.Writer, entries []HistoryEntry) error {
+	var b strings.Builder
+	b.WriteString("| Started (UTC) | Project | Git | Decision | Migration | Lock wait | Blocked | Findings C/W/I |\n|---|---|---|---|---|---|---|---|\n")
+	changed := false
+	var prev *HistoryEntry
+	for i := range entries {
+		e := entries[i]
+		mark := ""
+		if prev != nil && (prev.FixtureHash != e.FixtureHash || prev.WorkloadHash != e.WorkloadHash || prev.PostgresMajor != e.PostgresMajor) {
+			mark, changed = " \\*", true
+		}
+		prev = &entries[i]
+		git := e.GitSHA
+		if len(git) > 8 {
+			git = git[:8]
+		}
+		if git != "" {
+			git = "`" + git + "`"
+		}
+		findings := fmt.Sprintf("%d/%d/%d", e.Critical, e.Warning, e.Info)
+		if e.Inconclusive > 0 {
+			findings += fmt.Sprintf(" +%d inconclusive", e.Inconclusive)
+		}
+		fmt.Fprintf(&b, "| %s%s | %s | %s | %s | %s | %s | %d | %s |\n",
+			e.StartedAt.UTC().Format("2006-01-02 15:04"), mark, esc(e.Project), orDash(git), esc(e.Decision),
+			fmtMS(e.MigrationMS), fmtMS(e.MaxLockWaitMS), e.MaxBlockedSessions, findings)
+	}
+	if changed {
+		b.WriteString("\n\\* the fixture, workload or PostgreSQL version changed since the previous run; compare with care.\n")
+	}
+	_, err := io.WriteString(w, b.String())
+	return err
+}

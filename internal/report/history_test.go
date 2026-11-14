@@ -66,3 +66,21 @@ func TestWriteHistoryMarksIncomparableRuns(t *testing.T) {
 		t.Errorf("unchanged fixture marked as changed:\n%s", out)
 	}
 }
+
+func TestWriteHistoryMarkdown(t *testing.T) {
+	base := time.Date(2026, 11, 1, 9, 0, 0, 0, time.UTC)
+	entries := []HistoryEntry{
+		HistoryOf(historyReport("r1", base, "f1", 800), ""),
+		HistoryOf(historyReport("r2", base.Add(time.Hour), "f2", 900), ""),
+	}
+	var buf bytes.Buffer
+	if err := WriteHistoryMarkdown(&buf, entries); err != nil {
+		t.Fatal(err)
+	}
+	out := buf.String()
+	for _, want := range []string{"| Started (UTC) |", "| 2026-11-01 09:00 | shop | `01234567` | pass | 800 ms |", "| 2026-11-01 10:00 \\* |", "compare with care"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("markdown lacks %q:\n%s", want, out)
+		}
+	}
+}

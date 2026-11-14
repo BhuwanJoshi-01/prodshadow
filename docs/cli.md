@@ -136,6 +136,7 @@ prodshadow history reports/ --project shop --last 20
 | `--project` | — | Only runs of this project. |
 | `--last` | `0` | Only the N most recent runs (0 shows all). |
 | `--json` | `false` | Machine-readable output. |
+| `--markdown` | `false` | A Markdown table, e.g. for `$GITHUB_STEP_SUMMARY` or a pull request comment. |
 
 ## `prodshadow doctor`
 
