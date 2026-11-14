@@ -38,3 +38,20 @@ func TestPS149ExpiredAnnotation(t *testing.T) {
 	expectCount(t, findings(t, "PS149", Options{}, "-- prodshadow:ignore PS101 reason=\"small table\" expires=2026-11-13\n"+stmt), 0)
 	expectCount(t, findings(t, "PS149", Options{}, "-- prodshadow:ignore PS101 reason=\"small table\"\n"+stmt), 0)
 }
+
+func TestPS150UnusedAnnotation(t *testing.T) {
+	index := "CREATE INDEX countries_name_idx ON countries (name);\n"
+	used := "-- prodshadow:ignore PS101 reason=\"small table\"\n" + index
+	expectCount(t, findings(t, "PS150", Options{}, used), 0)
+	unused := "-- prodshadow:ignore PS101, PS109 reason=\"small table\"\n" + index
+	got := findings(t, "PS150", Options{}, unused)
+	if len(got) != 1 || !strings.Contains(got[0].Message, "PS109") || strings.Contains(got[0].Message, "PS101") {
+		t.Fatalf("unused: %+v", got)
+	}
+	// Observed rules are only evaluated later, so they are never unused here.
+	expectCount(t, findings(t, "PS150", Options{}, "-- prodshadow:ignore OBS001 reason=\"accepted stall\"\n"+index), 0)
+	// A suppressed finding still counts as used.
+	expectCount(t, findings(t, "PS150", Options{}, "-- prodshadow:ignore PS101 reason=\"small table\"\nCREATE INDEX CONCURRENTLY countries_name_idx ON countries (name);\n"), 1)
+	// The rule can be turned off like any other.
+	expectCount(t, findings(t, "PS150", Options{Overrides: map[string]string{"PS150": "off"}}, unused), 0)
+}

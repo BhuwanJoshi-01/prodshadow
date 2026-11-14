@@ -41,7 +41,13 @@ func TestRuleCatalogIsComplete(t *testing.T) {
 		if r.Name == "" || r.Summary == "" || !r.Severity.Valid() {
 			t.Errorf("rule %s is missing metadata", r.ID)
 		}
-		if (r.check == nil) == (r.checkAll == nil) {
+		hooks := 0
+		for _, set := range []bool{r.check != nil, r.checkAll != nil, r.checkFindings != nil} {
+			if set {
+				hooks++
+			}
+		}
+		if hooks != 1 {
 			t.Errorf("rule %s must define exactly one check function", r.ID)
 		}
 	}

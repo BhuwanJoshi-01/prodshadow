@@ -18,9 +18,11 @@ type Rule struct {
 	Severity evidence.Severity
 	DocsURL  string
 
-	// check runs once per statement; checkAll runs once per migration.
-	check    func(c *Context, s *Statement) []Finding
-	checkAll func(c *Context) []Finding
+	// check runs once per statement; checkAll runs once per migration;
+	// checkFindings runs once after all other rules, with their findings.
+	check         func(c *Context, s *Statement) []Finding
+	checkAll      func(c *Context) []Finding
+	checkFindings func(c *Context, found []Finding) []Finding
 }
 
 // Options tune rule evaluation.
@@ -140,20 +142,8 @@ func Analyze(stmts []*Statement, opts Options) []Finding {
 	}
 
 	var out []Finding
-	for _, r := range registry {
+	emit := func(r Rule, found []Finding) {
 		setting := opts.Overrides[r.ID]
-		if setting == "off" {
-			continue
-		}
-		var found []Finding
-		if r.check != nil {
-			for _, s := range stmts {
-				found = append(found, r.check(c, s)...)
-			}
-		}
-		if r.checkAll != nil {
-			found = append(found, r.checkAll(c)...)
-		}
 		for _, f := range found {
 			f.RuleID, f.Rule, f.DocsURL = r.ID, r.Name, firstNonEmpty(f.DocsURL, r.DocsURL)
 			if f.Severity == "" {
@@ -175,6 +165,30 @@ func Analyze(stmts []*Statement, opts Options) []Finding {
 			}
 			out = append(out, f)
 		}
+	}
+	var late []Rule
+	for _, r := range registry {
+		if opts.Overrides[r.ID] == "off" {
+			continue
+		}
+		switch {
+		case r.check != nil:
+			found := make([]Finding, 0, len(stmts))
+			for _, s := range stmts {
+				found = append(found, r.check(c, s)...)
+			}
+			emit(r, found)
+		case r.checkAll != nil:
+			emit(r, r.checkAll(c))
+		default:
+			late = append(late, r)
+		}
+	}
+	// Rules about other rules' findings see the findings of every
+	// earlier rule, suppressed ones included.
+	early := append([]Finding(nil), out...)
+	for _, r := range late {
+		emit(r, r.checkFindings(c, early))
 	}
 	sort.SliceStable(out, func(i, j int) bool {
 		pi, pj := c.positionOf(out[i].StatementID), c.positionOf(out[j].StatementID)
