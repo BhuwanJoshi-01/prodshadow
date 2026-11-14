@@ -40,6 +40,7 @@ migration, because nothing else uses them yet.
 | [`PS120`](rules/PS120.md) | ineffective-lock-timeout | warning | `SET lock_timeout = 0`, or a value above 10 s: queries can queue behind a waiting migration for that long. |
 | [`PS121`](rules/PS121.md) | concurrent-index-caveats | info | `CREATE INDEX CONCURRENTLY` waits for older transactions and leaves an `INVALID` index if it fails. |
 | [`PS122`](rules/PS122.md) | drop-index-blocks-traffic | warning | `DROP INDEX` without `CONCURRENTLY` takes `ACCESS EXCLUSIVE` on the owning table. |
+| [`PS123`](rules/PS123.md) | attach-partition-scans | warning | `ATTACH PARTITION` scans the partition under `ACCESS EXCLUSIVE` unless a `CHECK` constraint implies its bounds. |
 
 ## Observed rules
 
