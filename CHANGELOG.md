@@ -134,6 +134,23 @@ versioning; the report schema (`schema_version`) is versioned separately.
   recognises tables partitioned in the existing schema.
 - `MERGE` in workloads; `validate` warns when the server version predates
   it.
+- The schema catalog also models DEFAULT partitions, triggers (static SQL
+  of PL/pgSQL and SQL functions), queries through views, partitions reached
+  by queries and DML, `VACUUM`/`ANALYZE` of partitioned tables and column
+  type changes on either side of a foreign key; each case is checked by the
+  lock oracle on PostgreSQL 15–18, which now also compares index locks.
+- Static rules PS158 (concurrent refresh PostgreSQL rejects), PS159
+  (changes views depend on), PS160 (incompatible `CREATE OR REPLACE VIEW`)
+  and PS161 (`DETACH ... CONCURRENTLY` with a default partition), each
+  confirmed by a failure oracle that runs the statement against
+  PostgreSQL; quality rule QUAL014 (closed-loop sessions saturated). PS114
+  names every table a statement blocks.
+- `inspect --schema FILE`; `plan --markdown`; `diff` compares predicted
+  conflicts; the terminal summary lists each scenario's stall next to its
+  predicted conflict.
+- Example `foreign-key-drop`; the backfill example now shows OBS017;
+  a unit test pins every example's predicted conflicts; the catalog is
+  fuzzed nightly.
 - Example `matview-refresh`; guide "Locks beyond the named table"; the
   integration tests are linted.
 - Every rule has a documentation page under `docs/rules/`, linked from
