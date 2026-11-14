@@ -101,3 +101,8 @@ keeps the dependency tree small and supports Docker and Podman alike.
 The public interface is the CLI and the JSON report. Internally,
 `isolation.Provider` and the rule registries are the seams for new
 engines and rules; they are not a stable Go API yet.
+
+## Decision records
+
+The reasoning behind the main design choices is recorded in
+[architecture decision records](adr/README.md).
