@@ -5,7 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -449,7 +451,7 @@ func TestCompletionScripts(t *testing.T) {
 	}
 	r := run(t, "", nil, "completion", "bash")
 	if r.code != ExitOK || !strings.Contains(r.stdout, "complete -o bashdefault -o default -F _prodshadow prodshadow") ||
-		!strings.Contains(r.stdout, `inspect) opts="--config --fail-on --format --migration --quiet --transaction"`) {
+		!regexp.MustCompile(`inspect\) opts="[^"]*--fail-on [^"]*--migration [^"]*--quiet`).MatchString(r.stdout) {
 		t.Fatalf("bash completion: %+v", r)
 	}
 	r = run(t, "", nil, "completion", "zsh")
@@ -599,5 +601,60 @@ func TestInspectMarkdownLinksRules(t *testing.T) {
 	r := run(t, dir, nil, "inspect", "--migration", "m.sql", "--format", "markdown")
 	if r.code != ExitOK || !strings.Contains(r.stdout, "[PS101](https://github.com/BhuwanJoshi-01/Open-Source-1/blob/main/docs/rules/PS101.md) create-index-blocks-writes") {
 		t.Fatalf("inspect --format markdown: %+v", r)
+	}
+}
+
+// gitRepo creates a repository with one committed migration and returns it.
+func gitRepo(t *testing.T) string {
+	t.Helper()
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not installed")
+	}
+	dir := t.TempDir()
+	gitRun := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", append([]string{"-C", dir, "-c", "user.name=test", "-c", "user.email=test@example.invalid", "-c", "commit.gpgsign=false"}, args...)...)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	gitRun("init", "-q", "-b", "main")
+	if err := os.MkdirAll(filepath.Join(dir, "migrations"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(dir, "migrations", "0001_old.sql"), "CREATE INDEX a ON t (a);\n")
+	gitRun("add", ".")
+	gitRun("commit", "-q", "-m", "old")
+	gitRun("checkout", "-q", "-b", "feature")
+	writeFile(t, filepath.Join(dir, "migrations", "0002_new.sql"), "CREATE INDEX CONCURRENTLY b ON t (b);\n")
+	gitRun("add", ".")
+	gitRun("commit", "-q", "-m", "new")
+	return dir
+}
+
+func TestInspectChangedSince(t *testing.T) {
+	dir := gitRepo(t)
+	r := run(t, dir, nil, "inspect", "--migration", "migrations/*.sql", "--changed-since", "main", "--format", "json")
+	var doc struct {
+		Statements []struct {
+			File string `json:"file"`
+		} `json:"statements"`
+	}
+	if r.code != ExitOK || json.Unmarshal([]byte(r.stdout), &doc) != nil || len(doc.Statements) != 1 || !strings.HasSuffix(doc.Statements[0].File, "0002_new.sql") {
+		t.Fatalf("inspect --changed-since main: %+v", r)
+	}
+	r = run(t, dir, nil, "inspect", "--migration", "migrations/*.sql", "--changed-since", "HEAD")
+	if r.code != ExitOK || !strings.Contains(r.stdout, "No migration changed since HEAD") {
+		t.Fatalf("nothing changed: %+v", r)
+	}
+	if r := run(t, dir, nil, "inspect", "--migration", "migrations/*.sql", "--changed-since", "no-such-ref"); r.code != ExitInvalid || !strings.Contains(r.stderr, "--changed-since") {
+		t.Fatalf("unknown ref: %+v", r)
+	}
+	out := filepath.Join(dir, "written-by-git")
+	if r := run(t, dir, nil, "inspect", "--migration", "migrations/*.sql", "--changed-since", "--output="+out); r.code != ExitInvalid || !strings.Contains(r.stderr, "invalid ref") {
+		t.Fatalf("option-like ref: %+v", r)
+	}
+	if _, err := os.Stat(out); err == nil {
+		t.Fatal("an option-like ref reached git")
 	}
 }

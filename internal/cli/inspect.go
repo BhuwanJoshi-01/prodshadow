@@ -23,6 +23,7 @@ func runInspect(_ context.Context, env *Env, args []string) int {
 	format := fs.String("format", "text", "output format: text, json, markdown, sarif or junit")
 	failOn := fs.String("fail-on", "", "exit 2 if an unsuppressed finding has at least this severity (info, warning, critical)")
 	quiet := fs.Bool("quiet", false, "text format: print only findings, not the analysed statements")
+	changedSince := fs.String("changed-since", "", "only migrations git reports as added or changed since this ref (e.g. origin/main)")
 	if code := parseFlags(fs, args); code >= 0 {
 		return code
 	}
@@ -66,6 +67,18 @@ func runInspect(_ context.Context, env *Env, args []string) int {
 		threshold, failAt = sev.Rank(), sev
 	}
 
+	if *changedSince != "" {
+		changed, err := changedMigrations(base, files, *changedSince)
+		if err != nil {
+			fmt.Fprintf(env.Stderr, "prodshadow: --changed-since: %v\n", err)
+			return ExitInvalid
+		}
+		if len(changed) == 0 {
+			fmt.Fprintf(env.Stdout, "No migration changed since %s; nothing to inspect.\n", *changedSince)
+			return ExitOK
+		}
+		files = changed
+	}
 	var stmts []*sqlinspect.Statement
 	var err error
 	if len(files) == 1 && files[0] == "-" {
