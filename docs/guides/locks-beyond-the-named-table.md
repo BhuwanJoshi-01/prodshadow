@@ -64,7 +64,13 @@ partition they name, plus the `DEFAULT` partition if there is one: it, and
 partition, whose implicit range changes. With a default partition,
 `DETACH ... CONCURRENTLY` is not allowed at all ([PS161](../rules/PS161.md)). `REINDEX TABLE` and `CLUSTER` on a partitioned table
 process each partition in its own transaction and cannot run inside a
-transaction block. See the
+transaction block.
+
+Queries and DML on a partitioned table lock the partitions they reach, with
+the same mode as the parent. Which ones depends on partition pruning at run
+time, so ProdShadow lists every partition as a lock the statement may take.
+A workload that queries the parent therefore conflicts with DDL on any one
+partition, unless pruning keeps it away. See the
 [partition maintenance example](../../examples/partition-maintenance).
 
 ## Materialized views and views

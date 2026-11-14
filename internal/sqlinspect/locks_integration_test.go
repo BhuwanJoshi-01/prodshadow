@@ -175,6 +175,17 @@ var oracleStatements = []string{
 	"ALTER TABLE customers RENAME COLUMN id TO customer_id",
 	"ALTER TABLE customers ALTER COLUMN id TYPE bigint",
 	"ALTER TABLE invoices ALTER COLUMN customer_id TYPE bigint",
+	"ALTER TABLE orders ADD COLUMN referrer_id int REFERENCES customers (id)",
+	"ALTER TABLE customers ADD COLUMN referrer_id int REFERENCES customers",
+	"ALTER TABLE customers ADD CONSTRAINT customers_email_check CHECK (email <> '')",
+	"ALTER TABLE orders ENABLE TRIGGER orders_audit",
+	"ALTER TABLE orders DISABLE ROW LEVEL SECURITY",
+	"CREATE INDEX customers_email_lower ON customers (lower(email))",
+	"CREATE UNIQUE INDEX order_totals_customer2 ON order_totals (customer_id)",
+	"SELECT * FROM events WHERE at >= '2026-06-01'",
+	"INSERT INTO events VALUES (1, '2026-03-01')",
+	"UPDATE events SET id = 2 WHERE at = '2026-03-01'",
+	"DELETE FROM events WHERE id = 1",
 	"ALTER SEQUENCE invoice_numbers RESTART WITH 1000",
 	"ALTER SEQUENCE invoice_numbers INCREMENT BY 10",
 	"ALTER SEQUENCE invoice_numbers OWNED BY orders.id",
@@ -314,6 +325,15 @@ func TestLockOracle(t *testing.T) {
 				}
 			}
 			observed := observeLocks(ctx, t, conn, sql, compared)
+			// Queries and DML reach only the partitions that survive
+			// pruning; the prediction lists every partition as a lock the
+			// statement may take.
+			for _, l := range s.Locks {
+				name := strings.TrimPrefix(l.Table, "public.")
+				if strings.HasPrefix(l.Via, "partition of ") && isQueryOrDML(s) && observed[name] == pglock.None {
+					delete(predicted, name)
+				}
+			}
 			for name, mode := range observed {
 				if _, predictedToo := predicted[name]; !predictedToo && knownGap(sql, name) == mode.String() {
 					delete(observed, name)
@@ -513,4 +533,12 @@ func namedIndexes(s *Statement) []string {
 		return []string{n.GetAlterTableStmt().Relation.GetRelname()}
 	}
 	return nil
+}
+
+func isQueryOrDML(s *Statement) bool {
+	switch s.Kind {
+	case KindSelect, KindInsert, KindUpdate, KindDelete, KindMerge:
+		return true
+	}
+	return false
 }

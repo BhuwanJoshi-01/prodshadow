@@ -498,3 +498,25 @@ ALTER TABLE customers ALTER COLUMN email TYPE varchar(320);
 		t.Errorf("a column outside any foreign key changes nothing else: %+v", stmts[2].Locks)
 	}
 }
+
+func TestCatalogQueryPartitions(t *testing.T) {
+	stmts := resolved(t, `
+SELECT * FROM events WHERE at >= '2026-03-01';
+INSERT INTO events VALUES (1, '2026-03-01');
+SELECT * FROM ONLY events;
+ALTER TABLE events_2026_h1 ADD COLUMN note text;
+`)
+	if l, ok := lockOn(stmts[0], "events_2026_h1"); !ok || l.Mode != pglock.AccessShare || l.Via != "partition of events" {
+		t.Errorf("a query may read any partition: %+v", stmts[0].Locks)
+	}
+	if l, ok := lockOn(stmts[1], "events_2027"); !ok || l.Mode != pglock.RowExclusive {
+		t.Errorf("an insert may be routed to any partition: %+v", stmts[1].Locks)
+	}
+	if len(stmts[2].Locks) != 1 {
+		t.Errorf("ONLY reads the parent alone: %+v", stmts[2].Locks)
+	}
+	// A query on the parent conflicts with DDL on one partition.
+	if got := PredictConflicts(stmts[3:], stmts[0]); len(got) != 1 || got[0].Table != "events_2026_h1" {
+		t.Errorf("conflicts = %+v", got)
+	}
+}

@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	pg_query "github.com/pganalyze/pg_query_go/v6"
+	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/pglock"
 )
@@ -440,8 +441,12 @@ func (c *Catalog) resolve(s *Statement) {
 	case *pg_query.Node_InsertStmt:
 		c.insertSequences(s, x.InsertStmt)
 		c.dmlForeignKeyLocks(s)
+		c.queryPartitions(s)
 	case *pg_query.Node_UpdateStmt, *pg_query.Node_DeleteStmt:
 		c.dmlForeignKeyLocks(s)
+		c.queryPartitions(s)
+	case *pg_query.Node_SelectStmt, *pg_query.Node_MergeStmt:
+		c.queryPartitions(s)
 	case *pg_query.Node_VacuumStmt:
 		// VACUUM and ANALYZE of a partitioned table process every
 		// partition with the same lock (VACUUM in its own transactions).
@@ -582,4 +587,25 @@ func plainUniqueIndex(st *pg_query.IndexStmt) bool {
 		}
 	}
 	return true
+}
+
+// queryPartitions gives the partitions of every partitioned table a query
+// or DML statement reads or writes (without ONLY) the statement's lock on
+// the table. PostgreSQL locks only the partitions that survive pruning,
+// which depends on the values at run time, so these are locks the
+// statement may take.
+func (c *Catalog) queryPartitions(s *Statement) {
+	seen := map[string]bool{}
+	walk(s.node, func(m protoreflect.Message) bool {
+		rv, ok := m.Interface().(*pg_query.RangeVar)
+		if !ok || !rv.Inh {
+			return true
+		}
+		table := relName(rv)
+		if !seen[catalogKey(table)] && len(c.partitions[catalogKey(table)]) > 0 {
+			seen[catalogKey(table)] = true
+			c.propagate(s, table)
+		}
+		return true
+	})
 }
