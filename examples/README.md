@@ -14,7 +14,7 @@ prodshadow verify --config examples/<name>/prodshadow.yaml
 | [long-running-transaction](long-running-transaction) | `ADD COLUMN external_reference text` | A report holds `ACCESS SHARE` for 6 s; the `ALTER TABLE` queues behind it and all API queries queue behind the `ALTER TABLE` until `lock_timeout`. | `block` — OBS002 |
 | [blocking-index](blocking-index) | `CREATE INDEX` on 800k generated rows | Writers wait for the whole build (`SHARE` lock); reads continue. The `CONCURRENTLY` alternative does not block. | `block` — OBS001 |
 | [backfill-heavy](backfill-heavy) | `UPDATE subscribers SET … ` without `WHERE` | Every row stays locked until the backfill commits; concurrent writers wait. | `block` — OBS001 |
-| [rolling-deploy](rolling-deploy) | `DROP COLUMN legacy_sku` | The previous application version still selects the column and fails. | `block` — OBS007 |
+| [rolling-deploy](rolling-deploy) | `DROP COLUMN legacy_sku` | The previous application version still selects the column and fails. | `block` — OBS007, OBS013 |
 
 `go test -tags integration -run TestExamples ./tests/integration/` runs all
 of them and checks these outcomes; CI does the same weekly.

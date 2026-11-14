@@ -16,3 +16,20 @@ scenarios:
     sql: "SELECT name, legacy_sku, price FROM products WHERE id = $1"
     parameters:
       - {generator: int_range, min: 1, max: 20000}
+# Every query each deployed release depends on, checked once before and once
+# after the migration, including rarely used ones the mix above does not cover.
+compatibility:
+  - version: v1
+    probes:
+      - id: get_product
+        sql: "SELECT name, legacy_sku, price FROM products WHERE id = $1"
+        parameters:
+          - {generator: int_range, min: 1, max: 20000}
+      - id: export_skus
+        sql: "SELECT legacy_sku FROM products ORDER BY id LIMIT 100"
+  - version: v2
+    probes:
+      - id: get_product
+        sql: "SELECT name, sku, price FROM products WHERE id = $1"
+        parameters:
+          - {generator: int_range, min: 1, max: 20000}

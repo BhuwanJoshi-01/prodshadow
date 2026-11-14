@@ -97,7 +97,7 @@ JUnit XML on request) and exits with:
 | [long-running-transaction](examples/long-running-transaction) | Lock queue behind a reporting transaction | block (OBS002) |
 | [blocking-index](examples/blocking-index) | `CREATE INDEX` without `CONCURRENTLY` stalls writers | block (OBS001) |
 | [backfill-heavy](examples/backfill-heavy) | Unbatched `UPDATE` holds row locks | block (OBS001) |
-| [rolling-deploy](examples/rolling-deploy) | Dropping a column the old app version still reads | block (OBS007) |
+| [rolling-deploy](examples/rolling-deploy) | Dropping a column the old app version still reads | block (OBS007, OBS013) |
 
 ## In CI
 

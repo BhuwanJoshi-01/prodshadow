@@ -1,5 +1,5 @@
 # Dropping a column while the previous application version still reads it.
-# Expected decision: block (OBS007).
+# Expected decision: block (OBS007, OBS013).
 version: 1
 project: rolling-deploy
 postgres:

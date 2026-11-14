@@ -401,7 +401,7 @@ func compatibilityFindings(cands []experiment.PhaseResult) []Finding {
 			minHits = min(minHits, hits[k])
 		}
 		conf, reason := consistency(minHits, runs)
-		f := newFinding("OBS013", conf, reason, fmt.Sprintf("Application version %s stops working once the migration has run: %s worked before it and failed after it. Instances of that version that are still deployed will fail these queries.", v, strings.Join(parts, "; ")))
+		f := newFinding("OBS013", conf, reason, fmt.Sprintf("Application version %s stops working once the migration has run; instances of it that are still deployed will fail. Probes that worked before the migration and failed after it: %s.", v, strings.Join(parts, "; ")))
 		f.Observed, f.Unit = ptr(float64(len(keys))), "probes"
 		f.Remediation = "Make the change backward compatible (expand, migrate the code, then contract in a later release), or deploy the migration only after no instance of this version is running."
 		out = append(out, f)
