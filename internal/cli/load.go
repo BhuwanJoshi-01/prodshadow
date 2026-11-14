@@ -105,15 +105,21 @@ func fixtureCatalog(cfg *config.Config) *sqlinspect.Catalog {
 	if cfg == nil || cfg.Fixture.Schema == "" {
 		return nil
 	}
-	src, err := sqlinspect.ReadSource(cfg.Resolve(cfg.Fixture.Schema), cfg.Fixture.Schema)
-	if err != nil {
-		return nil
-	}
-	schema, err := sqlinspect.ParseSources([]sqlinspect.Source{src})
+	schema, err := schemaStatements(cfg.Resolve(cfg.Fixture.Schema), cfg.Fixture.Schema)
 	if err != nil {
 		return nil
 	}
 	return sqlinspect.NewCatalog(schema)
+}
+
+// schemaStatements parses a schema file (path on disk, display name for
+// messages).
+func schemaStatements(path, display string) ([]*sqlinspect.Statement, error) {
+	src, err := sqlinspect.ReadSource(path, display)
+	if err != nil {
+		return nil, err
+	}
+	return sqlinspect.ParseSources([]sqlinspect.Source{src})
 }
 
 // resolveFromFixture adds the locks migration statements take on relations

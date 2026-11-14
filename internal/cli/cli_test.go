@@ -154,6 +154,19 @@ func TestInspectResolvesLocksFromFixtureSchema(t *testing.T) {
 	}
 }
 
+func TestInspectSchemaFlag(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "schema.sql"), "CREATE TABLE orders (id int);\nCREATE INDEX orders_id_idx ON orders (id);\nCREATE VIEW order_ids AS SELECT id FROM orders;\n")
+	writeFile(t, filepath.Join(dir, "m.sql"), "DROP INDEX orders_id_idx;\nALTER TABLE orders DROP COLUMN id;\n")
+	r := run(t, dir, nil, "inspect", "--schema", "schema.sql", "--migration", "m.sql")
+	if !strings.Contains(r.stdout, "ACCESS EXCLUSIVE on orders (via index orders_id_idx") || !strings.Contains(r.stdout, "PS159") {
+		t.Fatalf("--schema should resolve locks and feed the rules: %+v", r)
+	}
+	if r := run(t, dir, nil, "inspect", "--schema", "missing.sql", "--migration", "m.sql"); r.code != ExitInvalid || !strings.Contains(r.stderr, "--schema") {
+		t.Fatalf("a missing schema file is an error: %+v", r)
+	}
+}
+
 func TestInspect(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, filepath.Join(dir, "m.sql"), "CREATE INDEX idx ON orders (customer_id);\nALTER TABLE orders ADD COLUMN x int;\n")

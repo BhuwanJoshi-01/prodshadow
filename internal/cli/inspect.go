@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"path/filepath"
 	"strings"
 
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/config"
@@ -20,6 +21,7 @@ func runInspect(_ context.Context, env *Env, args []string) int {
 	var files multiFlag
 	fs.Var(&files, "migration", "migration file (repeatable, executed in order); - reads one migration from standard input")
 	cfgPath := fs.String("config", "", "optional configuration for rule overrides and transaction mode")
+	schemaPath := fs.String("schema", "", "SQL file with the schema before the migration, to resolve locks on relations statements do not name (default: fixture.schema of --config)")
 	txn := fs.String("transaction", "", "transaction mode: auto, per-file or none (default from config, else auto)")
 	format := fs.String("format", "text", "output format: text, json, markdown, sarif or junit")
 	failOn := fs.String("fail-on", "", "exit 2 if an unsuppressed finding has at least this severity (info, warning, critical)")
@@ -93,7 +95,23 @@ func runInspect(_ context.Context, env *Env, args []string) int {
 		fmt.Fprintf(env.Stderr, "prodshadow: %v\n", err)
 		return ExitInvalid
 	}
-	opts.Catalog = resolveFromFixture(cfg, stmts)
+	if *schemaPath != "" {
+		path := *schemaPath
+		if !filepath.IsAbs(path) {
+			path = filepath.Join(env.Dir, path)
+		}
+		schema, err := schemaStatements(path, *schemaPath)
+		if err != nil {
+			fmt.Fprintf(env.Stderr, "prodshadow: --schema: %v\n", err)
+			return ExitInvalid
+		}
+		// Resolve learns from the migration; the rules get the schema as
+		// it was before it.
+		sqlinspect.NewCatalog(schema).Resolve(stmts)
+		opts.Catalog = sqlinspect.NewCatalog(schema)
+	} else {
+		opts.Catalog = resolveFromFixture(cfg, stmts)
+	}
 	findings := sqlinspect.Analyze(stmts, opts)
 
 	switch *format {
