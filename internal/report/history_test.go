@@ -84,3 +84,30 @@ func TestWriteHistoryMarkdown(t *testing.T) {
 		}
 	}
 }
+
+func TestWriteHistoryHTML(t *testing.T) {
+	base := time.Date(2026, 11, 1, 9, 0, 0, 0, time.UTC)
+	entries := []HistoryEntry{
+		HistoryOf(historyReport("r1", base, "f1", 800), ""),
+		HistoryOf(historyReport("r2", base.Add(time.Hour), "f1", 900), ""),
+		HistoryOf(historyReport("r3", base.Add(2*time.Hour), "f2", 300), ""),
+	}
+	entries[1].Project = `<script>alert(1)</script>`
+	var buf bytes.Buffer
+	if err := WriteHistoryHTML(&buf, entries); err != nil {
+		t.Fatal(err)
+	}
+	out := buf.String()
+	for _, want := range []string{"<polyline", `class="changed"`, "2026-11-01 11:00 *", "&lt;script&gt;", "1/1/0"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("HTML lacks %q", want)
+		}
+	}
+	if strings.Contains(out, "<script>alert(1)") || strings.Contains(out, "http://") || strings.Contains(out, "https://") {
+		t.Error("history page must escape text and load no external resources")
+	}
+	buf.Reset()
+	if err := WriteHistoryHTML(&buf, entries[:1]); err != nil || strings.Contains(buf.String(), "<polyline") {
+		t.Errorf("a single run draws a dot, not a line: %v", err)
+	}
+}

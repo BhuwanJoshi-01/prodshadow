@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ProdShadow history{{if .Project}}: {{.Project}}{{end}}</title>
+<style>
+:root { --bg:#fff; --fg:#1d232a; --muted:#5b6570; --line:#dde2e7; --card:#f6f8fa; --crit:#b42318; --ok:#1a7f37; --inc:#6639ba; --warn:#9a6700; --series:#2f6db5; }
+@media (prefers-color-scheme: dark) { :root { --bg:#0f1419; --fg:#e6edf3; --muted:#9aa5b1; --line:#2d3640; --card:#161b22; --crit:#ff7b72; --ok:#3fb950; --inc:#bc8cff; --warn:#d29922; --series:#79a8e8; } }
+body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif; }
+main { max-width:1100px; margin:0 auto; padding:24px 16px 64px; }
+h1 { font-size:1.5rem; margin:0 0 4px; } h2 { font-size:1.1rem; margin:28px 0 8px; }
+.note { color:var(--muted); }
+.charts { display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:16px; }
+figure { margin:0; background:var(--card); border-radius:6px; padding:8px 12px; }
+figcaption { color:var(--muted); font-size:.85rem; }
+svg { width:100%; height:auto; } svg .line { fill:none; stroke:var(--series); stroke-width:2; } svg .dot { fill:var(--series); } svg .changed { fill:var(--warn); } svg text { fill:var(--muted); font-size:11px; }
+.scroll { overflow-x:auto; } table { border-collapse:collapse; width:100%; font-size:.9rem; }
+th, td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); white-space:nowrap; }
+th { color:var(--muted); font-weight:600; }
+.block { color:var(--crit); font-weight:600; } .pass { color:var(--ok); } .inconclusive { color:var(--inc); } .error { color:var(--warn); }
+</style>
+</head>
+<body>
+<main>
+<h1>ProdShadow history{{if .Project}}: {{.Project}}{{end}}</h1>
+<p class="note">{{len .Entries}} run(s), oldest first. Runs marked * used a different fixture, workload or PostgreSQL version than the run before; compare them with care.</p>
+<div class="charts">
+<figure>{{.MigrationChart}}<figcaption>Longest candidate migration (ms)</figcaption></figure>
+<figure>{{.LockChart}}<figcaption>Longest workload lock wait (ms)</figcaption></figure>
+</div>
+<h2>Runs</h2>
+<div class="scroll"><table>
+<tr><th>Started (UTC)</th><th>Project</th><th>Git</th><th>Decision</th><th>Migration</th><th>Lock wait</th><th>Blocked</th><th>Findings C/W/I</th></tr>
+{{range $i, $e := .Entries}}<tr><td>{{$e.StartedAt.UTC.Format "2006-01-02 15:04"}}{{if index $.Marks $i}} *{{end}}</td><td>{{$e.Project}}</td><td><code>{{short $e.GitSHA}}</code></td><td class="{{$e.Decision}}">{{$e.Decision}}</td><td>{{ms $e.MigrationMS}}</td><td>{{ms $e.MaxLockWaitMS}}</td><td>{{$e.MaxBlockedSessions}}</td><td>{{$e.FindingCounts}}</td></tr>
+{{end}}</table></div>
+</main>
+</body>
+</html>

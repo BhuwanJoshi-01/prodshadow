@@ -15,11 +15,12 @@ import (
 )
 
 func runHistory(_ context.Context, env *Env, args []string) int {
-	flags := newFlags(env, "history", "[--project NAME] [--last N] [--json | --markdown] REPORT|DIR ...")
+	flags := newFlags(env, "history", "[--project NAME] [--last N] [--json | --markdown | --html] REPORT|DIR ...")
 	project := flags.String("project", "", "only include runs of this project")
 	last := flags.Int("last", 0, "only show the N most recent runs (0 shows all)")
 	asJSON := flags.Bool("json", false, "print machine-readable JSON")
 	asMarkdown := flags.Bool("markdown", false, "print a Markdown table, e.g. for a job summary")
+	asHTML := flags.Bool("html", false, "print a self-contained HTML page with charts")
 	paths, code := parseWithArgs(flags, args)
 	if code >= 0 {
 		return code
@@ -63,8 +64,11 @@ func runHistory(_ context.Context, env *Env, args []string) int {
 		return ExitOK
 	}
 	write := report.WriteHistory
-	if *asMarkdown {
+	switch {
+	case *asMarkdown:
 		write = report.WriteHistoryMarkdown
+	case *asHTML:
+		write = report.WriteHistoryHTML
 	}
 	if err := write(env.Stdout, entries); err != nil {
 		return ExitInternal

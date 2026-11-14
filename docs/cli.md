@@ -137,6 +137,7 @@ prodshadow history reports/ --project shop --last 20
 | `--last` | `0` | Only the N most recent runs (0 shows all). |
 | `--json` | `false` | Machine-readable output. |
 | `--markdown` | `false` | A Markdown table, e.g. for `$GITHUB_STEP_SUMMARY` or a pull request comment. |
+| `--html` | `false` | A self-contained HTML page with charts of migration duration and lock wait per run, e.g. to publish as a CI artifact. |
 
 ## `prodshadow draft-workload`
 

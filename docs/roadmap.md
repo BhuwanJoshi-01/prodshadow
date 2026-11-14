@@ -69,8 +69,8 @@ ProdShadow to the blocker-injection rehearsal rather than broadening it.
 
 ## Later / research
 
-* A static dashboard over stored JSON reports (`prodshadow history`
-  already prints the timeline).
+* ~~A static dashboard over stored JSON reports~~ — done:
+  `prodshadow history --html` renders a self-contained page with charts.
 * Multi-node and replica-aware experiments.
 * MySQL support behind the provider interface.
 
