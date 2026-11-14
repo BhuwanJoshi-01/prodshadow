@@ -227,11 +227,22 @@ func classifyCreateTable(s *Statement, st *pg_query.CreateStmt) {
 			s.addLock(relName(c.Pktable), pglock.ShareRowExclusive)
 		}
 	}
-	// CREATE TABLE ... PARTITION OF takes ACCESS EXCLUSIVE on the parent.
+	// CREATE TABLE ... PARTITION OF takes ACCESS EXCLUSIVE on the parent,
+	// because the partition descriptor changes. Plain INHERITS takes SHARE
+	// UPDATE EXCLUSIVE, which is self-conflicting so that two children
+	// cannot update the parent's catalog entry at once.
+	parentMode := pglock.ShareUpdateExclusive
 	if st.Partbound != nil {
 		s.Subcommands = append(s.Subcommands, "partition_of")
-		for _, parent := range st.InhRelations {
-			s.addLock(relName(parent.GetRangeVar()), pglock.AccessExclusive)
+		parentMode = pglock.AccessExclusive
+	}
+	for _, parent := range st.InhRelations {
+		s.addLock(relName(parent.GetRangeVar()), parentMode)
+	}
+	// LIKE reads the source table's definition under ACCESS SHARE.
+	for _, e := range st.TableElts {
+		if like := e.GetTableLikeClause(); like != nil {
+			s.addLock(relName(like.Relation), pglock.AccessShare)
 		}
 	}
 }

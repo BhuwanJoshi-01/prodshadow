@@ -45,6 +45,8 @@ func TestClassifyLocks(t *testing.T) {
 		{"DROP INDEX CONCURRENTLY idx", KindDropIndex, "idx", pglock.ShareUpdateExclusive, TxnNotInBlock},
 		{"CREATE TABLE refunds (id int, order_id int REFERENCES orders (id))", KindCreateTable, "orders", pglock.ShareRowExclusive, TxnAny},
 		{"CREATE TABLE events_2027 PARTITION OF events FOR VALUES FROM ('2027-01-01') TO ('2028-01-01')", KindCreateTable, "events", pglock.AccessExclusive, TxnAny},
+		{"CREATE TABLE events_2027 (LIKE events INCLUDING ALL)", KindCreateTable, "events", pglock.AccessShare, TxnAny},
+		{"CREATE TABLE archived_orders (archived_at timestamptz) INHERITS (orders)", KindCreateTable, "orders", pglock.ShareUpdateExclusive, TxnAny},
 		{"UPDATE orders SET status = 'x' WHERE id = 1", KindUpdate, "orders", pglock.RowExclusive, TxnAny},
 		{"DELETE FROM orders", KindDelete, "orders", pglock.RowExclusive, TxnAny},
 		{"INSERT INTO orders SELECT * FROM staging", KindInsert, "orders", pglock.RowExclusive, TxnAny},
