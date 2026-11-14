@@ -43,7 +43,7 @@ func ReadSource(path, display string) (Source, error) {
 	if err != nil {
 		return Source{}, err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	return ReadSourceFrom(f, display)
 }
 

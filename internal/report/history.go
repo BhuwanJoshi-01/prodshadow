@@ -87,14 +87,14 @@ func WriteHistory(w io.Writer, entries []HistoryEntry) error {
 	tw := tabwriter.NewWriter(w, 0, 4, 2, ' ', 0)
 	fmt.Fprintln(tw, "STARTED (UTC)\tPROJECT\tGIT\tDECISION\tMIGRATION\tLOCK WAIT\tBLOCKED\tFINDINGS C/W/I\t")
 	changed := false
-	for i, e := range entries {
+	var prev *HistoryEntry
+	for i := range entries {
+		e := entries[i]
 		mark := ""
-		if i > 0 {
-			p := entries[i-1]
-			if p.FixtureHash != e.FixtureHash || p.WorkloadHash != e.WorkloadHash || p.PostgresMajor != e.PostgresMajor {
-				mark, changed = "*", true
-			}
+		if prev != nil && (prev.FixtureHash != e.FixtureHash || prev.WorkloadHash != e.WorkloadHash || prev.PostgresMajor != e.PostgresMajor) {
+			mark, changed = "*", true
 		}
+		prev = &entries[i]
 		git := e.GitSHA
 		if len(git) > 8 {
 			git = git[:8]

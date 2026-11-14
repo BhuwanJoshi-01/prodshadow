@@ -82,8 +82,9 @@ func parseFlagHelp(help string) []completionFlag {
 }
 
 func commandNames() []string {
-	var names []string
-	for _, c := range commands() {
+	cmds := commands()
+	names := make([]string, 0, len(cmds))
+	for _, c := range cmds {
 		names = append(names, c.name)
 	}
 	return names
@@ -104,7 +105,7 @@ func writeBashCompletion(w io.Writer, flags map[string][]completionFlag) {
 		if len(flags[name]) == 0 {
 			continue
 		}
-		var opts []string
+		opts := make([]string, 0, len(flags[name]))
 		for _, f := range flags[name] {
 			opts = append(opts, "--"+f.name)
 		}
