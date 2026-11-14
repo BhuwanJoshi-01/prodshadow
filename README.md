@@ -135,7 +135,7 @@ Details: [docs/threat-model.md](docs/threat-model.md).
 * [Rules](docs/rules.md) · [Report format](docs/report.md) · [CLI](docs/cli.md)
 * [Architecture](docs/architecture.md) · [Threat model](docs/threat-model.md)
 * [Limitations](docs/limitations.md) · [Measured results](docs/benchmarks.md) · [FAQ](docs/faq.md) · [Roadmap](docs/roadmap.md)
-* [CI guide](docs/ci.md) · [Landscape and gap analysis](docs/research/landscape.md)
+* [CI guide](docs/ci.md) · [Migration tool guides](docs/guides/README.md) · [Landscape and gap analysis](docs/research/landscape.md)
 * [Contributing](CONTRIBUTING.md) · [Security policy](SECURITY.md)
 
 ## Status
