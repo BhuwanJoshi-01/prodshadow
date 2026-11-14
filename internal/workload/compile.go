@@ -32,6 +32,7 @@ type compiled struct {
 	txn     bool
 	hold    time.Duration
 	timeout time.Duration
+	think   time.Duration
 	params  []gen.Spec
 	cum     float64
 	// background only
@@ -50,9 +51,13 @@ func compile(s *Spec) ([]*compiled, []*compiled, error) {
 	}
 	cum := 0.0
 	for _, sc := range s.Scenarios {
-		c := &compiled{info: ScenarioInfo{ID: sc.ID, Mode: sc.Mode, Weight: sc.Weight}, params: sc.Parameters, timeout: DefaultTimeout}
+		c := &compiled{info: ScenarioInfo{ID: sc.ID, Mode: sc.Mode, Weight: sc.Weight}, params: sc.Parameters, timeout: DefaultTimeout,
+			think: time.Duration(s.ThinkTimeMS) * time.Millisecond}
 		if sc.TimeoutMS > 0 {
 			c.timeout = time.Duration(sc.TimeoutMS) * time.Millisecond
+		}
+		if sc.ThinkTimeMS != nil {
+			c.think = time.Duration(*sc.ThinkTimeMS) * time.Millisecond
 		}
 		raw := []string{sc.SQL}
 		if sc.Transaction != nil {

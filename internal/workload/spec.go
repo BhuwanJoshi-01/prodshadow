@@ -59,6 +59,9 @@ type Scenario struct {
 	Parameters  []gen.Spec `yaml:"parameters" json:"parameters,omitempty"`
 	// TimeoutMS is the session statement_timeout for this scenario.
 	TimeoutMS int `yaml:"timeout_ms" json:"timeout_ms,omitempty"`
+	// ThinkTimeMS overrides the workload's think_time_ms after this
+	// scenario, in closed-loop mode.
+	ThinkTimeMS *int `yaml:"think_time_ms" json:"think_time_ms,omitempty"`
 }
 
 // TxnSpec runs statements in one transaction and optionally keeps it open.

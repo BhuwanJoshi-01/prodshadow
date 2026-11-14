@@ -261,7 +261,6 @@ func (r *runner) closedLoopWorker(stopCtx, killCtx context.Context, i int) {
 	s := newSession(fmt.Sprintf("worker/%d", i), r.opts.Connect, r.opts.Seed, r.opts.Stream)
 	defer s.close()
 	choice := gen.Stream(r.opts.Seed, fmt.Sprintf("%s/worker/%d/choice", r.opts.Stream, i))
-	think := time.Duration(r.spec.ThinkTimeMS) * time.Millisecond
 	var local []Op
 	defer func() { r.record(local) }()
 
@@ -284,8 +283,8 @@ func (r *runner) closedLoopWorker(stopCtx, killCtx context.Context, i int) {
 			lat = time.Since(begin)
 		}
 		local = append(local, r.op(c, begin, lat, err, killCtx.Err() != nil))
-		if think > 0 {
-			sleepUntil(stopCtx, time.Now().Add(think))
+		if c.think > 0 {
+			sleepUntil(stopCtx, time.Now().Add(c.think))
 		}
 	}
 }

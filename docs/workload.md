@@ -54,6 +54,7 @@ background:
 | `transaction.hold_ms` | Keep the transaction idle, holding its locks, before committing. Not counted in latency. |
 | `parameters` | Generators for `$1`, `$2`, …; every referenced parameter must be defined. |
 | `timeout_ms` | Session `statement_timeout` for this scenario (default 30 s). |
+| `think_time_ms` | Pause after this scenario in closed-loop mode, overriding the workload's `think_time_ms` (0–60000). |
 
 Only `SELECT` (including `FOR UPDATE`/`FOR SHARE` and CTEs), `INSERT`,
 `UPDATE` and `DELETE` are allowed. DDL, `COPY`, `SET`, transaction control

@@ -54,6 +54,9 @@ func (s *Spec) Validate() error {
 		if sc.TimeoutMS < 0 || sc.TimeoutMS > 3_600_000 {
 			add("%s (%s): timeout_ms must be between 0 and 3600000", where, sc.ID)
 		}
+		if t := sc.ThinkTimeMS; t != nil && (*t < 0 || *t > 60_000) {
+			add("%s (%s): think_time_ms must be between 0 and 60000", where, sc.ID)
+		}
 		var stmts []string
 		switch {
 		case sc.SQL != "" && sc.Transaction != nil:

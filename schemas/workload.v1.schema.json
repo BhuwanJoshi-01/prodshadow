@@ -36,7 +36,8 @@
         "sql": {"type": "string"},
         "transaction": {"$ref": "#/$defs/transaction"},
         "parameters": {"type": "array", "items": {"$ref": "#/$defs/generator"}},
-        "timeout_ms": {"type": "integer", "minimum": 0, "maximum": 3600000}
+        "timeout_ms": {"type": "integer", "minimum": 0, "maximum": 3600000},
+        "think_time_ms": {"type": "integer", "minimum": 0, "maximum": 60000}
       }
     },
     "app_version": {
