@@ -700,3 +700,18 @@ func TestDraftFixture(t *testing.T) {
 		t.Fatalf("missing count column: %+v", r)
 	}
 }
+
+func TestValidateWarnsAboutUnknownWorkloadTables(t *testing.T) {
+	dir := initProject(t)
+	wl := filepath.Join(dir, "workloads", "workload.yaml")
+	raw, _ := os.ReadFile(wl)
+	writeFile(t, wl, strings.Replace(string(raw), "FROM orders", "FROM ordrs", 1))
+	r := run(t, dir, nil, "validate")
+	if r.code != ExitOK || !strings.Contains(r.stdout, "uses table ordrs, which the fixture schema does not create") {
+		t.Fatalf("validate: %+v", r)
+	}
+	writeFile(t, wl, string(raw))
+	if r := run(t, dir, nil, "validate"); strings.Contains(r.stdout, "does not create") {
+		t.Fatalf("starter project warned: %+v", r)
+	}
+}

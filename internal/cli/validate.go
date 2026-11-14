@@ -4,12 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/config"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/experiment"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/fixture"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/risk"
+	"github.com/BhuwanJoshi-01/Open-Source-1/internal/sqlinspect"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/workload"
+
+	pg_query "github.com/pganalyze/pg_query_go/v6"
 )
 
 func runValidate(_ context.Context, env *Env, args []string) int {
@@ -58,6 +62,10 @@ func validateReferences(cfg *config.Config) config.Problems {
 	add := func(path string, err error) {
 		ps = append(ps, config.Problem{Level: config.LevelError, Path: path, Message: err.Error(), Line: cfg.LineOf(path)})
 	}
+	known := fixtureRelations(cfg)
+	warn := func(path, msg string) {
+		ps = append(ps, config.Problem{Level: config.LevelWarning, Path: path, Message: msg, Line: cfg.LineOf(path)})
+	}
 	if f := cfg.Workload.File; f != "" {
 		wl, err := workload.Load(cfg.Resolve(f))
 		if err != nil {
@@ -65,6 +73,11 @@ func validateReferences(cfg *config.Config) config.Problems {
 		} else {
 			if err := experiment.CheckCapacity(cfg, wl); err != nil {
 				add("workload.concurrency", err)
+			}
+			if known != nil {
+				for _, t := range missingRelations(known, workloadSQL(wl)) {
+					warn("workload.file", fmt.Sprintf("the workload uses table %s, which the fixture schema does not create; its queries will fail", t))
+				}
 			}
 			if msg := unreachableQueueBudget(cfg, wl); msg != "" {
 				ps = append(ps, config.Problem{Level: config.LevelWarning, Path: "policy.max_queued_sessions", Message: msg, Line: cfg.LineOf("policy.max_queued_sessions")})
@@ -104,4 +117,86 @@ func unreachableQueueBudget(cfg *config.Config, wl *workload.Spec) string {
 		return ""
 	}
 	return fmt.Sprintf("max_queued_sessions is %d but the workload only has %d session(s), so OBS012 can never fire; raise workload.concurrency to at least %d or lower the budget", *limit, sessions, *limit+1)
+}
+
+// fixtureRelations returns the relations the fixture schema creates, or
+// nil when there is no schema or it cannot be read (other checks report
+// that).
+func fixtureRelations(cfg *config.Config) map[string]bool {
+	if cfg.Fixture.Schema == "" {
+		return nil
+	}
+	src, err := sqlinspect.ReadSource(cfg.Resolve(cfg.Fixture.Schema), cfg.Fixture.Schema)
+	if err != nil {
+		return nil
+	}
+	stmts, err := sqlinspect.ParseSources([]sqlinspect.Source{src})
+	if err != nil {
+		return nil
+	}
+	known := map[string]bool{}
+	for _, s := range stmts {
+		n := s.Node()
+		if n == nil {
+			continue
+		}
+		var rv *pg_query.RangeVar
+		switch {
+		case n.GetCreateStmt() != nil:
+			rv = n.GetCreateStmt().Relation
+		case n.GetCreateTableAsStmt() != nil:
+			rv = n.GetCreateTableAsStmt().GetInto().GetRel()
+		case n.GetViewStmt() != nil:
+			rv = n.GetViewStmt().View
+		}
+		if rv != nil {
+			known[rv.Relname] = true
+		}
+	}
+	return known
+}
+
+// workloadSQL lists every statement of a workload.
+func workloadSQL(wl *workload.Spec) []string {
+	var out []string
+	for _, sc := range wl.Scenarios {
+		out = append(out, sc.SQL)
+		if sc.Transaction != nil {
+			out = append(out, sc.Transaction.Statements...)
+		}
+	}
+	for _, b := range wl.Background {
+		out = append(out, b.Transaction.Statements...)
+	}
+	for _, v := range wl.Compatibility {
+		for _, p := range v.Probes {
+			out = append(out, p.SQL)
+		}
+	}
+	return out
+}
+
+// missingRelations lists, once each, the tables the statements use that
+// are not in known. Catalog relations are ignored.
+func missingRelations(known map[string]bool, sqls []string) []string {
+	var out []string
+	seen := map[string]bool{}
+	for _, q := range sqls {
+		if strings.TrimSpace(q) == "" {
+			continue
+		}
+		st, err := sqlinspect.ParseOne(q)
+		if err != nil {
+			continue
+		}
+		for _, t := range st.Tables() {
+			name := t[strings.LastIndex(t, ".")+1:]
+			if known[name] || seen[name] || strings.HasPrefix(t, "pg_catalog.") || strings.HasPrefix(name, "pg_") {
+				continue
+			}
+			seen[name] = true
+			out = append(out, t)
+		}
+	}
+	return out
 }
