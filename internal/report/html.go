@@ -33,9 +33,10 @@ func (r *Report) HTML() (string, error) {
 	var buf bytes.Buffer
 	data := struct {
 		*Report
-		Disclaimer string
-		Chart      template.HTML
-	}{r, Disclaimer, r.timelineSVG()}
+		Disclaimer    string
+		Chart         template.HTML
+		Compatibility []CompatibilityRow
+	}{r, Disclaimer, r.timelineSVG(), r.CompatibilityRows()}
 	if err := parsedHTML.Execute(&buf, data); err != nil {
 		return "", err
 	}

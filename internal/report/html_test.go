@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/BhuwanJoshi-01/Open-Source-1/internal/experiment"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/risk"
 )
 
@@ -41,5 +42,29 @@ func TestHTMLIsSelfContained(t *testing.T) {
 	}
 	if !strings.Contains(out, "<svg") || !strings.Contains(out, "prefers-color-scheme: dark") {
 		t.Error("expected the timeline chart and dark mode styles")
+	}
+}
+
+func TestHTMLCompatibilitySection(t *testing.T) {
+	r := Build(sampleInput(t))
+	out, _ := r.HTML()
+	if strings.Contains(out, "Application compatibility") {
+		t.Fatal("no section without probes")
+	}
+	for i := range r.Phases {
+		if r.Phases[i].Kind == "candidate" {
+			r.Phases[i].Compatibility = []experiment.Compatibility{
+				{Version: "v1", Probe: "get_product", BeforeOK: true, AfterSQLState: "42703", AfterError: `column "<b>legacy_sku</b>" does not exist`},
+			}
+		}
+	}
+	out, err := r.HTML()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"<h2>Application compatibility</h2>", "<code>get_product</code>", `class="sev-critical">failed (42703: column &#34;&lt;b&gt;legacy_sku&lt;/b&gt;&#34; does not exist)`} {
+		if !strings.Contains(out, want) {
+			t.Errorf("HTML lacks %q", want)
+		}
 	}
 }

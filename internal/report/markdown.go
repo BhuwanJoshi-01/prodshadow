@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/evidence"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/experiment"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/risk"
 )
 
@@ -265,32 +264,10 @@ func (r *Report) mdLocks(w writer) {
 	w("\n")
 }
 
-// mdCompatibility shows each compatibility probe once, from the first
-// candidate phase that ran probes, and how many candidate repeats it broke
-// in.
+// mdCompatibility shows each compatibility probe once with how many
+// candidate repeats it broke in.
 func (r *Report) mdCompatibility(w writer) {
-	type row struct {
-		experiment.Compatibility
-		broken, runs int
-	}
-	var rows []*row
-	index := map[string]*row{}
-	for _, p := range r.Phases {
-		for _, c := range p.Compatibility {
-			key := c.Version + "\x00" + c.Probe
-			rw, ok := index[key]
-			if !ok {
-				rw = &row{Compatibility: c}
-				index[key] = rw
-				rows = append(rows, rw)
-			}
-			rw.runs++
-			if c.Broken() {
-				rw.broken++
-				rw.Compatibility = c
-			}
-		}
-	}
+	rows := r.CompatibilityRows()
 	if len(rows) == 0 {
 		return
 	}
@@ -298,20 +275,9 @@ func (r *Report) mdCompatibility(w writer) {
 	w("Each probe ran before and after the migration in every candidate phase, as the application role, in a transaction that was rolled back.\n\n")
 	w("| Version | Probe | Before | After | Broken in |\n|---|---|---|---|---|\n")
 	for _, rw := range rows {
-		w("| %s | %s | %s | %s | %d of %d |\n", esc(rw.Version), esc(rw.Probe), probeStatus(rw.BeforeOK, rw.BeforeSQLState, rw.BeforeError),
-			probeStatus(rw.AfterOK, rw.AfterSQLState, rw.AfterError), rw.broken, rw.runs)
+		w("| %s | %s | %s | %s | %d of %d |\n", esc(rw.Version), esc(rw.Probe), esc(rw.BeforeStatus()), esc(rw.AfterStatus()), rw.Broken, rw.Runs)
 	}
 	w("\n")
-}
-
-func probeStatus(ok bool, state, msg string) string {
-	if ok {
-		return "ok"
-	}
-	if state != "" {
-		return esc(fmt.Sprintf("failed (%s: %s)", state, msg))
-	}
-	return esc("failed: " + msg)
 }
 
 func (r *Report) mdTimeline(w writer) {
