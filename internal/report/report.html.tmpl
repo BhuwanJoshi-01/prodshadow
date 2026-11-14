@@ -86,6 +86,7 @@ ul { padding-left:20px; }
 {{if .GitSHA}}<li>Git commit: <code>{{.GitSHA}}</code></li>{{end}}
 <li>Image: <code>{{.Engine.Image}}</code>{{if .Engine.ServerVersion}} ({{.Engine.ServerVersion}}){{end}}</li>
 <li>Fixture hash: <code>{{.Fixture.Hash}}</code> · Workload hash: <code>{{.Workload.Hash}}</code> · Seed {{.Workload.Seed}}</li>
+{{if .Fixture.SchemaSummary}}<li>Fixture schema: {{.Fixture.SchemaSummary}}</li>{{end}}
 <li>Parser: {{.Engine.ParserGrammar}}</li>
 </ul>
 </main>

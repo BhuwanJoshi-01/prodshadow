@@ -288,3 +288,12 @@ func TestImpliedLocksShowTheirOrigin(t *testing.T) {
 		t.Fatalf("via does not survive JSON (err %v): %s", err, data)
 	}
 }
+
+func TestReportRecordsSchemaSummary(t *testing.T) {
+	in := sampleInput(t)
+	in.SchemaSummary = "2 tables, 1 foreign key"
+	r := Build(in)
+	if r.Fixture.SchemaSummary != "2 tables, 1 foreign key" || !strings.Contains(r.Markdown(), "| Fixture schema | 2 tables, 1 foreign key |") {
+		t.Fatalf("schema summary missing: %+v", r.Fixture)
+	}
+}

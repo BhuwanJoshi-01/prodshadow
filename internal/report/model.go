@@ -20,7 +20,7 @@ import (
 
 // SchemaVersion follows semantic versioning: additive fields bump the
 // minor version, removals or meaning changes bump the major version.
-const SchemaVersion = "1.9.0"
+const SchemaVersion = "1.10.0"
 
 // Run statuses.
 const (
@@ -94,6 +94,10 @@ type Fixture struct {
 	Tables        []postgres.TableSize `json:"tables,omitempty"`
 	GeneratedRows int64                `json:"generated_rows,omitempty"`
 	SeedSeconds   float64              `json:"seed_seconds,omitempty"`
+	// SchemaSummary says what the static analysis learned from the fixture
+	// schema ("2 tables, 3 indexes, 1 foreign key"), the basis of locks
+	// marked "via" and of predicted_conflicts.
+	SchemaSummary string `json:"schema_summary,omitempty"`
 }
 
 // Workload describes the traffic model.

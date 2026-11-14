@@ -383,6 +383,9 @@ func (r *Report) mdReproduction(w writer) {
 	w("| Resource limits | %.4g CPUs, %d MiB memory, %d MiB disk |\n", r.Engine.CPUs, r.Engine.MemoryMB, r.Engine.DiskMB)
 	if r.Fixture.Hash != "" {
 		w("| Fixture hash | `%s` |\n", r.Fixture.Hash)
+		if r.Fixture.SchemaSummary != "" {
+			w("| Fixture schema | %s |\n", esc(r.Fixture.SchemaSummary))
+		}
 	}
 	if r.Workload.Hash != "" {
 		w("| Workload hash | `%s` |\n", r.Workload.Hash)

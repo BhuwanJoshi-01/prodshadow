@@ -36,6 +36,9 @@ type Input struct {
 	Errors []error
 	// Lookup reads environment variables; os.LookupEnv when nil.
 	Lookup func(string) (string, bool)
+	// SchemaSummary describes the schema catalog the static analysis used
+	// (sqlinspect.Catalog.Summary); empty without a schema.
+	SchemaSummary string
 }
 
 // Build assembles a report, applying privacy settings and redaction.
@@ -88,6 +91,8 @@ func Build(in Input) *Report {
 		Environment:     Environment{OS: runtime.GOOS, Arch: runtime.GOARCH, HostCPUs: runtime.NumCPU(), EnvOverrides: in.EnvOverrides, CI: ciName(lookup)},
 		EffectiveConfig: redactedConfig(cfg, red),
 	}
+	r.Fixture.SchemaSummary = in.SchemaSummary
+
 	if cfg.Workload.ArrivalRate > 0 {
 		r.Workload.Mode = "open-loop"
 	}
