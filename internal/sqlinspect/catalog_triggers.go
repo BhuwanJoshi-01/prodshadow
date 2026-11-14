@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	pg_query "github.com/pganalyze/pg_query_go/v6"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 // Trigger event bits as stored in CreateTrigStmt.Events (PostgreSQL's
@@ -45,7 +46,14 @@ func (c *Catalog) learnFunction(s *Statement, st *pg_query.CreateFunctionStmt) {
 	var queries []string
 	switch language {
 	case "plpgsql":
-		queries = plpgsqlQueries(s.SQL)
+		body, ok := plpgsqlStatements(s.SQL)
+		if !ok {
+			return
+		}
+		queries = body.static
+		if body.dynamic {
+			c.dynamicFunctions[catalogKey(strings.Join(names, "."))] = true
+		}
 	case "sql":
 		if len(body) > 0 {
 			queries = []string{body[0]}
@@ -83,13 +91,6 @@ func walkStatementsOf(n *pg_query.Node, fn func(*pg_query.Node)) {
 		}
 		fn(item)
 	}
-}
-
-// plpgsqlQueries returns the static SQL statements of a PL/pgSQL function
-// (CREATE FUNCTION text): the queries of plain statements and PERFORM.
-func plpgsqlQueries(createFunction string) []string {
-	q, _ := plpgsqlStatements(createFunction)
-	return q.static
 }
 
 // plpgsqlBody is the SQL a PL/pgSQL body runs.
@@ -272,4 +273,35 @@ func classifyDo(s *Statement, st *pg_query.DoStmt) {
 			}
 		}
 	}
+}
+
+// functionCallLocks adds the locks of functions and procedures from the
+// schema that a query, DML statement or CALL runs (SELECT f(), CALL p(), a
+// function in a WHERE clause), marked "via function <name>". A CALL of a
+// procedure whose body has no dynamic SQL counts as analysed.
+func (c *Catalog) functionCallLocks(s *Statement) {
+	switch s.Kind {
+	case KindSelect, KindInsert, KindUpdate, KindDelete, KindMerge, KindProcedural:
+	default:
+		return // DDL only refers to functions (in defaults, indexes, ...)
+	}
+	called := func(fc *pg_query.FuncCall) {
+		name := catalogKey(strings.Join(stringItems(fc.Funcname), "."))
+		locks, known := c.functionLocks[name]
+		if !known {
+			return
+		}
+		for _, l := range locks {
+			s.addImpliedLock(l.Table, l.Mode, "function "+name)
+		}
+		if s.node.GetCallStmt() != nil && !c.dynamicFunctions[name] {
+			s.bodyAnalysed = true
+		}
+	}
+	walk(s.node, func(m protoreflect.Message) bool {
+		if fc, ok := m.Interface().(*pg_query.FuncCall); ok {
+			called(fc)
+		}
+		return true
+	})
 }

@@ -69,6 +69,11 @@ INSERT INTO orders SELECT g, 1 + g % 100, 'new', g, NULL FROM generate_series(1,
 INSERT INTO invoices VALUES (10, 5), (11, 5);
 INSERT INTO line_items VALUES (100, 10);
 INSERT INTO payments VALUES (1000, 11);
+CREATE FUNCTION touch_tags() RETURNS int LANGUAGE sql AS 'UPDATE tags SET name = name WHERE id = 0; SELECT 1';
+CREATE PROCEDURE clear_staging() LANGUAGE plpgsql AS $$
+BEGIN
+  DELETE FROM staging WHERE id < 0;
+END $$;
 `
 
 var oracleStatements = []string{
@@ -186,6 +191,8 @@ var oracleStatements = []string{
 	"INSERT INTO events VALUES (1, '2026-03-01')",
 	"UPDATE events SET id = 2 WHERE at = '2026-03-01'",
 	"DELETE FROM events WHERE id = 1",
+	"SELECT touch_tags()",
+	"CALL clear_staging()",
 	"DO $$ BEGIN ALTER TABLE orders ADD COLUMN memo2 text; UPDATE customers SET email = email WHERE id = 1; END $$",
 	"DO $$ BEGIN IF EXISTS (SELECT 1 FROM tags) OR EXISTS (SELECT 1 FROM customers) THEN PERFORM 1 FROM staging FOR UPDATE; END IF; END $$",
 	"ALTER SEQUENCE invoice_numbers RESTART WITH 1000",

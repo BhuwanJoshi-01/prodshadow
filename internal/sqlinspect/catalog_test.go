@@ -1,6 +1,7 @@
 package sqlinspect
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -518,5 +519,41 @@ ALTER TABLE events_2026_h1 ADD COLUMN note text;
 	// A query on the parent conflicts with DDL on one partition.
 	if got := PredictConflicts(stmts[3:], stmts[0]); len(got) != 1 || got[0].Table != "events_2026_h1" {
 		t.Errorf("conflicts = %+v", got)
+	}
+}
+
+func TestCatalogFunctionCalls(t *testing.T) {
+	schema := parse(t, `
+CREATE TABLE tags (id int, name text);
+CREATE TABLE staging (id int);
+CREATE FUNCTION touch_tags() RETURNS int LANGUAGE sql AS 'UPDATE tags SET name = name WHERE id = 0; SELECT 1';
+CREATE PROCEDURE clear_staging() LANGUAGE plpgsql AS $$ BEGIN DELETE FROM staging WHERE id < 0; END $$;
+CREATE PROCEDURE run_dynamic(t text) LANGUAGE plpgsql AS $$ BEGIN EXECUTE 'TRUNCATE ' || t; END $$;
+`)
+	stmts := parse(t, `
+SELECT touch_tags();
+CALL clear_staging();
+CALL run_dynamic('staging');
+CALL unknown_proc();
+ALTER TABLE staging ADD COLUMN n int DEFAULT touch_tags();
+`)
+	NewCatalog(schema).Resolve(stmts)
+	if l, ok := lockOn(stmts[0], "tags"); !ok || l.Mode != pglock.RowExclusive || l.Via != "function touch_tags" {
+		t.Errorf("SELECT touch_tags() updates tags: %+v", stmts[0].Locks)
+	}
+	if l, ok := lockOn(stmts[1], "staging"); !ok || l.Mode != pglock.RowExclusive {
+		t.Errorf("CALL clear_staging() deletes from staging: %+v", stmts[1].Locks)
+	}
+	if _, ok := lockOn(stmts[4], "tags"); ok {
+		t.Errorf("a DEFAULT only refers to the function: %+v", stmts[4].Locks)
+	}
+	var ps117 []string
+	for _, f := range Analyze(stmts, Options{}) {
+		if f.RuleID == "PS117" {
+			ps117 = append(ps117, f.StatementID)
+		}
+	}
+	if !slices.Equal(ps117, []string{"1.3", "1.4"}) {
+		t.Errorf("PS117 should report only the dynamic and the unknown procedure: %v", ps117)
 	}
 }

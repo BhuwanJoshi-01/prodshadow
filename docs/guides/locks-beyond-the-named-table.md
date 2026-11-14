@@ -107,6 +107,10 @@ statements that fire the trigger, marked `via trigger <name>`. Row-level
 triggers run only for affected rows, so these are locks the statement may
 take.
 
+Functions and procedures defined in the schema work the same way: a query,
+DML statement or `CALL` that runs one also takes the locks of its static
+SQL, marked `via function <name>`.
+
 ## What is not modelled
 
 * Dynamic SQL (`EXECUTE`) in functions and `DO` blocks, triggers fired by

@@ -41,6 +41,9 @@ func checkProcedural(c *Context, s *Statement) []Finding {
 	if s.dynamicSQL {
 		msg = "DO runs dynamic SQL (EXECUTE) whose locks cannot be predicted statically; the locks of its static statements are listed, but only the observed experiment shows the rest."
 	}
+	if s.Tag == "CALL" {
+		msg = "CALL runs a procedure the schema does not show (or one that uses dynamic SQL), so its locks cannot be predicted statically; only the observed experiment shows its effect."
+	}
 	f := at(s, msg)
 	f.Evidence = evidence.Quality
 	return []Finding{f}

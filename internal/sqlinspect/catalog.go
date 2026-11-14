@@ -36,9 +36,10 @@ type Catalog struct {
 	foreignKeys []catalogFK
 	// functionLocks lists the locks of each function's static SQL;
 	// triggers maps a table to its triggers.
-	functionLocks map[string][]TableLock
-	triggers      map[string][]catalogTrigger
-	primaryKeys   map[string][]string // table -> primary key columns
+	functionLocks    map[string][]TableLock
+	dynamicFunctions map[string]bool
+	triggers         map[string][]catalogTrigger
+	primaryKeys      map[string][]string // table -> primary key columns
 	// primaryKeyName and keys name the primary key and unique
 	// constraints of each table (keys: constraint -> columns).
 	primaryKeyName map[string]string
@@ -60,7 +61,7 @@ func NewCatalog(schema []*Statement) *Catalog {
 		matviews:         map[string]bool{}, plainUnique: map[string]bool{}, viewColumns: map[string]map[string][]string{},
 		viewOutputs: map[string][]string{},
 		columns:     map[string][]string{}, sequences: map[string][]columnSequence{}, primaryKeys: map[string][]string{},
-		functionLocks: map[string][]TableLock{}, triggers: map[string][]catalogTrigger{},
+		functionLocks: map[string][]TableLock{}, dynamicFunctions: map[string]bool{}, triggers: map[string][]catalogTrigger{},
 		primaryKeyName: map[string]string{}, keys: map[string]map[string][]string{}}
 	for _, s := range schema {
 		c.learn(s)
@@ -394,6 +395,7 @@ func (c *Catalog) Resolve(stmts []*Statement) {
 			c.viewDependencies(s)
 			c.triggerLocks(s)
 			c.viewBaseLocks(s)
+			c.functionCallLocks(s)
 			if v := s.node.GetViewStmt(); v != nil {
 				s.viewReplaceProblem = c.viewReplaceProblem(v)
 			}
