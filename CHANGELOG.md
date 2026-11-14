@@ -42,6 +42,38 @@ versioning; the report schema (`schema_version`) is versioned separately.
 - Reports record the effective configuration.
 - Inline `prodshadow:ignore` annotations also apply to observed findings
   attributed to the statement.
+- Static rules PS123 (`ATTACH PARTITION` scans), PS124 (`CASCADE`), PS125
+  (foreign key enforcement disabled), PS126 (database-wide maintenance),
+  PS127 (extensions that need preloading), PS128 (enum value used before
+  commit), PS129 (persistent setting changes), PS130 (sequence resets),
+  PS131 (server-side file access), PS132 (unnamed concurrent indexes),
+  PS133 (foreign keys without an index), PS134 (unbalanced transaction
+  control) and PS135 (`statement_timeout` disabled). PS109 and PS110 also
+  cover views, functions, types, schemas and enum values.
+- Application-version compatibility probes: the workload's `compatibility`
+  section lists the queries each deployed release depends on; they run
+  before and after the migration (`OBS013`, `QUAL009`). Report schema 1.1.0
+  adds `phases[].compatibility`.
+- Optional `policy.max_queued_sessions` budget (`OBS012`).
+- `prodshadow history` summarises stored reports as a timeline;
+  `prodshadow completion` prints bash, zsh and fish completion;
+  `prodshadow rules ID...` shows rule details; `inspect --migration -`
+  reads standard input; `version --short`.
+- Every rule has a documentation page under `docs/rules/`, linked from
+  SARIF results.
+- Guides for Alembic, Django, Prisma, Flyway/Liquibase and
+  golang-migrate/goose; troubleshooting guide, glossary and architecture
+  decision records.
+
+### Fixed
+
+- `REINDEX SCHEMA/DATABASE/SYSTEM`, `ALTER SYSTEM`, `CREATE/DROP DATABASE`,
+  `CREATE/DROP TABLESPACE` and `CLUSTER` without a table are recognised as
+  statements that cannot run in a transaction block.
+- Relations created by `CREATE TABLE AS`, `CREATE MATERIALIZED VIEW` and
+  `CREATE SEQUENCE` count as new, like `CREATE TABLE`.
+- The disposable server is stopped gracefully before removal, and socket
+  files owned by the container are cleaned up on non-root CI runners.
 
 ### Verified
 
