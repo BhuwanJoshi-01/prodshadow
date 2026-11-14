@@ -113,6 +113,23 @@ func classify(s *Statement) {
 			mode = pglock.RowExclusive
 		}
 		s.addLock(relName(x.CopyStmt.Relation), mode)
+	case *pg_query.Node_CreateTableAsStmt:
+		s.Kind, s.Tag = KindOtherDDL, "CREATE TABLE AS"
+		if x.CreateTableAsStmt.Objtype == pg_query.ObjectType_OBJECT_MATVIEW {
+			s.Tag = "CREATE MATERIALIZED VIEW"
+		}
+		// Parse analysis of the query locks every table it reads, even
+		// WITH NO DATA.
+		addReadLocks(s, x.CreateTableAsStmt.Query, pglock.AccessShare)
+	case *pg_query.Node_ViewStmt:
+		s.Kind, s.Tag = KindOtherDDL, "CREATE VIEW"
+		addReadLocks(s, x.ViewStmt.Query, pglock.AccessShare)
+		if x.ViewStmt.Replace {
+			// Replacing an existing view takes ACCESS EXCLUSIVE on it,
+			// which blocks every query that uses the view.
+			s.Tag = "CREATE OR REPLACE VIEW"
+			s.addLock(relName(x.ViewStmt.View), pglock.AccessExclusive)
+		}
 	case *pg_query.Node_CommentStmt:
 		s.Kind, s.Tag = KindComment, "COMMENT"
 	case *pg_query.Node_AlterSystemStmt:

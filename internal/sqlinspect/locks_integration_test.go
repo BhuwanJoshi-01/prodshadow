@@ -19,9 +19,9 @@ import (
 
 // The lock oracle runs each statement inside a transaction on a real
 // server and compares the relation locks it holds with the classifier's
-// prediction. Only tables, partitioned tables and materialized views that
-// exist before the statement are compared: indexes and catalogs are out of
-// the classifier's scope, and new relations cannot block anyone.
+// prediction. Only tables, partitioned tables, views and materialized
+// views that exist before the statement are compared: indexes and catalogs
+// are out of the classifier's scope, and new relations cannot block anyone.
 const oracleSchema = `
 CREATE TABLE customers (id int PRIMARY KEY, email text);
 CREATE TABLE orders (id int PRIMARY KEY, customer_id int, status text, amount int, note text);
@@ -65,6 +65,8 @@ var oracleStatements = []string{
 	"CREATE TABLE orders_copy (LIKE orders INCLUDING ALL)",
 	"CREATE TABLE archived_orders (archived_at timestamptz) INHERITS (orders)",
 	"CREATE TABLE order_snapshot AS SELECT * FROM orders",
+	"CREATE MATERIALIZED VIEW customer_totals AS SELECT customer_id, count(*) FROM orders GROUP BY 1 WITH NO DATA",
+	"CREATE VIEW paid_orders AS SELECT * FROM orders WHERE status = 'paid'",
 	"DROP TABLE legacy",
 	"TRUNCATE staging",
 	"INSERT INTO staging SELECT * FROM orders",
@@ -93,10 +95,9 @@ var oracleStatements = []string{
 // keyed by statement and relation. REFRESH MATERIALIZED VIEW reads the
 // tables of the view's stored query, which a migration file does not show.
 var oracleKnownGaps = map[string]map[string]string{
-	"REFRESH MATERIALIZED VIEW order_totals":                                {"orders": "ACCESS SHARE"},
-	"CREATE TABLE order_snapshot AS SELECT * FROM orders":                   {"orders": "ACCESS SHARE"},
-	"COMMENT ON TABLE orders IS 'customer orders'":                          {"orders": "SHARE UPDATE EXCLUSIVE"},
-	"CREATE OR REPLACE VIEW recent_orders AS SELECT id, status FROM orders": {"orders": "ACCESS SHARE"},
+	"REFRESH MATERIALIZED VIEW order_totals":              {"orders": "ACCESS SHARE"},
+	"CREATE TABLE order_snapshot AS SELECT * FROM orders": {"orders": "ACCESS SHARE"},
+	"COMMENT ON TABLE orders IS 'customer orders'":        {"orders": "SHARE UPDATE EXCLUSIVE"},
 }
 
 // oracleVersionGaps adds gaps that only some PostgreSQL majors show.
@@ -131,7 +132,7 @@ func TestLockOracle(t *testing.T) {
 		Name string
 	}
 	rows, err := conn.Query(ctx, `SELECT c.oid, c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-		WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p', 'm')`)
+		WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p', 'm', 'v')`)
 	if err != nil {
 		t.Fatal(err)
 	}
