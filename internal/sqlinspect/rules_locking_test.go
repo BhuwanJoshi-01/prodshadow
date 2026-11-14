@@ -66,3 +66,26 @@ func TestPS118TriggerChange(t *testing.T) {
 	expectCount(t, findings(t, "PS118", Options{}, "CREATE TRIGGER t BEFORE UPDATE ON orders FOR EACH ROW EXECUTE FUNCTION f();"), 1)
 	expectCount(t, findings(t, "PS118", Options{}, "ALTER TABLE orders DISABLE TRIGGER t;"), 1)
 }
+
+func TestPS114FollowsLockTimeoutScope(t *testing.T) {
+	alter := "ALTER TABLE orders ADD COLUMN c int;\n"
+	cases := []struct {
+		name  string
+		opts  Options
+		files []string
+		want  int
+	}{
+		{"session SET protects later files", Options{Transaction: TxnModePerFile}, []string{"SET lock_timeout = '2s';\n", alter}, 0},
+		{"SET LOCAL protects its own transaction", Options{Transaction: TxnModePerFile}, []string{"SET LOCAL lock_timeout = '2s';\n" + alter}, 0},
+		{"SET LOCAL ends with its transaction", Options{Transaction: TxnModePerFile}, []string{"SET LOCAL lock_timeout = '2s';\nSELECT 1;\n", alter}, 1},
+		{"zero disables it again", Options{}, []string{"SET lock_timeout = '2s';\nSET lock_timeout = 0;\n" + alter}, 1},
+		{"RESET disables it", Options{}, []string{"SET lock_timeout = '2s';\nRESET lock_timeout;\n" + alter}, 1},
+		{"DEFAULT disables it", Options{}, []string{"SET lock_timeout = '2s';\nSET lock_timeout TO DEFAULT;\n" + alter}, 1},
+		{"no timeout at all", Options{}, []string{alter}, 1},
+	}
+	for _, tc := range cases {
+		if got := findings(t, "PS114", tc.opts, tc.files...); len(got) != tc.want {
+			t.Errorf("%s: expected %d findings, got %d", tc.name, tc.want, len(got))
+		}
+	}
+}

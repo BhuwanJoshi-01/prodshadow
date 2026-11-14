@@ -164,12 +164,21 @@ func checkRewriteMaintenance(c *Context, s *Statement) []Finding {
 }
 
 func checkMissingLockTimeout(c *Context) []Finding {
-	timeoutSet := false
+	// A session-level SET lasts until changed; SET LOCAL only until the
+	// end of its transaction group.
+	session, local, group := false, false, -1
 	for _, s := range c.Statements {
-		if s.Kind == KindSet && len(s.Subcommands) > 0 && s.Subcommands[0] == "lock_timeout" {
-			timeoutSet = true
+		if g := c.groupOf[s]; g != group {
+			group, local = g, false
 		}
-		if timeoutSet {
+		if on, isLocal, ok := lockTimeoutChange(s); ok {
+			if isLocal {
+				local = on
+			} else {
+				session, local = on, on && local
+			}
+		}
+		if session || local {
 			continue
 		}
 		for _, l := range s.Locks {
@@ -256,4 +265,22 @@ func impactPhrase(m pglock.Mode) string {
 // over a table with neither WHERE nor LIMIT.
 func unboundedLockingSelect(st *pg_query.SelectStmt) bool {
 	return st != nil && len(st.LockingClause) > 0 && st.WhereClause == nil && st.LimitCount == nil && len(st.FromClause) > 0
+}
+
+// lockTimeoutChange reports whether s changes lock_timeout, whether the
+// change enables a timeout (a non-zero value) and whether it is SET LOCAL.
+// RESET, SET ... TO DEFAULT and a value of 0 disable it.
+func lockTimeoutChange(s *Statement) (on, local, ok bool) {
+	if s.Kind != KindSet || s.node == nil {
+		return false, false, false
+	}
+	vs := s.node.GetVariableSetStmt()
+	if vs == nil || !strings.EqualFold(vs.Name, "lock_timeout") {
+		return false, false, false
+	}
+	if _, value, ok := settingValue(s); ok {
+		d, parsed := parseTimeout(value)
+		return parsed && d > 0, vs.IsLocal, true
+	}
+	return false, vs.IsLocal, true
 }
