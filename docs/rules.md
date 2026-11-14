@@ -50,6 +50,7 @@ migration, because nothing else uses them yet.
 | [`PS130`](rules/PS130.md) | sequence-reset | warning | Restarting a sequence at a fixed value can hand out ids that are already in use. |
 | [`PS131`](rules/PS131.md) | server-file-access | warning | `COPY` with a server file or `PROGRAM`, or a file-reading function, runs on the database server's filesystem. |
 | [`PS132`](rules/PS132.md) | unnamed-concurrent-index | warning | `CREATE INDEX CONCURRENTLY` without a name piles up invalid indexes when it is retried. |
+| [`PS133`](rules/PS133.md) | foreign-key-without-index | info | A foreign key's columns get no index, so deletes on the referenced table scan this one. |
 
 ## Observed rules
 
