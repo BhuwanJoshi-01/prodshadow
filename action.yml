@@ -12,6 +12,9 @@ inputs:
   migrations:
     description: Optional newline-separated migration files overriding migration.files.
     default: ""
+  args:
+    description: Optional newline-separated extra flags for prodshadow verify, one flag or value per line (for example --repeats and 5 on two lines).
+    default: ""
   working-directory:
     description: Directory to run in.
     default: .
@@ -71,6 +74,7 @@ runs:
       env:
         PS_CONFIG: ${{ inputs.config }}
         PS_MIGRATIONS: ${{ inputs.migrations }}
+        PS_ARGS: ${{ inputs.args }}
         PS_REPORT_DIR: ${{ inputs.report-directory }}
       run: |
         set -uo pipefail
@@ -78,6 +82,11 @@ runs:
         while IFS= read -r m; do
           [ -n "$m" ] && args+=(--migration "$m")
         done <<< "$PS_MIGRATIONS"
+        # One argument per line, so values with spaces need no quoting and
+        # nothing is word-split or glob-expanded.
+        while IFS= read -r a; do
+          [ -n "$a" ] && args+=("$a")
+        done <<< "$PS_ARGS"
         prodshadow "${args[@]}"
         code=$?
         decision="error"

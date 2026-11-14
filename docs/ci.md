@@ -31,6 +31,7 @@ ProdShadow's exit code.
 |---|---|---|
 | `config` | `prodshadow.yaml` | Configuration, relative to `working-directory`. |
 | `migrations` | — | Newline-separated files overriding `migration.files`. |
+| `args` | — | Extra `prodshadow verify` flags, one flag or value per line, e.g. `--repeats` and `5`. |
 | `working-directory` | `.` | |
 | `report-directory` | `prodshadow-results` | |
 | `version` | the action's ref | ProdShadow version to build. |
