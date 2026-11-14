@@ -14,9 +14,17 @@ func TestEveryRuleIsDocumented(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, r := range allRules() {
-		row := "| `" + r.ID + "` | " + r.Name + " | " + r.Severity + " |"
+		row := "| [`" + r.ID + "`](rules/" + r.ID + ".md) | " + r.Name + " | " + r.Severity + " |"
 		if !strings.Contains(string(doc), row) {
 			t.Errorf("docs/rules.md lacks a row starting with %q", row)
+		}
+		page, err := os.ReadFile("../../docs/rules/" + r.ID + ".md")
+		if err != nil {
+			t.Errorf("rule %s has no page: %v", r.ID, err)
+			continue
+		}
+		if !strings.HasPrefix(string(page), "# "+r.ID+" · "+r.Name+"\n") {
+			t.Errorf("docs/rules/%s.md must start with \"# %s · %s\"", r.ID, r.ID, r.Name)
 		}
 	}
 }
