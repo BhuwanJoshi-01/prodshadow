@@ -59,8 +59,17 @@ func checkDropIndex(c *Context, s *Statement) []Finding {
 		return nil
 	}
 	idx := firstTable(s)
-	f := at(s, fmt.Sprintf("DROP INDEX %s takes ACCESS EXCLUSIVE on the table that owns it; the drop itself is quick, but it queues behind long transactions and blocks reads and writes while it waits.", idx))
-	f.Table, f.Lock = idx, pglock.AccessExclusive
+	// With the fixture schema the index's table is known (a lock "via
+	// index ..."); otherwise the finding names the index.
+	table, owner := idx, "the table that owns it"
+	for _, l := range s.Locks {
+		if l.Via == "index "+idx {
+			table, owner = l.Table, l.Table
+			break
+		}
+	}
+	f := at(s, fmt.Sprintf("DROP INDEX %s takes ACCESS EXCLUSIVE on %s; the drop itself is quick, but it queues behind long transactions and blocks reads and writes while it waits.", idx, owner))
+	f.Table, f.Lock = table, pglock.AccessExclusive
 	f.Remediation = "Use DROP INDEX CONCURRENTLY, outside a transaction block."
 	return []Finding{f}
 }

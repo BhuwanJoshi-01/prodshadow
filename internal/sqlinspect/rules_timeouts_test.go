@@ -1,6 +1,7 @@
 package sqlinspect
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -34,6 +35,17 @@ func TestPS120LockTimeoutValue(t *testing.T) {
 
 func TestPS122DropIndex(t *testing.T) {
 	expectCount(t, findings(t, "PS122", Options{}, "DROP INDEX orders_status_idx;"), 1)
+	stmts := parse(t, "DROP INDEX orders_status_idx;")
+	NewCatalog(parse(t, "CREATE INDEX orders_status_idx ON orders (status);")).Resolve(stmts)
+	var got []Finding
+	for _, f := range Analyze(stmts, Options{}) {
+		if f.RuleID == "PS122" {
+			got = append(got, f)
+		}
+	}
+	if len(got) != 1 || got[0].Table != "orders" || !strings.Contains(got[0].Message, "ACCESS EXCLUSIVE on orders;") {
+		t.Fatalf("with the schema, PS122 should name the table: %+v", got)
+	}
 	expectCount(t, findings(t, "PS122", Options{}, "DROP INDEX CONCURRENTLY orders_status_idx;"), 0)
 }
 
