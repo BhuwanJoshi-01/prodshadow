@@ -147,6 +147,8 @@ var oracleStatements = []string{
 	"SELECT nextval('invoice_numbers')",
 	"SELECT setval('invoice_numbers', 500)",
 	"INSERT INTO tickets (title) VALUES ('x')",
+	"INSERT INTO tickets (id, title) VALUES (5, 'x')",
+	"INSERT INTO tickets VALUES (DEFAULT, 'x')",
 	"ALTER TABLE tickets ALTER COLUMN id SET DEFAULT nextval('invoice_numbers')",
 	"DROP SEQUENCE invoice_numbers",
 	"CREATE INDEX events_at_idx ON ONLY events (at)",
@@ -162,11 +164,8 @@ var oracleStatements = []string{
 // oracleKnownGaps lists observed locks the classifier does not predict,
 // keyed by statement and relation. The tables behind a materialized view,
 // the table an index belongs to and the partitions of a partitioned table
-// are resolved from the schema (see Catalog).
-var oracleKnownGaps = map[string]map[string]string{
-	// Not yet resolved: the sequence behind a serial column.
-	"INSERT INTO tickets (title) VALUES ('x')": {"tickets_id_seq": "ROW EXCLUSIVE"},
-}
+// are resolved from the schema (see Catalog); nothing is missing today.
+var oracleKnownGaps = map[string]map[string]string{}
 
 // oracleVersionGaps adds gaps that only some PostgreSQL majors show.
 // Since PostgreSQL 18, GRANT and REVOKE on a table take ACCESS SHARE on it.

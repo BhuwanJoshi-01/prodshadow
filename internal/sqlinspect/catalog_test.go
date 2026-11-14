@@ -135,3 +135,48 @@ func TestCatalogPartitionedMaintenanceRunsOutsideTransactions(t *testing.T) {
 		t.Error("REINDEX TABLE on a plain table can run in a transaction block")
 	}
 }
+
+func TestCatalogInsertSequences(t *testing.T) {
+	schema := parse(t, `
+CREATE TABLE tickets (id bigserial PRIMARY KEY, title text);
+CREATE TABLE invoices (id bigint GENERATED ALWAYS AS IDENTITY, number bigint DEFAULT nextval('invoice_numbers'), note text);
+CREATE TABLE notes (id int, body text);
+ALTER TABLE notes ALTER COLUMN id SET DEFAULT nextval('public.note_ids'::regclass);
+`)
+	stmts := parse(t, `
+INSERT INTO tickets (title) VALUES ('a');
+INSERT INTO tickets (id, title) VALUES (5, 'a');
+INSERT INTO tickets VALUES (DEFAULT, 'a');
+INSERT INTO tickets VALUES (7, 'a');
+INSERT INTO invoices (note) VALUES ('x');
+INSERT INTO invoices (number, note) VALUES (1, 'x');
+INSERT INTO notes (body) SELECT 'x';
+INSERT INTO tickets DEFAULT VALUES;
+`)
+	NewCatalog(schema).Resolve(stmts)
+	cases := []struct {
+		stmt int
+		seq  string
+		want bool
+	}{
+		{0, "tickets_id_seq", true},
+		{1, "tickets_id_seq", false},
+		{2, "tickets_id_seq", true},
+		{3, "tickets_id_seq", false},
+		{4, "invoices_id_seq", true},
+		{4, "invoice_numbers", true},
+		{5, "invoices_id_seq", true},
+		{5, "invoice_numbers", false},
+		{6, "public.note_ids", true},
+		{7, "tickets_id_seq", true},
+	}
+	for _, c := range cases {
+		l, ok := lockOn(stmts[c.stmt], c.seq)
+		if ok != c.want || (ok && l.Mode != pglock.RowExclusive) {
+			t.Errorf("statement %d: lock on %s = %+v (found %v), want found=%v", c.stmt, c.seq, l, ok, c.want)
+		}
+	}
+	if l, _ := lockOn(stmts[0], "tickets_id_seq"); l.Via != "column tickets.id" {
+		t.Errorf("via = %q", l.Via)
+	}
+}

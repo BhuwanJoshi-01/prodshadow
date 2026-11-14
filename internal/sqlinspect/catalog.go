@@ -1,6 +1,7 @@
 package sqlinspect
 
 import (
+	"slices"
 	"strings"
 
 	pg_query "github.com/pganalyze/pg_query_go/v6"
@@ -18,12 +19,22 @@ type Catalog struct {
 	partitions  map[string][]string // partitioned table -> direct partitions
 	partitioned map[string]bool     // tables declared with PARTITION BY
 	viewReads   map[string][]string // view or materialized view -> relations its query reads
+	columns     map[string][]string // table -> column names in order
+	sequences   map[string][]columnSequence
+}
+
+// columnSequence is a column filled from a sequence by default: serial,
+// identity or DEFAULT nextval('...').
+type columnSequence struct {
+	column   string
+	sequence string
 }
 
 // NewCatalog learns indexes, partitions and views from schema statements,
 // typically the parsed fixture schema.
 func NewCatalog(schema []*Statement) *Catalog {
-	c := &Catalog{indexTable: map[string]string{}, partitions: map[string][]string{}, partitioned: map[string]bool{}, viewReads: map[string][]string{}}
+	c := &Catalog{indexTable: map[string]string{}, partitions: map[string][]string{}, partitioned: map[string]bool{}, viewReads: map[string][]string{},
+		columns: map[string][]string{}, sequences: map[string][]columnSequence{}}
 	for _, s := range schema {
 		c.learn(s)
 	}
@@ -83,6 +94,12 @@ func (c *Catalog) learn(s *Statement) {
 		}
 	case *pg_query.Node_CreateStmt:
 		table := relName(x.CreateStmt.Relation)
+		for _, e := range x.CreateStmt.TableElts {
+			if col := e.GetColumnDef(); col != nil {
+				c.columns[catalogKey(table)] = append(c.columns[catalogKey(table)], col.Colname)
+				c.learnColumnSequence(x.CreateStmt.Relation, col.Colname, col.TypeName, col.Constraints)
+			}
+		}
 		for _, con := range createTableConstraints(x.CreateStmt) {
 			if name := constraintIndexName(x.CreateStmt.Relation.GetRelname(), con); name != "" {
 				c.indexTable[catalogKey(name)] = table
@@ -108,6 +125,17 @@ func (c *Catalog) learn(s *Statement) {
 						c.indexTable[catalogKey(name)] = table
 					}
 				}
+			case pg_query.AlterTableType_AT_AddColumn:
+				if col := at.GetDef().GetColumnDef(); col != nil {
+					c.columns[catalogKey(table)] = append(c.columns[catalogKey(table)], col.Colname)
+					c.learnColumnSequence(x.AlterTableStmt.Relation, col.Colname, col.TypeName, col.Constraints)
+				}
+			case pg_query.AlterTableType_AT_ColumnDefault:
+				if seq := nextvalSequence(at.GetDef()); seq != "" {
+					c.setColumnSequence(table, at.Name, seq)
+				}
+			case pg_query.AlterTableType_AT_AddIdentity:
+				c.setColumnSequence(table, at.Name, defaultSequenceName(x.AlterTableStmt.Relation, at.Name))
 			case pg_query.AlterTableType_AT_AttachPartition:
 				if part := relName(at.GetDef().GetPartitionCmd().GetName()); part != "" {
 					c.partitions[catalogKey(table)] = append(c.partitions[catalogKey(table)], part)
@@ -127,6 +155,107 @@ func (c *Catalog) learn(s *Statement) {
 			}
 		}
 		c.viewReads[catalogKey(view)] = reads
+	}
+}
+
+// learnColumnSequence records the sequence a new column draws from: the
+// implicit <table>_<column>_seq of serial and identity columns, or the one
+// named in DEFAULT nextval('...').
+func (c *Catalog) learnColumnSequence(rel *pg_query.RangeVar, column string, tn *pg_query.TypeName, cons []*pg_query.Node) {
+	table := relName(rel)
+	switch typeName(tn) {
+	case "serial", "bigserial", "smallserial", "serial2", "serial4", "serial8":
+		c.setColumnSequence(table, column, defaultSequenceName(rel, column))
+		return
+	}
+	for _, n := range cons {
+		con := n.GetConstraint()
+		switch {
+		case con == nil:
+		case con.Contype == pg_query.ConstrType_CONSTR_IDENTITY:
+			c.setColumnSequence(table, column, defaultSequenceName(rel, column))
+		case con.Contype == pg_query.ConstrType_CONSTR_DEFAULT:
+			if seq := nextvalSequence(con.RawExpr); seq != "" {
+				c.setColumnSequence(table, column, seq)
+			}
+		}
+	}
+}
+
+func (c *Catalog) setColumnSequence(table, column, seq string) {
+	key := catalogKey(table)
+	for i, cs := range c.sequences[key] {
+		if cs.column == column {
+			c.sequences[key][i].sequence = seq
+			return
+		}
+	}
+	c.sequences[key] = append(c.sequences[key], columnSequence{column: column, sequence: seq})
+}
+
+// defaultSequenceName is the name PostgreSQL gives the sequence of a serial
+// or identity column, in the table's schema.
+func defaultSequenceName(rel *pg_query.RangeVar, column string) string {
+	name := rel.GetRelname() + "_" + column + "_seq"
+	if rel.GetSchemaname() != "" {
+		return rel.GetSchemaname() + "." + name
+	}
+	return name
+}
+
+// nextvalSequence returns the sequence of a nextval('...') expression, or "".
+func nextvalSequence(n *pg_query.Node) string {
+	fc := n.GetFuncCall()
+	if fc == nil || len(fc.Args) == 0 {
+		return ""
+	}
+	if names := stringItems(fc.Funcname); len(names) == 0 || strings.ToLower(names[len(names)-1]) != "nextval" {
+		return ""
+	}
+	return regclassLiteral(fc.Args[0])
+}
+
+// insertSequences adds ROW EXCLUSIVE on the sequences an INSERT draws from:
+// those of columns it leaves to their default, explicitly or by omission.
+func (c *Catalog) insertSequences(s *Statement, ins *pg_query.InsertStmt) {
+	table := relName(ins.Relation)
+	seqs := c.sequences[catalogKey(table)]
+	if len(seqs) == 0 {
+		return
+	}
+	var cols []string
+	for _, n := range ins.Cols {
+		cols = append(cols, n.GetResTarget().GetName())
+	}
+	explicit := cols != nil
+	if !explicit {
+		cols = c.columns[catalogKey(table)]
+	}
+	rows := ins.GetSelectStmt().GetSelectStmt().GetValuesLists()
+	for _, cs := range seqs {
+		idx := slices.Index(cols, cs.column)
+		usesDefault := false
+		switch {
+		case idx < 0:
+			// Omitted from the column list, or a column the catalog does
+			// not know the position of: the default applies.
+			usesDefault = explicit || len(cols) == 0
+		case ins.GetSelectStmt().GetSelectStmt() == nil:
+			usesDefault = true // INSERT ... DEFAULT VALUES
+		case len(rows) > 0:
+			for _, r := range rows {
+				items := r.GetList().GetItems()
+				if idx >= len(items) || items[idx].GetSetToDefault() != nil {
+					usesDefault = true
+				}
+			}
+		case !explicit:
+			// INSERT ... SELECT without a column list: the query's columns
+			// fill the table's first columns; assume they cover it.
+		}
+		if usesDefault {
+			s.addImpliedLock(cs.sequence, pglock.RowExclusive, "column "+strings.TrimPrefix(table, "public.")+"."+cs.column)
+		}
 	}
 }
 
@@ -210,6 +339,8 @@ func (c *Catalog) resolve(s *Statement) {
 			}
 			s.addImpliedLock(t, mode, "index "+idx)
 		}
+	case *pg_query.Node_InsertStmt:
+		c.insertSequences(s, x.InsertStmt)
 	case *pg_query.Node_ClusterStmt:
 		if x.ClusterStmt.Relation != nil {
 			c.partitionedMaintenance(s, relName(x.ClusterStmt.Relation))
