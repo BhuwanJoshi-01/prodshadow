@@ -39,6 +39,10 @@ policy:
   max_error_rate_increase_pct_points: 1
   max_p95_latency_ratio: 1.5
   max_lock_wait_ms: 2000
+  # Optional budgets; uncomment to enforce.
+  # max_queued_sessions: 10     # keep below the application's connection pool size
+  # max_migration_seconds: 30
+  # max_throughput_drop_pct: 20
 
 report:
   directory: ./prodshadow-results
