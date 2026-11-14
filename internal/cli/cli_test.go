@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/BhuwanJoshi-01/Open-Source-1/internal/fixture"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/isolation"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/report"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/workload"
@@ -676,5 +677,26 @@ func TestPlanAndVerifyChangedSince(t *testing.T) {
 	r = run(t, dir, nil, "verify", "--config", "app/prodshadow.yaml", "--changed-since", "HEAD")
 	if r.code != ExitOK || !strings.Contains(r.stdout, "nothing to verify") {
 		t.Fatalf("verify --changed-since HEAD: %+v", r)
+	}
+}
+
+func TestDraftFixture(t *testing.T) {
+	dir := initProject(t)
+	writeFile(t, filepath.Join(dir, "counts.csv"), "relname,reltuples\norders,2500000\n")
+	r := run(t, dir, nil, "draft-fixture", "--schema", "fixtures/schema.sql", "--rows", "counts.csv")
+	if r.code != ExitOK || !strings.Contains(r.stdout, "  - name: orders\n    rows: 25000\n") {
+		t.Fatalf("draft-fixture: %+v", r)
+	}
+	path := filepath.Join(dir, "draft.yaml")
+	writeFile(t, path, r.stdout)
+	if _, err := fixture.LoadGeneratorFile(path, 50_000_000); err != nil {
+		t.Fatalf("draft does not load: %v\n%s", err, r.stdout)
+	}
+	if r := run(t, dir, nil, "draft-fixture"); r.code != ExitInvalid {
+		t.Fatalf("--schema is required: %+v", r)
+	}
+	writeFile(t, filepath.Join(dir, "bad.csv"), "table\norders\n")
+	if r := run(t, dir, nil, "draft-fixture", "--schema", "fixtures/schema.sql", "--rows", "bad.csv"); r.code != ExitInvalid {
+		t.Fatalf("missing count column: %+v", r)
 	}
 }

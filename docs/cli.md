@@ -165,6 +165,27 @@ need ranges that match your data.
 | `--top` | `20` | Keep the N most frequent statements (0 keeps all). |
 | `--name` | — | Workload name. |
 
+## `prodshadow draft-fixture`
+
+Prints a draft fixture generator file for the tables the schema creates:
+integer primary keys get `sequence`, foreign keys get ranges over the
+referenced table's rows, enum columns their values, and other columns a
+generator that matches their type. Columns with defaults, identity and
+serial columns keep their defaults; columns it cannot fill are listed as
+`TODO` comments.
+
+```bash
+psql "$REPLICA_URL" -c "\\copy (SELECT relname, reltuples FROM pg_class WHERE relkind = 'r') TO 'counts.csv' CSV HEADER"
+prodshadow draft-fixture --schema fixtures/schema.sql --rows counts.csv --scale 0.01 > fixtures/generator.yaml
+```
+
+| Flag | Default | |
+|---|---|---|
+| `--schema` | — | Fixture schema SQL. |
+| `--rows` | — | CSV with `relname` and `reltuples` columns; counts are multiplied by `--scale` (at least 100 rows). |
+| `--scale` | `0.01` | Factor applied to exported counts. |
+| `--default-rows` | `10000` | Rows for tables without an exported count. |
+
 ## `prodshadow doctor`
 
 Checks the platform, the configuration (if present), the container engine,

@@ -110,6 +110,10 @@ ORDER BY pg_total_relation_size(oid) DESC
 LIMIT 20;
 ```
 
+`prodshadow draft-fixture --schema fixtures/schema.sql --rows counts.csv`
+turns such an export (saved with `\copy ... CSV HEADER`) into a draft
+generator file scaled down by `--scale`.
+
 Lock behaviour does not need production volume: a queue forms behind a
 waiting migration on a table of any size. Durations of rewrites and index
 builds do, so set the generator's row counts high enough that those

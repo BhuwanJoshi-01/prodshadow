@@ -49,6 +49,7 @@ func commands() []command {
 		{"diff", "Compare two reports, e.g. a migration and its rewrite", runDiff},
 		{"history", "Summarise stored reports over time", runHistory},
 		{"draft-workload", "Draft a workload file from a pg_stat_statements export", runDraftWorkload},
+		{"draft-fixture", "Draft a fixture generator file from the fixture schema", runDraftFixture},
 		{"doctor", "Check that this machine can run experiments", runDoctor},
 		{"cleanup", "Remove disposable servers left behind by interrupted runs", runCleanup},
 		{"rules", "List static and observed rules", runRules},
