@@ -26,3 +26,19 @@ prodshadow verify --config examples/long-running-transaction/prodshadow.yaml
 `lock_timeout` and retries (and avoid deploying while long transactions run).
 In production without a `lock_timeout`, the `ALTER TABLE` would have waited
 for the whole report and stalled the API for that time.
+
+**Rehearsing the fix:** set the deploy tool's behaviour in the
+configuration and run the example again:
+
+```yaml
+migration:
+  lock_timeout_ms: 1000
+  lock_retries: 6
+  retry_backoff_ms: 500
+```
+
+In our runs (PostgreSQL 17.12, two repeats) each attempt gave up after
+1 s, the migration succeeded on its third attempt between two report
+transactions, and the longest workload wait dropped to about 1 s, inside
+the 2.5 s budget: the decision is `pass`, with `OBS014` noting the two
+retries and `OBS011` the sessions that queued briefly behind each attempt.

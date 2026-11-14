@@ -30,6 +30,8 @@ migration:
   files:
     - ./migrations/0001_add_order_note.sql
   lock_timeout_ms: 1500
+  # lock_retries: 3            # retry on lock_timeout like your deploy tool
+  # retry_backoff_ms: 500
   statement_timeout_ms: 60000
   start_after_seconds: 5
 

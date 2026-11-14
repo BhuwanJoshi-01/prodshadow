@@ -5,7 +5,9 @@ rules that report the risky version. Each recipe assumes:
 
 * every migration file starts with `SET lock_timeout = '2s';` and the deploy
   retries on `lock_not_available` ([PS114](../rules/PS114.md),
-  [PS120](../rules/PS120.md));
+  [PS120](../rules/PS120.md)). Set `migration.lock_retries` to rehearse the
+  retries too; [OBS014](../rules/OBS014.md) reports how many attempts the
+  migration needed;
 * "separate transaction" means a separate migration file with
   `migration.transaction: per-file` (or `auto`), or an explicit
   `COMMIT`/`BEGIN` between the steps.
