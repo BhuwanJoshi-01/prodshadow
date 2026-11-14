@@ -31,7 +31,7 @@ type foreignKey struct {
 // does not index referencing columns automatically.
 func checkForeignKeyIndex(c *Context, s *Statement) []Finding {
 	var out []Finding
-	for _, fk := range addedForeignKeys(c, s) {
+	for _, fk := range addedForeignKeys(s) {
 		if c.indexedAnywhere(fk.table, fk.columns) {
 			continue
 		}
@@ -48,7 +48,7 @@ func checkForeignKeyIndex(c *Context, s *Statement) []Finding {
 	return out
 }
 
-func addedForeignKeys(c *Context, s *Statement) []foreignKey {
+func addedForeignKeys(s *Statement) []foreignKey {
 	if s.node == nil {
 		return nil
 	}
