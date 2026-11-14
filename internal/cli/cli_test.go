@@ -462,3 +462,13 @@ func TestCompletionScripts(t *testing.T) {
 		t.Fatalf("unsupported shell: %+v", r)
 	}
 }
+
+func TestPlanListsCompatibilityProbes(t *testing.T) {
+	r := run(t, "", nil, "plan", "--config", "../../examples/rolling-deploy/prodshadow.yaml")
+	if r.code != ExitOK || !strings.Contains(r.stdout, "Versions   v1: 2 probe(s); v2: 1 probe(s)") {
+		t.Fatalf("plan: %+v", r)
+	}
+	if r := run(t, initProject(t), nil, "plan"); strings.Contains(r.stdout, "Versions") {
+		t.Fatalf("no probes, no line: %s", r.stdout)
+	}
+}

@@ -36,6 +36,7 @@ type planOutput struct {
 	Isolation        string            `json:"isolation"`
 	Fixture          []string          `json:"fixture"`
 	Workload         string            `json:"workload"`
+	Compatibility    []string          `json:"compatibility,omitempty"`
 	Sessions         int               `json:"sessions"`
 	Schedule         []experiment.Step `json:"schedule"`
 	EstimatedSeconds float64           `json:"estimated_seconds"`
@@ -127,6 +128,9 @@ func buildPlan(cfg *config.Config, stmts []*sqlinspect.Statement, in *experiment
 		out.Sessions = cfg.Workload.Concurrency + bg
 		out.Workload = fmt.Sprintf("%s: %s, %d sessions + %d background, %d scenario(s)",
 			nameOr(in.workload.Name, cfg.Workload.File), mode, cfg.Workload.Concurrency, bg, len(in.workload.Scenarios))
+		for _, v := range in.workload.Compatibility {
+			out.Compatibility = append(out.Compatibility, fmt.Sprintf("%s: %d probe(s)", v.Version, len(v.Probes)))
+		}
 	} else {
 		out.Workload = "none (verify would only run static analysis)"
 	}
@@ -165,6 +169,9 @@ func printPlan(w io.Writer, p planOutput) {
 	fmt.Fprintf(w, "Isolation  %s\n", p.Isolation)
 	fmt.Fprintf(w, "Fixture    %s\n", strings.Join(p.Fixture, "; "))
 	fmt.Fprintf(w, "Workload   %s\n", p.Workload)
+	if len(p.Compatibility) > 0 {
+		fmt.Fprintf(w, "Versions   %s (probed before and after the migration in each candidate)\n", strings.Join(p.Compatibility, "; "))
+	}
 	order := make([]string, 0, len(p.Schedule))
 	for _, s := range p.Schedule {
 		order = append(order, fmt.Sprintf("%s%d", strings.ToUpper(string(s.Kind[:1])), s.Repeat+1))
