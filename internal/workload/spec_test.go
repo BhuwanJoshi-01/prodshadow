@@ -103,3 +103,56 @@ func TestTooManyScenarios(t *testing.T) {
 		t.Fatalf("expected a scenario limit error, got %v", err)
 	}
 }
+
+func TestCompatibilityProbes(t *testing.T) {
+	ok := blueprintWorkload + `compatibility:
+  - version: "2026.10"
+    probes:
+      - id: product_by_sku
+        sql: "SELECT id, legacy_sku FROM products WHERE id = $1"
+        parameters:
+          - generator: int_range
+            min: 1
+            max: 100
+      - id: create_order
+        sql: "INSERT INTO orders (customer_id, status) VALUES ($1, 'new')"
+        parameters:
+          - generator: const
+            value: 7
+  - version: "2026.11"
+    probes:
+      - id: product_by_sku
+        sql: "SELECT id FROM products WHERE id = 1"
+`
+	s, err := Parse([]byte(ok))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(s.Compatibility) != 2 || len(s.Compatibility[0].Probes) != 2 {
+		t.Fatalf("compatibility = %+v", s.Compatibility)
+	}
+	bad := blueprintWorkload + `compatibility:
+  - version: "2026.10"
+    probes:
+      - id: Bad Id
+        sql: "SELECT 1"
+      - id: drop
+        sql: "DROP TABLE orders"
+      - id: params
+        sql: "SELECT $1"
+  - version: "2026.10"
+    probes: []
+  - probes:
+      - id: x
+        sql: "SELECT 1"
+`
+	_, err = Parse([]byte(bad))
+	if err == nil {
+		t.Fatal("invalid compatibility section accepted")
+	}
+	for _, want := range []string{"id \"Bad Id\"", "drop", "references $1", "duplicate version \"2026.10\"", "at least one probe", "version is required"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error lacks %q:\n%v", want, err)
+		}
+	}
+}

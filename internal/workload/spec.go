@@ -26,6 +26,25 @@ type Spec struct {
 	ThinkTimeMS int          `yaml:"think_time_ms" json:"think_time_ms,omitempty"`
 	Scenarios   []Scenario   `yaml:"scenarios" json:"scenarios"`
 	Background  []Background `yaml:"background" json:"background,omitempty"`
+	// Compatibility lists queries of application versions that are still
+	// deployed while the migration runs. Each probe is run once before and
+	// once after the migration in candidate phases.
+	Compatibility []AppVersion `yaml:"compatibility" json:"compatibility,omitempty"`
+}
+
+// AppVersion is one deployed application release and the queries it runs.
+type AppVersion struct {
+	Version string  `yaml:"version" json:"version"`
+	Probes  []Probe `yaml:"probes" json:"probes"`
+}
+
+// Probe is a single query an application version depends on. It runs in a
+// transaction that is rolled back, so writes are allowed and have no
+// lasting effect.
+type Probe struct {
+	ID         string     `yaml:"id" json:"id"`
+	SQL        string     `yaml:"sql" json:"-"`
+	Parameters []gen.Spec `yaml:"parameters" json:"parameters,omitempty"`
 }
 
 // Scenario is one weighted operation of the foreground mix.

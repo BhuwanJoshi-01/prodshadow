@@ -99,7 +99,59 @@ func (s *Spec) Validate() error {
 			}
 		}
 	}
+	errs = append(errs, s.validateCompatibility()...)
 	return errors.Join(errs...)
+}
+
+// MaxProbes bounds the compatibility probes of a workload.
+const MaxProbes = 200
+
+func (s *Spec) validateCompatibility() []error {
+	var errs []error
+	add := func(format string, args ...any) { errs = append(errs, fmt.Errorf(format, args...)) }
+	versions := map[string]bool{}
+	total := 0
+	for i, v := range s.Compatibility {
+		where := fmt.Sprintf("compatibility[%d]", i)
+		switch {
+		case v.Version == "":
+			add("%s: version is required", where)
+		case len(v.Version) > 64:
+			add("%s: version must be at most 64 characters", where)
+		case versions[v.Version]:
+			add("%s: duplicate version %q", where, v.Version)
+		}
+		versions[v.Version] = true
+		if len(v.Probes) == 0 {
+			add("%s (%s): at least one probe is required", where, v.Version)
+		}
+		ids := map[string]bool{}
+		for j, p := range v.Probes {
+			total++
+			pw := fmt.Sprintf("%s.probes[%d]", where, j)
+			if !idRe.MatchString(p.ID) {
+				add("%s: id %q must be lower-case letters, digits, '_' or '-'", pw, p.ID)
+			}
+			if ids[p.ID] {
+				add("%s: duplicate id %q in version %s", pw, p.ID, v.Version)
+			}
+			ids[p.ID] = true
+			if p.SQL == "" {
+				add("%s (%s): sql is required", pw, p.ID)
+			} else if err := validateStatements([]string{p.SQL}, len(p.Parameters)); err != nil {
+				add("%s (%s): %v", pw, p.ID, err)
+			}
+			for k, g := range p.Parameters {
+				if err := g.Validate(); err != nil {
+					add("%s (%s).parameters[%d]: %v", pw, p.ID, k, err)
+				}
+			}
+		}
+	}
+	if total > MaxProbes {
+		add("workload defines %d compatibility probes; at most %d are supported", total, MaxProbes)
+	}
+	return errs
 }
 
 func (t *TxnSpec) validate() error {
