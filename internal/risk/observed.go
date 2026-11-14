@@ -13,6 +13,7 @@ import (
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/pglock"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/sqlinspect"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/stats"
+	"github.com/BhuwanJoshi-01/Open-Source-1/internal/telemetry"
 )
 
 const docLockTimeout = "https://www.postgresql.org/docs/current/runtime-config-client.html#GUC-LOCK-TIMEOUT"
@@ -470,28 +471,11 @@ func walFindings(cfg *config.Config, res *experiment.Result) []Finding {
 	if limit == nil {
 		return nil
 	}
-	baseline := map[int]int64{}
-	for _, ph := range res.Phases {
-		if ph.Kind == experiment.Baseline {
-			baseline[ph.Repeat] = ph.Counters.WALBytes
-		}
-	}
-	var extra []float64
-	hits := 0
-	for _, ph := range res.Phases {
-		b, ok := baseline[ph.Repeat]
-		if ph.Kind != experiment.Candidate || !ok {
-			continue
-		}
-		mb := float64(ph.Counters.WALBytes-b) / (1 << 20)
-		extra = append(extra, mb)
-		if mb > *limit {
-			hits++
-		}
-	}
+	extra := pairedExtraMB(res, func(c telemetry.Counters) int64 { return c.WALBytes })
 	if len(extra) == 0 {
 		return nil
 	}
+	hits := countAbove(extra, *limit)
 	med := stats.Median(extra)
 	if med <= *limit {
 		return nil
@@ -512,28 +496,11 @@ const TempSpillMB = 1.0
 // baseline did not: a sort or index build exceeded work_mem or
 // maintenance_work_mem. On production-size tables the spill is larger.
 func tempFileFindings(res *experiment.Result) []Finding {
-	baseline := map[int]int64{}
-	for _, ph := range res.Phases {
-		if ph.Kind == experiment.Baseline {
-			baseline[ph.Repeat] = ph.Counters.TempBytes
-		}
-	}
-	var extra []float64
-	hits := 0
-	for _, ph := range res.Phases {
-		b, ok := baseline[ph.Repeat]
-		if ph.Kind != experiment.Candidate || !ok {
-			continue
-		}
-		mb := float64(ph.Counters.TempBytes-b) / (1 << 20)
-		extra = append(extra, mb)
-		if mb > TempSpillMB {
-			hits++
-		}
-	}
+	extra := pairedExtraMB(res, func(c telemetry.Counters) int64 { return c.TempBytes })
 	if len(extra) == 0 {
 		return nil
 	}
+	hits := countAbove(extra, TempSpillMB)
 	med := stats.Median(extra)
 	if med <= TempSpillMB {
 		return nil
@@ -543,4 +510,33 @@ func tempFileFindings(res *experiment.Result) []Finding {
 	f.Observed, f.Unit = ptr(med), "MiB"
 	f.Remediation = "Raise maintenance_work_mem for the migration session (SET maintenance_work_mem = '1GB') before index builds, within what the server's memory allows."
 	return []Finding{f}
+}
+
+// pairedExtraMB returns, for every candidate phase, how many MiB more of a
+// counter it recorded than the baseline of the same repeat, so activity of
+// the workload itself cancels out.
+func pairedExtraMB(res *experiment.Result, counter func(telemetry.Counters) int64) []float64 {
+	baseline := map[int]int64{}
+	for _, ph := range res.Phases {
+		if ph.Kind == experiment.Baseline {
+			baseline[ph.Repeat] = counter(ph.Counters)
+		}
+	}
+	var extra []float64
+	for _, ph := range res.Phases {
+		if b, ok := baseline[ph.Repeat]; ok && ph.Kind == experiment.Candidate {
+			extra = append(extra, float64(counter(ph.Counters)-b)/(1<<20))
+		}
+	}
+	return extra
+}
+
+func countAbove(xs []float64, limit float64) int {
+	n := 0
+	for _, x := range xs {
+		if x > limit {
+			n++
+		}
+	}
+	return n
 }
