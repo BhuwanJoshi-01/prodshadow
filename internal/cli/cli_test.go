@@ -199,7 +199,7 @@ func TestInspect(t *testing.T) {
 	if strings.Contains(r.stdout, "CREATE INDEX idx") {
 		t.Fatal("raw SQL must not appear in inspect JSON")
 	}
-	if r := run(t, dir, nil, "inspect", "--migration", "m.sql", "--format", "markdown"); !strings.Contains(r.stdout, "[PS101](") {
+	if r := run(t, dir, nil, "inspect", "--migration", "m.sql", "--format", "markdown"); !strings.Contains(r.stdout, "[PS101](") || !strings.Contains(r.stdout, "Schema: not given") {
 		t.Fatalf("inspect markdown: %+v", r)
 	}
 	if r := run(t, dir, nil, "inspect"); r.code != ExitInvalid {

@@ -127,7 +127,7 @@ func runInspect(_ context.Context, env *Env, args []string) int {
 			printInspectText(env.Stdout, stmts, findings)
 		}
 	case "markdown":
-		printInspectMarkdown(env.Stdout, stmts, findings)
+		printInspectMarkdown(env.Stdout, stmts, findings, opts.Catalog)
 	case "sarif":
 		fallback := ""
 		if len(stmts) > 0 {
@@ -253,8 +253,14 @@ func printFindingsText(w io.Writer, findings []sqlinspect.Finding) {
 	}
 }
 
-func printInspectMarkdown(w io.Writer, stmts []*sqlinspect.Statement, findings []sqlinspect.Finding) {
-	fmt.Fprintf(w, "## ProdShadow static analysis\n\n| ID | Location | Statement | Locks |\n|---|---|---|---|\n")
+func printInspectMarkdown(w io.Writer, stmts []*sqlinspect.Statement, findings []sqlinspect.Finding, catalog *sqlinspect.Catalog) {
+	fmt.Fprintf(w, "## ProdShadow static analysis\n\n")
+	if catalog != nil {
+		fmt.Fprintf(w, "Schema: %s. Locks on tables a statement does not name are marked *via*.\n\n", catalog.Summary())
+	} else {
+		fmt.Fprintf(w, "Schema: not given, so locks on tables a statement does not name are not shown.\n\n")
+	}
+	fmt.Fprintf(w, "| ID | Location | Statement | Locks |\n|---|---|---|---|\n")
 	for _, s := range stmts {
 		fmt.Fprintf(w, "| %s | %s:%d | %s | %s |\n", s.ID, s.File, s.StartLine, s.Tag, strings.ReplaceAll(lockSummary(s), "|", "\\|"))
 	}
