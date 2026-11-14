@@ -26,7 +26,9 @@ since PostgreSQL 18).
   expected SQLSTATE.
 * Locks the classifier cannot know go into `oracleKnownGaps` with a
   reason, and version-specific differences into `oracleVersionGaps`.
-  Locks a statement may take (partition pruning) are accepted when absent.
+  Locks a statement may take (partitions behind pruning, foreign key
+  checks and row-level triggers that run only for affected rows) are
+  accepted when absent; other cases supply the rows that make them appear.
 * The oracle runs on pull requests that change `internal/sqlinspect` and
   nightly on PostgreSQL 15 to 18.
 * Every change to lock classification adds its statements to the oracle

@@ -210,6 +210,12 @@ var oracleStatements = []string{
 	"INSERT INTO tickets (title) SELECT 'x' ON CONFLICT DO NOTHING",
 	"ALTER MATERIALIZED VIEW order_totals SET (fillfactor = 70)",
 	"ALTER TABLE events DROP COLUMN id",
+	"DELETE FROM customers WHERE id = 99999",
+	"UPDATE invoices SET customer_id = customer_id WHERE id = 10",
+	"INSERT INTO invoices (id, customer_id) SELECT id + 100, customer_id FROM orders WHERE id < 3",
+	"CREATE TABLE copy_orders AS TABLE orders",
+	"SELECT * FROM orders TABLESAMPLE SYSTEM (10)",
+	"ALTER TABLE orders ADD COLUMN id2 bigint GENERATED ALWAYS AS IDENTITY",
 	"CALL clear_staging()",
 	"DO $$ BEGIN ALTER TABLE orders ADD COLUMN memo2 text; UPDATE customers SET email = email WHERE id = 1; END $$",
 	"DO $$ BEGIN IF EXISTS (SELECT 1 FROM tags) OR EXISTS (SELECT 1 FROM customers) THEN PERFORM 1 FROM staging FOR UPDATE; END IF; END $$",
@@ -352,12 +358,15 @@ func TestLockOracle(t *testing.T) {
 				}
 			}
 			observed := observeLocks(ctx, t, conn, sql, compared)
-			// Queries and DML reach only the partitions that survive
-			// pruning; the prediction lists every partition as a lock the
-			// statement may take.
+			// Locks a query or DML statement only may take are optional:
+			// partitions are reached only when pruning keeps them, and
+			// foreign key checks and row-level triggers run only for rows
+			// the statement affects. A prediction must not miss them when
+			// they are taken (other cases have the rows), but their
+			// absence is not an error.
 			for _, l := range s.Locks {
 				name := strings.TrimPrefix(l.Table, "public.")
-				if strings.HasPrefix(l.Via, "partition of ") && isQueryOrDML(s) && observed[name] == pglock.None {
+				if isMayLock(l) && isQueryOrDML(s) && observed[name] == pglock.None {
 					delete(predicted, name)
 				}
 			}
@@ -566,6 +575,15 @@ func isQueryOrDML(s *Statement) bool {
 	switch s.Kind {
 	case KindSelect, KindInsert, KindUpdate, KindDelete, KindMerge:
 		return true
+	}
+	return false
+}
+
+func isMayLock(l TableLock) bool {
+	for _, p := range []string{"partition of ", "foreign key ", "trigger "} {
+		if strings.HasPrefix(l.Via, p) {
+			return true
+		}
 	}
 	return false
 }
