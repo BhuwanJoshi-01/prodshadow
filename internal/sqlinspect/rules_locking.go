@@ -6,6 +6,8 @@ import (
 
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/evidence"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/pglock"
+
+	pg_query "github.com/pganalyze/pg_query_go/v6"
 )
 
 func init() {
@@ -69,6 +71,15 @@ func checkUnboundedDML(c *Context, s *Statement) []Finding {
 		verb = "UPDATE"
 	case s.Kind == KindDelete && s.node.GetDeleteStmt().GetWhereClause() == nil:
 		verb = "DELETE"
+	case s.Kind == KindSelect && unboundedLockingSelect(s.node.GetSelectStmt()):
+		table := firstTable(s)
+		if c.CreatedEarlier(s, table) {
+			return nil
+		}
+		f := at(s, fmt.Sprintf("%s without WHERE or LIMIT locks every row of %s until the transaction ends; concurrent updates and deletes of any row wait.", s.Tag, table))
+		f.Table, f.Lock = table, pglock.RowShare
+		f.Remediation = "Lock only the rows the migration changes, in bounded batches, or use LOCK TABLE deliberately with a lock_timeout if the whole table must be frozen."
+		return []Finding{f}
 	default:
 		return nil
 	}
@@ -239,4 +250,10 @@ func impactPhrase(m pglock.Mode) string {
 	default:
 		return "does not block application queries"
 	}
+}
+
+// unboundedLockingSelect reports whether st is SELECT ... FOR UPDATE/SHARE
+// over a table with neither WHERE nor LIMIT.
+func unboundedLockingSelect(st *pg_query.SelectStmt) bool {
+	return st != nil && len(st.LockingClause) > 0 && st.WhereClause == nil && st.LimitCount == nil && len(st.FromClause) > 0
 }

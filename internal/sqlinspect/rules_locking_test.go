@@ -11,6 +11,11 @@ func TestPS111UnboundedDML(t *testing.T) {
 	expectCount(t, findings(t, "PS111", Options{}, "UPDATE orders SET status = 'new';"), 1)
 	expectCount(t, findings(t, "PS111", Options{}, "DELETE FROM orders;"), 1)
 	expectCount(t, findings(t, "PS111", Options{}, "UPDATE orders SET status = 'new' WHERE id < 1000;"), 0)
+	expectCount(t, findings(t, "PS111", Options{}, "SELECT id FROM orders FOR UPDATE;"), 1)
+	expectCount(t, findings(t, "PS111", Options{}, "SELECT id FROM orders FOR SHARE;"), 1)
+	expectCount(t, findings(t, "PS111", Options{}, "SELECT id FROM orders WHERE id < 100 FOR UPDATE;"), 0)
+	expectCount(t, findings(t, "PS111", Options{}, "SELECT id FROM orders LIMIT 100 FOR UPDATE SKIP LOCKED;"), 0)
+	expectCount(t, findings(t, "PS111", Options{}, "SELECT id FROM orders;"), 0)
 }
 
 func TestPS112ExplicitLock(t *testing.T) {
