@@ -11,6 +11,7 @@ migration (for the fixture) and the migration itself.
 * [Flyway and Liquibase](flyway.md)
 * [golang-migrate and goose](go-migration-tools.md)
 * [Prisma Migrate](prisma.md)
+* [sqitch and dbmate](sqitch-dbmate.md)
 
 ## Patterns
 
