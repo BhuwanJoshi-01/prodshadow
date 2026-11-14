@@ -2,6 +2,7 @@ package sqlinspect
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/evidence"
@@ -181,16 +182,36 @@ func checkMissingLockTimeout(c *Context) []Finding {
 		if session || local {
 			continue
 		}
+		// Every blocking lock of the statement, including the ones it takes
+		// on tables it does not name (resolved from the schema).
+		var blocking []TableLock
+		resolvedIndex := slices.ContainsFunc(s.Locks, func(l TableLock) bool { return strings.HasPrefix(l.Via, "index ") })
 		for _, l := range s.Locks {
 			impact := l.Mode.Impact()
-			if (impact != pglock.ImpactAllTraffic && impact != pglock.ImpactWrites) || c.CreatedEarlier(s, l.Table) {
+			if (impact != pglock.ImpactAllTraffic && impact != pglock.ImpactWrites) || c.CreatedEarlier(s, l.Table) || l.CreatedBy != "" {
 				continue
 			}
-			f := at(s, fmt.Sprintf("%s requests %s on %s without a lock_timeout. If a long transaction holds a conflicting lock, the request queues indefinitely and every later query on %s queues behind it. ProdShadow applies migration.lock_timeout_ms during rehearsal; production runs need the same protection.", s.Tag, l.Mode, l.Table, l.Table))
-			f.Table, f.Lock = l.Table, l.Mode
-			f.Remediation = "Start the migration with SET lock_timeout = '2s' (or configure it in the migration runner) and retry on lock_not_available."
-			return []Finding{f}
+			if resolvedIndex && s.OnIndex(l) {
+				continue // the index's table is listed instead
+			}
+			blocking = append(blocking, l)
 		}
+		if len(blocking) == 0 {
+			continue
+		}
+		parts, tables := make([]string, 0, len(blocking)), make([]string, 0, len(blocking))
+		for _, l := range blocking {
+			part := fmt.Sprintf("%s on %s", l.Mode, l.Table)
+			if l.Via != "" {
+				part += " (via " + l.Via + ")"
+			}
+			parts = append(parts, part)
+			tables = append(tables, l.Table)
+		}
+		f := at(s, fmt.Sprintf("%s requests %s without a lock_timeout. If a long transaction holds a conflicting lock, the request queues indefinitely and every later query on %s queues behind it. ProdShadow applies migration.lock_timeout_ms during rehearsal; production runs need the same protection.", s.Tag, strings.Join(parts, " and "), strings.Join(tables, " and ")))
+		f.Table, f.Lock = blocking[0].Table, blocking[0].Mode
+		f.Remediation = "Start the migration with SET lock_timeout = '2s' (or configure it in the migration runner) and retry on lock_not_available."
+		return []Finding{f}
 	}
 	return nil
 }

@@ -89,3 +89,22 @@ func TestPS114FollowsLockTimeoutScope(t *testing.T) {
 		}
 	}
 }
+
+func TestPS114NamesImpliedTables(t *testing.T) {
+	stmts := parse(t, "ALTER TABLE invoices DROP CONSTRAINT invoices_customer_fk;\nDROP INDEX invoices_issued_idx;")
+	NewCatalog(parse(t, `
+CREATE TABLE customers (id int PRIMARY KEY);
+CREATE TABLE invoices (id int, customer_id int CONSTRAINT invoices_customer_fk REFERENCES customers);
+CREATE INDEX invoices_issued_idx ON invoices (id);
+`)).Resolve(stmts)
+	var got []Finding
+	for _, f := range Analyze(stmts, Options{}) {
+		if f.RuleID == "PS114" {
+			got = append(got, f)
+		}
+	}
+	want := "ACCESS EXCLUSIVE on invoices and ACCESS EXCLUSIVE on customers (via foreign key invoices_customer_fk) without a lock_timeout"
+	if len(got) != 1 || !strings.Contains(got[0].Message, want) || !strings.Contains(got[0].Message, "every later query on invoices and customers") {
+		t.Fatalf("PS114 = %+v", got)
+	}
+}
