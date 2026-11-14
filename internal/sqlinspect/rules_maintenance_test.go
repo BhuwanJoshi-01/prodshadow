@@ -16,6 +16,8 @@ func TestPS126DatabaseWideMaintenance(t *testing.T) {
 		{"REINDEX SYSTEM;", 1},
 		{"REINDEX SCHEMA CONCURRENTLY public;", 1},
 		{"REINDEX TABLE orders;", 0},
+		{"CLUSTER;", 1},
+		{"CLUSTER orders USING orders_pkey;", 0},
 		{"REINDEX INDEX CONCURRENTLY orders_pkey;", 0},
 	}
 	for _, tc := range cases {
