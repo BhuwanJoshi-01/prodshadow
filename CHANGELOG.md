@@ -83,6 +83,15 @@ versioning; the report schema (`schema_version`) is versioned separately.
   charts; `inspect --format markdown` links rule pages.
 - Rules can reason about other rules' findings (`checkFindings`), and
   PS114 follows the scope of `SET LOCAL`, `RESET` and zero timeouts.
+- `migration.lock_retries` and `retry_backoff_ms` rehearse a deploy tool
+  that retries on `lock_timeout`; retries are recorded per candidate
+  (report schema 1.3.0) and reported as `OBS014`.
+- `--changed-since REF` on `inspect`, `plan` and `verify`, and a
+  `changed-since` input on the GitHub Action, limit a run to the migrations
+  added or changed since a git ref.
+- Observed rules `OBS015` (optional `policy.max_extra_wal_mb` budget for WAL
+  written beyond the baseline) and `OBS016` (sorts or index builds spilling
+  to temporary files).
 - Per-scenario `think_time_ms`; JSON Schema for suppression files
   (`prodshadow schema suppressions`); GitHub Action input `args`.
 - Built-in redaction of SQL `PASSWORD '...'` clauses and Stripe and Google

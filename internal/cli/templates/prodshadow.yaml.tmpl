@@ -45,6 +45,7 @@ policy:
   # max_queued_sessions: 10     # keep below the application's connection pool size
   # max_migration_seconds: 30
   # max_throughput_drop_pct: 20
+  # max_extra_wal_mb: 50        # WAL written beyond the baseline (replication lag)
 
 report:
   directory: ./prodshadow-results
