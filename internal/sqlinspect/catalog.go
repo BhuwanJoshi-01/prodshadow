@@ -191,6 +191,8 @@ func (c *Catalog) learn(s *Statement) {
 					c.columns[catalogKey(table)] = append(c.columns[catalogKey(table)], col.Colname)
 					c.learnColumnSequence(x.AlterTableStmt.Relation, col.Colname, col.TypeName, col.Constraints)
 				}
+			case pg_query.AlterTableType_AT_DropColumn:
+				c.dropColumn(table, at.Name)
 			case pg_query.AlterTableType_AT_ColumnDefault:
 				if seq := nextvalSequence(at.GetDef()); seq != "" {
 					c.setColumnSequence(table, at.Name, seq)
@@ -220,6 +222,11 @@ func (c *Catalog) learn(s *Statement) {
 		c.learnRule(x.RuleStmt)
 	case *pg_query.Node_RenameStmt:
 		c.learnRename(x.RenameStmt)
+	case *pg_query.Node_AlterObjectSchemaStmt:
+		// ALTER TABLE/VIEW/SEQUENCE ... SET SCHEMA moves the relation.
+		if rv := x.AlterObjectSchemaStmt.Relation; rv != nil {
+			c.renameRelation(relName(rv), x.AlterObjectSchemaStmt.Newschema+"."+rv.Relname)
+		}
 	case *pg_query.Node_DropStmt:
 		switch x.DropStmt.RemoveType {
 		case pg_query.ObjectType_OBJECT_VIEW, pg_query.ObjectType_OBJECT_MATVIEW:

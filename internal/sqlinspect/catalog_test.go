@@ -669,3 +669,33 @@ func TestCatalogForgetsDroppedObjects(t *testing.T) {
 		t.Errorf("a dropped index has no table any more: %+v", stmts[1].Locks)
 	}
 }
+
+func TestCatalogDropColumnAndSetSchema(t *testing.T) {
+	schema := parse(t, `
+CREATE TABLE customers (id int PRIMARY KEY);
+CREATE TABLE tickets (id bigserial, customer_id int REFERENCES customers, title text);
+`)
+	stmts := parse(t, `
+ALTER TABLE tickets DROP COLUMN id;
+INSERT INTO tickets (title) VALUES ('x');
+ALTER TABLE tickets DROP COLUMN customer_id;
+ALTER TABLE customers SET SCHEMA archive;
+DROP TABLE archive.customers;
+`)
+	NewCatalog(schema).Resolve(stmts)
+	if _, ok := lockOn(stmts[1], "tickets_id_seq"); ok {
+		t.Errorf("the serial column was dropped: %+v", stmts[1].Locks)
+	}
+	if _, ok := lockOn(stmts[1], "customers"); !ok {
+		t.Errorf("the foreign key still exists at statement 1.2: %+v", stmts[1].Locks)
+	}
+	var ps157 int
+	for _, f := range Analyze(stmts, Options{}) {
+		if f.RuleID == "PS157" {
+			ps157++
+		}
+	}
+	if ps157 != 0 {
+		t.Error("the foreign key went with its column, so archive.customers can be dropped")
+	}
+}

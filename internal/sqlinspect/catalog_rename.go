@@ -159,3 +159,16 @@ func (c *Catalog) forgetRelation(name string) {
 		return catalogKey(fk.table) == key || catalogKey(fk.refTable) == key
 	})
 }
+
+// dropColumn removes a dropped column: from the column order, from the
+// columns filled from sequences (a column default goes with its column),
+// and the foreign keys that include it (PostgreSQL drops them too).
+func (c *Catalog) dropColumn(table, column string) {
+	key := catalogKey(table)
+	c.columns[key] = slices.DeleteFunc(c.columns[key], func(col string) bool { return col == column })
+	c.sequences[key] = slices.DeleteFunc(c.sequences[key], func(cs columnSequence) bool { return cs.column == column })
+	c.foreignKeys = slices.DeleteFunc(c.foreignKeys, func(fk catalogFK) bool {
+		return catalogKey(fk.table) == key && slices.Contains(fk.columns, column)
+	})
+	delete(c.viewColumns[key], column)
+}
