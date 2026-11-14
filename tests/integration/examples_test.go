@@ -28,7 +28,7 @@ var expectations = []expectation{
 	{example: "long-running-transaction", exit: cli.ExitBlock, mustHave: []string{"OBS002", "OBS011"}},
 	{example: "blocking-index", exit: cli.ExitBlock, mustHave: []string{"OBS001", "PS101"}},
 	{example: "blocking-index", migration: "alternatives/0012_index_orders_by_status_concurrently.sql", mustHave: []string{"PS121"}, mustNot: []string{"OBS001", "PS101"}, exit: -1},
-	{example: "backfill-heavy", exit: cli.ExitBlock, mustHave: []string{"OBS001", "PS111"}},
+	{example: "backfill-heavy", exit: cli.ExitBlock, mustHave: []string{"OBS001", "PS111", "OBS017"}},
 	{example: "rolling-deploy", exit: cli.ExitBlock, mustHave: []string{"OBS007", "OBS013", "PS109"}},
 	{example: "partition-maintenance", exit: cli.ExitBlock, mustHave: []string{"OBS002", "PS141"}},
 	{example: "partition-maintenance", migration: "alternatives/0031_events_2027.sql", mustNot: []string{"OBS002", "PS141", "PS123"}, exit: cli.ExitOK},
