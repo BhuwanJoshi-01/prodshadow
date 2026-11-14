@@ -15,3 +15,4 @@ supersedes it.
 | [0007](0007-heuristic-findings-say-so.md) | Static rules mark what they cannot see as heuristic | accepted |
 | [0008](0008-statistics-from-exported-files.md) | Import production statistics from exported files, not connections | accepted |
 | [0009](0009-compatibility-probes.md) | Check application versions with probes, not with the traffic mix | accepted |
+| [0010](0010-rehearse-lock-retries.md) | Rehearse the deploy tool's lock retries | accepted |
