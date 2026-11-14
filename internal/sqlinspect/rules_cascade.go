@@ -1,0 +1,95 @@
+package sqlinspect
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/BhuwanJoshi-01/Open-Source-1/internal/evidence"
+
+	pg_query "github.com/pganalyze/pg_query_go/v6"
+)
+
+func init() {
+	register(Rule{
+		ID:       "PS124",
+		Name:     "cascade-drop",
+		Summary:  "CASCADE silently drops or truncates dependent objects the migration does not name",
+		Severity: evidence.Warning,
+		DocsURL:  "https://www.postgresql.org/docs/current/ddl-depend.html",
+		check:    checkCascade,
+	})
+}
+
+// checkCascade flags DROP ... CASCADE, TRUNCATE ... CASCADE and ALTER TABLE
+// DROP COLUMN/CONSTRAINT ... CASCADE. The objects removed by the cascade
+// depend on the schema in production, which the statement does not show.
+func checkCascade(c *Context, s *Statement) []Finding {
+	if s.node == nil {
+		return nil
+	}
+	var targets []string
+	what := "also drops every object that depends on it (views, foreign keys, column defaults, functions)"
+	switch {
+	case s.node.GetDropStmt() != nil:
+		st := s.node.GetDropStmt()
+		if st.Behavior != pg_query.DropBehavior_DROP_CASCADE {
+			return nil
+		}
+		kind := strings.ToLower(strings.ReplaceAll(strings.TrimPrefix(st.RemoveType.String(), "OBJECT_"), "_", " "))
+		for _, o := range st.Objects {
+			n := dropTargetName(o)
+			if n != "" && c.CreatedEarlier(s, n) {
+				continue
+			}
+			targets = append(targets, strings.TrimSpace(kind+" "+n))
+		}
+	case s.node.GetTruncateStmt() != nil:
+		st := s.node.GetTruncateStmt()
+		if st.Behavior != pg_query.DropBehavior_DROP_CASCADE {
+			return nil
+		}
+		what = "also truncates every table with a foreign key referencing it, and the tables referencing those"
+		for _, r := range st.Relations {
+			if n := relName(r.GetRangeVar()); n != "" && !c.CreatedEarlier(s, n) {
+				targets = append(targets, "table "+n)
+			}
+		}
+	case s.Kind == KindAlterTable:
+		table, cmds := alterCmds(c, s)
+		for _, cmd := range cmds {
+			if cmd.Behavior != pg_query.DropBehavior_DROP_CASCADE {
+				continue
+			}
+			switch cmd.Subtype {
+			case pg_query.AlterTableType_AT_DropColumn:
+				targets = append(targets, fmt.Sprintf("column %s.%s", table, cmd.Name))
+			case pg_query.AlterTableType_AT_DropConstraint:
+				targets = append(targets, fmt.Sprintf("constraint %s on %s", cmd.Name, table))
+			}
+		}
+	}
+	var out []Finding
+	for _, t := range targets {
+		f := at(s, fmt.Sprintf("CASCADE on %s %s. Which objects those are depends on the production schema, not on this migration, so they are removed without being named or reviewed.", t, what))
+		f.Evidence, f.Confidence = evidence.Static, evidence.High
+		f.Remediation = "Drop or alter the dependent objects explicitly first, then use RESTRICT (the default) so an unexpected dependency fails the migration instead of being removed."
+		out = append(out, f)
+	}
+	return out
+}
+
+// dropTargetName names one DropStmt object: a qualified name list, a bare
+// name (schemas, extensions), a type, or a function with arguments.
+func dropTargetName(o *pg_query.Node) string {
+	switch {
+	case o.GetList() != nil:
+		return strings.Join(stringItems(o.GetList().Items), ".")
+	case o.GetString_() != nil:
+		return o.GetString_().Sval
+	case o.GetTypeName() != nil:
+		return typeName(o.GetTypeName())
+	case o.GetObjectWithArgs() != nil:
+		return qualifiedName(o.GetObjectWithArgs().Objname)
+	}
+	return ""
+}
