@@ -82,6 +82,21 @@ type TableSize struct {
 	RowsEstimate int64  `json:"rows_estimate"`
 	TotalBytes   int64  `json:"total_bytes"`
 	Indexes      int    `json:"indexes"`
+	// Partitioned marks a partitioned table. It stores no rows itself; its
+	// estimate is the sum of its partitions, which are listed separately.
+	Partitioned bool `json:"partitioned,omitempty"`
+}
+
+// TotalRows sums the row estimates of tables that store rows, so rows of
+// partitions are not counted a second time through their parent.
+func TotalRows(tables []TableSize) int64 {
+	var n int64
+	for _, t := range tables {
+		if !t.Partitioned {
+			n += t.RowsEstimate
+		}
+	}
+	return n
 }
 
 // TableSizes lists user tables with estimated row counts and sizes. Call
@@ -91,7 +106,8 @@ func TableSizes(ctx context.Context, conn *pgx.Conn) ([]TableSize, error) {
 SELECT format('%s.%s', n.nspname, c.relname),
        GREATEST(c.reltuples, 0)::bigint,
        pg_total_relation_size(c.oid),
-       (SELECT count(*) FROM pg_index i WHERE i.indrelid = c.oid)::int
+       (SELECT count(*) FROM pg_index i WHERE i.indrelid = c.oid)::int,
+       c.relkind = 'p'
 FROM pg_class c
 JOIN pg_namespace n ON n.oid = c.relnamespace
 WHERE c.relkind IN ('r', 'p')
@@ -103,7 +119,7 @@ ORDER BY pg_total_relation_size(c.oid) DESC, 1`)
 	}
 	return pgx.CollectRows(rows, func(r pgx.CollectableRow) (TableSize, error) {
 		var t TableSize
-		err := r.Scan(&t.Name, &t.RowsEstimate, &t.TotalBytes, &t.Indexes)
+		err := r.Scan(&t.Name, &t.RowsEstimate, &t.TotalBytes, &t.Indexes, &t.Partitioned)
 		return t, err
 	})
 }

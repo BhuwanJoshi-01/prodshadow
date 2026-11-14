@@ -5,6 +5,7 @@ import (
 	"sort"
 
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/experiment"
+	"github.com/BhuwanJoshi-01/Open-Source-1/internal/postgres"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/stats"
 )
 
@@ -44,9 +45,7 @@ func assessQuality(res *experiment.Result, comps []Comparison, representation st
 	if res == nil {
 		return q
 	}
-	for _, t := range res.Tables {
-		q.FixtureRows += t.RowsEstimate
-	}
+	q.FixtureRows = postgres.TotalRows(res.Tables)
 	q.DatabaseBytes = res.Server.DatabaseBytes
 
 	cands := 0

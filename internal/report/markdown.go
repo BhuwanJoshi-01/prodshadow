@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/evidence"
+	"github.com/BhuwanJoshi-01/Open-Source-1/internal/postgres"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/risk"
 )
 
@@ -47,10 +48,7 @@ func (r *Report) mdSummary(w writer) {
 			pg = f[1]
 		}
 	}
-	rows := int64(0)
-	for _, t := range r.Fixture.Tables {
-		rows += t.RowsEstimate
-	}
+	rows := postgres.TotalRows(r.Fixture.Tables)
 	w("| Run | PostgreSQL | Runtime | Fixture | Workload | Duration |\n|---|---|---|---|---|---|\n")
 	w("| `%s` | %s | %s, network %s | %s, %s rows | %s, %d sessions, %d × %.0f s | %s |\n\n",
 		r.RunID, esc(pg), r.Engine.Runtime, r.Engine.Network, r.Representativeness.Level, fmtInt(rows),
