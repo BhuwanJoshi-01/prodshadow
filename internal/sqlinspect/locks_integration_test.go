@@ -69,6 +69,8 @@ INSERT INTO orders SELECT g, 1 + g % 100, 'new', g, NULL FROM generate_series(1,
 INSERT INTO invoices VALUES (10, 5), (11, 5);
 INSERT INTO line_items VALUES (100, 10);
 INSERT INTO payments VALUES (1000, 11);
+CREATE TABLE staging_log (id int);
+CREATE RULE staging_logged AS ON INSERT TO staging DO ALSO INSERT INTO staging_log VALUES (NEW.id);
 CREATE FUNCTION touch_tags() RETURNS int LANGUAGE sql AS 'UPDATE tags SET name = name WHERE id = 0; SELECT 1';
 CREATE PROCEDURE clear_staging() LANGUAGE plpgsql AS $$
 BEGIN

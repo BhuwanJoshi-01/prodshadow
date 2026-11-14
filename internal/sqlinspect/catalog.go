@@ -39,6 +39,7 @@ type Catalog struct {
 	functionLocks    map[string][]TableLock
 	dynamicFunctions map[string]bool
 	triggers         map[string][]catalogTrigger
+	rules            map[string][]catalogRule
 	primaryKeys      map[string][]string // table -> primary key columns
 	// primaryKeyName and keys name the primary key and unique
 	// constraints of each table (keys: constraint -> columns).
@@ -62,6 +63,7 @@ func NewCatalog(schema []*Statement) *Catalog {
 		viewOutputs: map[string][]string{},
 		columns:     map[string][]string{}, sequences: map[string][]columnSequence{}, primaryKeys: map[string][]string{},
 		functionLocks: map[string][]TableLock{}, dynamicFunctions: map[string]bool{}, triggers: map[string][]catalogTrigger{},
+		rules:          map[string][]catalogRule{},
 		primaryKeyName: map[string]string{}, keys: map[string]map[string][]string{}}
 	for _, s := range schema {
 		c.learn(s)
@@ -214,6 +216,8 @@ func (c *Catalog) learn(s *Statement) {
 		c.learnFunction(s, x.CreateFunctionStmt)
 	case *pg_query.Node_CreateTrigStmt:
 		c.learnTrigger(x.CreateTrigStmt)
+	case *pg_query.Node_RuleStmt:
+		c.learnRule(x.RuleStmt)
 	case *pg_query.Node_DropStmt:
 		switch x.DropStmt.RemoveType {
 		case pg_query.ObjectType_OBJECT_VIEW, pg_query.ObjectType_OBJECT_MATVIEW:
@@ -394,6 +398,7 @@ func (c *Catalog) Resolve(stmts []*Statement) {
 			c.ddlForeignKeyLocks(s)
 			c.viewDependencies(s)
 			c.triggerLocks(s)
+			c.ruleLocks(s)
 			c.viewBaseLocks(s)
 			c.functionCallLocks(s)
 			if v := s.node.GetViewStmt(); v != nil {

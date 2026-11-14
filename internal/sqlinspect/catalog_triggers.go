@@ -305,3 +305,51 @@ func (c *Catalog) functionCallLocks(s *Statement) {
 		return true
 	})
 }
+
+// catalogRule is a rewrite rule known to the catalog.
+type catalogRule struct {
+	name  string
+	event pg_query.CmdType
+	locks []TableLock
+}
+
+// learnRule records the locks of a rule's actions, which the rewriter adds
+// to every matching statement on the table.
+func (c *Catalog) learnRule(st *pg_query.RuleStmt) {
+	var locks []TableLock
+	for _, a := range st.Actions {
+		as := &Statement{node: a, Parsed: true}
+		classify(as)
+		locks = append(locks, as.Locks...)
+	}
+	table := catalogKey(relName(st.Relation))
+	c.rules[table] = slices.DeleteFunc(c.rules[table], func(r catalogRule) bool { return r.name == st.Rulename })
+	c.rules[table] = append(c.rules[table], catalogRule{name: st.Rulename, event: st.Event, locks: locks})
+}
+
+// ruleLocks adds the locks of rule actions an INSERT, UPDATE or DELETE
+// triggers through the rewriter, marked "via rule <name>".
+func (c *Catalog) ruleLocks(s *Statement) {
+	var table string
+	var event pg_query.CmdType
+	switch x := s.node.Node.(type) {
+	case *pg_query.Node_InsertStmt:
+		table, event = relName(x.InsertStmt.Relation), pg_query.CmdType_CMD_INSERT
+	case *pg_query.Node_UpdateStmt:
+		table, event = relName(x.UpdateStmt.Relation), pg_query.CmdType_CMD_UPDATE
+	case *pg_query.Node_DeleteStmt:
+		table, event = relName(x.DeleteStmt.Relation), pg_query.CmdType_CMD_DELETE
+	default:
+		return
+	}
+	for _, r := range c.rules[catalogKey(table)] {
+		if r.event != event {
+			continue
+		}
+		for _, l := range r.locks {
+			if catalogKey(l.Table) != catalogKey(table) {
+				s.addImpliedLock(l.Table, l.Mode, "rule "+r.name)
+			}
+		}
+	}
+}

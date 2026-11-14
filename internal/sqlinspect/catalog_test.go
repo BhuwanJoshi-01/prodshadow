@@ -557,3 +557,24 @@ ALTER TABLE staging ADD COLUMN n int DEFAULT touch_tags();
 		t.Errorf("PS117 should report only the dynamic and the unknown procedure: %v", ps117)
 	}
 }
+
+func TestCatalogRuleLocks(t *testing.T) {
+	schema := parse(t, `
+CREATE TABLE staging (id int);
+CREATE TABLE staging_log (id int);
+CREATE TABLE archive (id int);
+CREATE RULE staging_logged AS ON INSERT TO staging DO ALSO INSERT INTO staging_log VALUES (NEW.id);
+CREATE RULE staging_archived AS ON DELETE TO staging DO INSTEAD INSERT INTO archive VALUES (OLD.id);
+`)
+	stmts := parse(t, "INSERT INTO staging VALUES (1);\nDELETE FROM staging WHERE id = 1;\nUPDATE staging SET id = 2;\n")
+	NewCatalog(schema).Resolve(stmts)
+	if l, ok := lockOn(stmts[0], "staging_log"); !ok || l.Mode != pglock.RowExclusive || l.Via != "rule staging_logged" {
+		t.Errorf("the INSERT rule writes staging_log: %+v", stmts[0].Locks)
+	}
+	if l, ok := lockOn(stmts[1], "archive"); !ok || l.Via != "rule staging_archived" {
+		t.Errorf("the DELETE rule writes archive: %+v", stmts[1].Locks)
+	}
+	if len(stmts[2].Locks) != 1 {
+		t.Errorf("no rule on UPDATE: %+v", stmts[2].Locks)
+	}
+}

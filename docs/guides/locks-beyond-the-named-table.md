@@ -107,7 +107,10 @@ statements that fire the trigger, marked `via trigger <name>`. Row-level
 triggers run only for affected rows, so these are locks the statement may
 take.
 
-Functions and procedures defined in the schema work the same way: a query,
+Rewrite rules (`CREATE RULE ... DO ALSO/INSTEAD ...`) add their actions to
+every matching `INSERT`, `UPDATE` or `DELETE`, so their locks appear as
+`via rule <name>`. Functions and procedures defined in the schema work the
+same way: a query,
 DML statement or `CALL` that runs one also takes the locks of its static
 SQL, marked `via function <name>`.
 
