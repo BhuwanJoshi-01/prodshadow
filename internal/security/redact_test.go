@@ -11,13 +11,18 @@ func TestRedactBuiltinPatterns(t *testing.T) {
 		t.Fatal(err)
 	}
 	cases := map[string]string{
-		"postgres://app:hunter2secret@db:5432/app":                 "hunter2secret",
-		"host=/tmp user=app password='s3cr3t-pass' dbname=x":       "s3cr3t-pass",
-		"PGPASSWORD=topsecret123 psql":                             "topsecret123",
-		"Authorization: Bearer abcdefghijklmnopqrstuvwxyz":         "abcdefghijklmnopqrstuvwxyz",
-		"key AKIAABCDEFGHIJKLMNOP leaked":                          "AKIAABCDEFGHIJKLMNOP",
-		"token ghp_" + strings.Repeat("a", 36):                     "ghp_",
-		"jwt eyJhbGciOiJIUzI1.eyJzdWIiOiIxMjM0.SflKxwRJSMeKKF2QT4": "eyJhbGciOiJIUzI1",
+		"postgres://app:hunter2secret@db:5432/app":                                     "hunter2secret",
+		"host=/tmp user=app password='s3cr3t-pass' dbname=x":                           "s3cr3t-pass",
+		"PGPASSWORD=topsecret123 psql":                                                 "topsecret123",
+		"Authorization: Bearer abcdefghijklmnopqrstuvwxyz":                             "abcdefghijklmnopqrstuvwxyz",
+		"key AKIAABCDEFGHIJKLMNOP leaked":                                              "AKIAABCDEFGHIJKLMNOP",
+		"token ghp_" + strings.Repeat("a", 36):                                         "ghp_",
+		"jwt eyJhbGciOiJIUzI1.eyJzdWIiOiIxMjM0.SflKxwRJSMeKKF2QT4":                     "eyJhbGciOiJIUzI1",
+		"CREATE ROLE app LOGIN PASSWORD 'correct-horse'":                               "correct-horse",
+		"ALTER ROLE app ENCRYPTED PASSWORD 'it''s-secret'":                             "s-secret",
+		"CREATE USER MAPPING FOR app SERVER s OPTIONS (user 'u', password 'fdw-pass')": "fdw-pass",
+		"stripe sk_live_" + strings.Repeat("x", 24):                                    "sk_live_",
+		"maps AIza" + strings.Repeat("B", 35):                                          "AIza",
 	}
 	for in, secret := range cases {
 		out := r.String(in)
@@ -71,5 +76,13 @@ func TestHashIdentifier(t *testing.T) {
 	}
 	if HashIdentifier("SELECT 1") != a {
 		t.Fatal("hash must be deterministic")
+	}
+}
+
+func TestRedactKeepsSQLPasswordKeyword(t *testing.T) {
+	r, _ := NewRedactor(nil)
+	got := r.String("CREATE ROLE app LOGIN PASSWORD 'correct-horse' VALID UNTIL 'infinity'")
+	if got != "CREATE ROLE app LOGIN PASSWORD '"+Redacted+"' VALID UNTIL 'infinity'" {
+		t.Fatalf("got %q", got)
 	}
 }

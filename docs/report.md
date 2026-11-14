@@ -85,3 +85,9 @@ by fingerprints and template IDs. Server error messages are redacted using
 the run's ephemeral secrets, built-in credential patterns and
 `privacy.redact_patterns`. Set `privacy.persist_raw_query_text: true` to
 include SQL (still redacted).
+
+The built-in patterns cover passwords in connection URLs and `key=value`
+strings, SQL `PASSWORD '...'` clauses (`CREATE ROLE`, `ALTER ROLE`, user
+mapping options), `PGPASSWORD`, bearer tokens, AWS access key IDs, GitHub,
+Slack, Stripe and Google API keys, JSON Web Tokens and PEM private keys.
+Add `privacy.redact_patterns` for anything specific to your systems.

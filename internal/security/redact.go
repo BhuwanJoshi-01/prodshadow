@@ -12,27 +12,41 @@ import (
 // Redacted replaces secret material in artifacts.
 const Redacted = "[REDACTED]"
 
+// pattern is a credential format and its replacement, which may keep a
+// leading part of the match (such as the key name) through ${1}.
+type pattern struct {
+	re          *regexp.Regexp
+	replacement string
+}
+
 // builtinPatterns match credentials that commonly leak into SQL text, error
 // messages and connection strings.
-var builtinPatterns = []*regexp.Regexp{
+var builtinPatterns = []pattern{
 	// URL credentials: postgres://user:secret@host
-	regexp.MustCompile(`(?i)\b([a-z][a-z0-9+.-]*://[^\s:/@]+:)[^\s@/]+@`),
+	{regexp.MustCompile(`(?i)\b([a-z][a-z0-9+.-]*://[^\s:/@]+:)[^\s@/]+@`), "${1}" + Redacted + "@"},
 	// key=value connection string passwords.
-	regexp.MustCompile(`(?i)\b(password|passwd|pwd)\s*=\s*('[^']*'|"[^"]*"|\S+)`),
+	{regexp.MustCompile(`(?i)\b(password|passwd|pwd)\s*=\s*('[^']*'|"[^"]*"|\S+)`), "${1}=" + Redacted},
+	// SQL password clauses: CREATE/ALTER ROLE ... PASSWORD 'x', and
+	// OPTIONS (password 'x') of user mappings and foreign servers.
+	{regexp.MustCompile(`(?i)\b((?:encrypted\s+)?password\s+)('(?:[^']|'')*'|"[^"]*")`), "${1}'" + Redacted + "'"},
 	// PGPASSWORD style environment assignments.
-	regexp.MustCompile(`(?i)\b(PGPASSWORD|POSTGRES_PASSWORD)\s*[=:]\s*\S+`),
+	{regexp.MustCompile(`(?i)\b(PGPASSWORD|POSTGRES_PASSWORD)\s*[=:]\s*\S+`), Redacted},
 	// Bearer tokens.
-	regexp.MustCompile(`(?i)\bbearer\s+[a-z0-9._~+/-]{12,}=*`),
+	{regexp.MustCompile(`(?i)\bbearer\s+[a-z0-9._~+/-]{12,}=*`), Redacted},
 	// AWS access key IDs.
-	regexp.MustCompile(`\b(AKIA|ASIA)[A-Z0-9]{16}\b`),
+	{regexp.MustCompile(`\b(AKIA|ASIA)[A-Z0-9]{16}\b`), Redacted},
 	// GitHub tokens.
-	regexp.MustCompile(`\bgh[pousr]_[A-Za-z0-9]{36,}\b`),
+	{regexp.MustCompile(`\bgh[pousr]_[A-Za-z0-9]{36,}\b`), Redacted},
 	// Slack tokens.
-	regexp.MustCompile(`\bxox[abprs]-[A-Za-z0-9-]{10,}\b`),
+	{regexp.MustCompile(`\bxox[abprs]-[A-Za-z0-9-]{10,}\b`), Redacted},
+	// Stripe secret and restricted keys.
+	{regexp.MustCompile(`\b(sk|rk)_(live|test)_[A-Za-z0-9]{16,}\b`), Redacted},
+	// Google API keys.
+	{regexp.MustCompile(`\bAIza[0-9A-Za-z_-]{35}\b`), Redacted},
 	// JSON Web Tokens.
-	regexp.MustCompile(`\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b`),
+	{regexp.MustCompile(`\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b`), Redacted},
 	// PEM private keys.
-	regexp.MustCompile(`-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----`),
+	{regexp.MustCompile(`-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----`), Redacted},
 }
 
 // Redactor removes secrets from text before it reaches an artifact. Exact
@@ -41,18 +55,18 @@ var builtinPatterns = []*regexp.Regexp{
 type Redactor struct {
 	mu       sync.RWMutex
 	exact    []string
-	patterns []*regexp.Regexp
+	patterns []pattern
 }
 
 // NewRedactor compiles user-defined patterns in addition to the built-ins.
 func NewRedactor(userPatterns []string) (*Redactor, error) {
-	r := &Redactor{patterns: append([]*regexp.Regexp(nil), builtinPatterns...)}
+	r := &Redactor{patterns: append([]pattern(nil), builtinPatterns...)}
 	for _, p := range userPatterns {
 		re, err := regexp.Compile(p)
 		if err != nil {
 			return nil, err
 		}
-		r.patterns = append(r.patterns, re)
+		r.patterns = append(r.patterns, pattern{re, Redacted})
 	}
 	return r, nil
 }
@@ -84,15 +98,8 @@ func (r *Redactor) String(s string) string {
 	for _, e := range r.exact {
 		s = strings.ReplaceAll(s, e, Redacted)
 	}
-	for i, re := range r.patterns {
-		switch i {
-		case 0:
-			s = re.ReplaceAllString(s, "${1}"+Redacted+"@")
-		case 1:
-			s = re.ReplaceAllString(s, "${1}="+Redacted)
-		default:
-			s = re.ReplaceAllString(s, Redacted)
-		}
+	for _, p := range r.patterns {
+		s = p.re.ReplaceAllString(s, p.replacement)
 	}
 	return s
 }
