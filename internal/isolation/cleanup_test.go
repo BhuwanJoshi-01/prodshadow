@@ -49,3 +49,32 @@ func TestImagePresent(t *testing.T) {
 		t.Fatalf("missing image: %v %v", ok, err)
 	}
 }
+
+func TestEngineResources(t *testing.T) {
+	for _, tc := range []struct{ name, format string }{
+		{"docker", "{{.MemTotal}} {{.NCPU}}"},
+		{"podman", "{{.Host.MemTotal}} {{.Host.CPUs}}"},
+	} {
+		p := newContainerProvider(tc.name, "")
+		p.run = func(ctx context.Context, name string, args ...string) ([]byte, []byte, error) {
+			if args[0] != "info" || args[len(args)-1] != tc.format {
+				t.Fatalf("%s: unexpected invocation %v", tc.name, args)
+			}
+			return []byte("8221589504 4\n"), nil, nil
+		}
+		mem, cpus, err := EngineResources(context.Background(), p)
+		if err != nil || mem != 8221589504 || cpus != 4 {
+			t.Fatalf("%s: %d %d %v", tc.name, mem, cpus, err)
+		}
+	}
+	p := newContainerProvider("docker", "")
+	p.run = func(ctx context.Context, name string, args ...string) ([]byte, []byte, error) {
+		return []byte("<no value>"), nil, nil
+	}
+	if _, _, err := EngineResources(context.Background(), p); err == nil {
+		t.Fatal("unparsable output accepted")
+	}
+	if _, _, err := EngineResources(context.Background(), newLocalProvider("")); !errors.Is(err, ErrNoCleanup) {
+		t.Fatalf("local provider: %v", err)
+	}
+}

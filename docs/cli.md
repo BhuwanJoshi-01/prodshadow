@@ -138,8 +138,10 @@ prodshadow history reports/ --project shop --last 20
 
 ## `prodshadow doctor`
 
-Checks the platform, the configuration (if present), the container engine
-and leftovers from interrupted runs. Exits 4 if a check fails.
+Checks the platform, the configuration (if present), the container engine,
+whether the engine has enough memory and CPUs for `postgres.isolation`
+(Docker Desktop and Podman machines are often smaller than the host), and
+leftovers from interrupted runs. Exits 4 if a check fails.
 
 ## `prodshadow cleanup`
 

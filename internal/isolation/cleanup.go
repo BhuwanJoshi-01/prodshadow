@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 )
 
 // ErrNoCleanup is returned for providers that keep no resources between
@@ -64,4 +65,26 @@ func ImagePresent(ctx context.Context, p Provider, image string) (bool, error) {
 		return false, nil
 	}
 	return false, commandError(cp.binary, "image inspect", stderr, err)
+}
+
+// EngineResources reports the memory (in bytes) and CPUs the container
+// engine can give containers. On Docker Desktop and Podman machines this is
+// the virtual machine's size, not the host's.
+func EngineResources(ctx context.Context, p Provider) (memBytes int64, cpus int, err error) {
+	cp, ok := p.(*containerProvider)
+	if !ok {
+		return 0, 0, ErrNoCleanup
+	}
+	format := "{{.MemTotal}} {{.NCPU}}"
+	if cp.name == "podman" {
+		format = "{{.Host.MemTotal}} {{.Host.CPUs}}"
+	}
+	out, stderr, err := cp.run(ctx, cp.binary, "info", "--format", format)
+	if err != nil {
+		return 0, 0, commandError(cp.binary, "info", stderr, err)
+	}
+	if _, err := fmt.Sscan(string(out), &memBytes, &cpus); err != nil {
+		return 0, 0, fmt.Errorf("%s info: unexpected output %q", cp.binary, strings.TrimSpace(string(out)))
+	}
+	return memBytes, cpus, nil
 }

@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/BhuwanJoshi-01/Open-Source-1/internal/isolation"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/report"
 )
 
@@ -526,5 +527,31 @@ func TestValidateWarnsAboutUnreachableQueueBudget(t *testing.T) {
 	writeFile(t, cfg, strings.Replace(string(raw), "  # max_queued_sessions: 10 ", "  max_queued_sessions: 4 #", 1))
 	if r := run(t, dir, nil, "validate"); strings.Contains(r.stdout+r.stderr, "can never fire") {
 		t.Fatalf("reachable budget warned: %+v", r)
+	}
+}
+
+type fakeEngine struct{ isolation.Provider }
+
+func TestDoctorResourceCheck(t *testing.T) {
+	// resourceCheck only needs EngineResources, which reports ErrNoCleanup
+	// for providers without an engine; such providers get no check.
+	if _, ok := resourceCheck(context.Background(), fakeEngine{}, 1024, 2); ok {
+		t.Fatal("providers without a container engine get no resources check")
+	}
+	cases := []struct {
+		engineMB, ncpu, memoryMB int
+		cpus                     float64
+		ok, warn                 bool
+	}{
+		{16000, 4, 2048, 2, true, false},
+		{2000, 4, 2048, 2, false, false}, // too little memory
+		{16000, 1, 2048, 2, true, true},  // too few CPUs
+		{3000, 4, 2048, 2, true, true},   // little headroom
+	}
+	for _, tc := range cases {
+		c := compareResources(tc.engineMB, tc.ncpu, tc.memoryMB, tc.cpus)
+		if c.ok != tc.ok || c.warn != tc.warn {
+			t.Errorf("%+v: got ok=%v warn=%v (%s)", tc, c.ok, c.warn, c.detail)
+		}
 	}
 }

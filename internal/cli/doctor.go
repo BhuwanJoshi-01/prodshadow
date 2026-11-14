@@ -35,6 +35,7 @@ func runDoctor(ctx context.Context, env *Env, args []string) int {
 		}
 	}
 	provider, binary, network, image := "docker", "", "none", ""
+	memoryMB, cpus := 0, 0.0
 	if path != "" {
 		p, err := loadProject(env, path)
 		switch {
@@ -46,6 +47,7 @@ func runDoctor(ctx context.Context, env *Env, args []string) int {
 			add(check{name: "configuration", ok: true, detail: display(env.Dir, p.cfg.Path())})
 			provider, binary, network = p.cfg.Postgres.Isolation.Provider, p.cfg.Postgres.Isolation.Binary, p.cfg.Postgres.Isolation.Network
 			image = p.cfg.Postgres.Image
+			memoryMB, cpus = p.cfg.Postgres.Isolation.MemoryMB, p.cfg.Postgres.Isolation.CPUs
 		}
 	} else {
 		add(check{name: "configuration", ok: true, warn: true, detail: "no prodshadow.yaml found; checking the docker provider"})
@@ -68,6 +70,11 @@ func runDoctor(ctx context.Context, env *Env, args []string) int {
 				add(check{name: "image", ok: true, detail: image + " is available locally"})
 			} else if ierr == nil {
 				add(check{name: "image", ok: true, warn: true, detail: image + " will be pulled on first run (needs registry access)"})
+			}
+		}
+		if memoryMB > 0 && err == nil {
+			if c, ok := resourceCheck(ctx, prov, memoryMB, cpus); ok {
+				add(c)
 			}
 		}
 		if orphans, err := isolation.Orphans(ctx, prov, ""); err == nil && len(orphans) > 0 {
@@ -96,4 +103,31 @@ func runDoctor(ctx context.Context, env *Env, args []string) int {
 		return ExitInfra
 	}
 	return ExitOK
+}
+
+// resourceCheck compares the configured server size with what the
+// container engine can provide. Docker Desktop and Podman machines are
+// virtual machines that are often smaller than the host.
+func resourceCheck(ctx context.Context, prov isolation.Provider, memoryMB int, cpus float64) (check, bool) {
+	cctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	mem, ncpu, err := isolation.EngineResources(cctx, prov)
+	if err != nil {
+		return check{}, false
+	}
+	return compareResources(int(mem>>20), ncpu, memoryMB, cpus), true
+}
+
+func compareResources(engineMB, ncpu, memoryMB int, cpus float64) check {
+	detail := fmt.Sprintf("engine has %d MiB and %d CPUs; the server is configured for %d MiB and %g CPUs", engineMB, ncpu, memoryMB, cpus)
+	switch {
+	case memoryMB > engineMB:
+		return check{name: "resources", detail: detail + "; lower postgres.isolation.memory_mb or give the engine more memory"}
+	case float64(ncpu) < cpus:
+		return check{name: "resources", ok: true, warn: true, detail: detail + "; the CPU limit cannot be met, so latencies will be noisier"}
+	case memoryMB*2 > engineMB:
+		return check{name: "resources", ok: true, warn: true, detail: detail + "; little memory is left for the workload and ProdShadow itself"}
+	default:
+		return check{name: "resources", ok: true, detail: detail}
+	}
 }
