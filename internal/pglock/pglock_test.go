@@ -92,3 +92,22 @@ func TestStrongestAndString(t *testing.T) {
 		t.Fatal("out-of-range mode handling")
 	}
 }
+
+func TestBlockedStatements(t *testing.T) {
+	share := Share.BlockedStatements()
+	if len(share) == 0 || share[0] != "INSERT/UPDATE/DELETE/MERGE" {
+		t.Fatalf("SHARE should block writes first: %v", share)
+	}
+	for _, s := range share {
+		if s == "SELECT" {
+			t.Fatal("SHARE must not block plain reads")
+		}
+	}
+	all := AccessExclusive.BlockedStatements()
+	if len(all) != 8 || all[0] != "SELECT" {
+		t.Fatalf("ACCESS EXCLUSIVE blocks everything: %v", all)
+	}
+	if len(AccessShare.BlockedStatements()) != 1 {
+		t.Fatalf("ACCESS SHARE only conflicts with ACCESS EXCLUSIVE: %v", AccessShare.BlockedStatements())
+	}
+}
