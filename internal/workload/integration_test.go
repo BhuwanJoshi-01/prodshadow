@@ -4,6 +4,7 @@ package workload
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -214,5 +215,34 @@ compatibility:
 	var n int
 	if err := conn.QueryRow(ctx, "SELECT count(*) FROM products WHERE id = 100").Scan(&n); err != nil || n != 0 {
 		t.Fatalf("probe writes must be rolled back: count %d, err %v", n, err)
+	}
+}
+
+func TestRunKeepsSampleErrors(t *testing.T) {
+	ctx := context.Background()
+	_, srv := pgtest.Start(t)
+	spec, err := Parse([]byte(`version: 1
+scenarios:
+  - {id: ok, weight: 1, mode: read, sql: "SELECT 1"}
+  - {id: broken, weight: 1, mode: read, sql: "SELECT missing_column FROM pg_class LIMIT 1"}
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := Run(ctx, spec, Options{
+		Concurrency: 2, Warmup: 100 * time.Millisecond, Measurement: time.Second, Seed: 1, Stream: "it",
+		Connect: func(ctx context.Context, app string) (*pgx.Conn, error) {
+			return srv.Connect(ctx, srv.Admin(), isolation.ConnOptions{ApplicationName: app})
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	stats := Summarize(res, Window{})
+	if stats[0].SampleError != "" {
+		t.Errorf("a scenario without errors has no sample: %q", stats[0].SampleError)
+	}
+	if !strings.HasPrefix(stats[1].SampleError, "42703: column \"missing_column\" does not exist") {
+		t.Errorf("sample error = %q", stats[1].SampleError)
 	}
 }

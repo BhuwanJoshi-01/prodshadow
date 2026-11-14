@@ -32,6 +32,9 @@ type ScenarioStats struct {
 	// MaxObservedMS includes failed and interrupted operations, so a
 	// session stuck behind a lock is visible even if it never succeeded.
 	MaxObservedMS float64 `json:"max_observed_ms"`
+	// SampleError is the first error message of the scenario in the run,
+	// if any operation failed.
+	SampleError string `json:"sample_error,omitempty"`
 
 	hist *stats.Histogram
 }
@@ -47,7 +50,8 @@ func Summarize(res *Result, w Window) []ScenarioStats {
 	}
 	out := make([]ScenarioStats, len(res.Scenarios))
 	for i, sc := range res.Scenarios {
-		out[i] = ScenarioStats{ID: sc.ID, Mode: sc.Mode, Background: sc.Background, ByClass: map[string]int{}, hist: stats.NewHistogram()}
+		out[i] = ScenarioStats{ID: sc.ID, Mode: sc.Mode, Background: sc.Background, ByClass: map[string]int{}, hist: stats.NewHistogram(),
+			SampleError: res.SampleErrors[sc.ID]}
 	}
 	for _, op := range res.Ops {
 		start := time.Duration(op.Start)

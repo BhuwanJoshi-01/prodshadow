@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/gen"
+
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 // ErrInterrupted marks operations that were still running when the run was
@@ -49,6 +51,9 @@ type Result struct {
 	Mode            string         `json:"mode"`
 	Sessions        int            `json:"sessions"`
 	ConnectFailures int            `json:"connect_failures"`
+	// SampleErrors keeps the first error message of each scenario that
+	// failed, so a broken query can be diagnosed from the report.
+	SampleErrors map[string]string `json:"-"`
 }
 
 // MeasuredDuration is the length of the measurement window.
@@ -87,6 +92,7 @@ type runner struct {
 	mu           sync.Mutex
 	ops          []Op
 	connFailures int
+	sampleErrs   map[string]string
 }
 
 // index returns the result index of c. Validation caps the number of
@@ -173,7 +179,7 @@ func (r *runner) run(parent context.Context) (*Result, error) {
 	}
 	return &Result{
 		Scenarios: scenarios, Ops: r.ops, MeasureStart: r.measureStart, MeasureEnd: end,
-		Mode: mode, Sessions: sessions, ConnectFailures: r.connFailures,
+		Mode: mode, Sessions: sessions, ConnectFailures: r.connFailures, SampleErrors: r.sampleErrs,
 	}, nil
 }
 
@@ -253,6 +259,9 @@ func (r *runner) op(c *compiled, begin time.Time, latency time.Duration, err err
 	class := Classify(err)
 	if err != nil && stopped {
 		class = ErrInterrupted
+	}
+	if err != nil && class != ErrInterrupted {
+		r.keepSampleError(c.info.ID, err)
 	}
 	return Op{Scenario: r.index(c), Err: class, Start: int64(begin.Sub(r.measureStart)), Latency: int64(latency)}
 }
@@ -380,5 +389,29 @@ func (r *runner) backgroundSession(stopCtx context.Context, c *compiled, i int) 
 		if !c.repeat {
 			return
 		}
+	}
+}
+
+// MaxSampleErrorLength bounds a kept error message.
+const MaxSampleErrorLength = 300
+
+// keepSampleError records the first error of a scenario, with its SQLSTATE
+// when the server reported one.
+func (r *runner) keepSampleError(scenario string, err error) {
+	msg := err.Error()
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		msg = pgErr.Code + ": " + pgErr.Message
+	}
+	if len(msg) > MaxSampleErrorLength {
+		msg = msg[:MaxSampleErrorLength] + "…"
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.sampleErrs == nil {
+		r.sampleErrs = map[string]string{}
+	}
+	if _, ok := r.sampleErrs[scenario]; !ok {
+		r.sampleErrs[scenario] = msg
 	}
 }
