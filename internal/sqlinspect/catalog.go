@@ -226,6 +226,29 @@ func (c *Catalog) learn(s *Statement) {
 			for _, v := range dropObjectNames(x.DropStmt.Objects) {
 				c.forgetView(v)
 			}
+		case pg_query.ObjectType_OBJECT_TABLE, pg_query.ObjectType_OBJECT_SEQUENCE, pg_query.ObjectType_OBJECT_FOREIGN_TABLE:
+			// With CASCADE the foreign keys of other tables go too; they
+			// point at the dropped table, so forgetting it removes them.
+			for _, t := range dropObjectNames(x.DropStmt.Objects) {
+				c.forgetRelation(t)
+			}
+		case pg_query.ObjectType_OBJECT_INDEX:
+			for _, idx := range dropObjectNames(x.DropStmt.Objects) {
+				delete(c.indexTable, catalogKey(idx))
+			}
+		case pg_query.ObjectType_OBJECT_RULE:
+			for _, o := range x.DropStmt.Objects {
+				if items := stringItems(o.GetList().GetItems()); len(items) > 1 {
+					key := catalogKey(strings.Join(items[:len(items)-1], "."))
+					c.rules[key] = slices.DeleteFunc(c.rules[key], func(r catalogRule) bool { return r.name == items[len(items)-1] })
+				}
+			}
+		case pg_query.ObjectType_OBJECT_FUNCTION, pg_query.ObjectType_OBJECT_PROCEDURE:
+			for _, o := range x.DropStmt.Objects {
+				if fn := o.GetObjectWithArgs(); fn != nil {
+					delete(c.functionLocks, catalogKey(strings.Join(stringItems(fn.Objname), ".")))
+				}
+			}
 		case pg_query.ObjectType_OBJECT_TRIGGER:
 			for _, o := range x.DropStmt.Objects {
 				if items := stringItems(o.GetList().GetItems()); len(items) > 1 {

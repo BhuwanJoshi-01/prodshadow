@@ -126,16 +126,16 @@ func checkReferencedTableRemoved(c *Context, s *Statement) []Finding {
 	if len(s.referencedBy) == 0 {
 		return nil
 	}
-	verb := "DROP TABLE"
+	verb, action := "DROP TABLE", "drop"
 	if s.Kind == KindTruncate {
-		verb = "TRUNCATE"
+		verb, action = "TRUNCATE", "truncate"
 	}
 	refers := "references"
 	if len(s.referencedBy) > 1 {
 		refers = "reference"
 	}
 	f := at(s, fmt.Sprintf("%s fails: foreign key %s still %s the table. PostgreSQL refuses to %s a table other tables' foreign keys point at.",
-		verb, strings.Join(s.referencedBy, ", "), refers, strings.ToLower(verb)))
+		verb, strings.Join(s.referencedBy, ", "), refers, action))
 	f.Table = firstTable(s)
 	f.Remediation = "Drop or change the referencing foreign keys first, in this or an earlier migration. CASCADE removes them silently (see PS124), which is rarely what the referencing code expects."
 	return []Finding{f}

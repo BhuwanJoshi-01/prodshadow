@@ -1,6 +1,8 @@
 package sqlinspect
 
 import (
+	"slices"
+
 	pg_query "github.com/pganalyze/pg_query_go/v6"
 )
 
@@ -120,4 +122,40 @@ func (c *Catalog) renameColumn(table, from, to string) {
 			renameIn(fk.refColumns, from, to)
 		}
 	}
+}
+
+// forgetRelation removes a dropped table (or view, sequence, ...) from the
+// catalog: its foreign keys in both directions, its partitions' link to it,
+// its indexes, columns, triggers and rules, and its place in other views'
+// and partitioned tables' lists. Later statements of the migration then no
+// longer see it.
+func (c *Catalog) forgetRelation(name string) {
+	key := catalogKey(name)
+	for _, m := range []map[string][]string{c.partitions, c.viewReads, c.viewOutputs, c.columns, c.primaryKeys} {
+		delete(m, key)
+	}
+	delete(c.partitioned, key)
+	delete(c.defaultPartition, key)
+	delete(c.matviews, key)
+	delete(c.plainUnique, key)
+	delete(c.viewColumns, key)
+	delete(c.sequences, key)
+	delete(c.triggers, key)
+	delete(c.rules, key)
+	delete(c.primaryKeyName, key)
+	delete(c.keys, key)
+	for idx, t := range c.indexTable {
+		if catalogKey(t) == key {
+			delete(c.indexTable, idx)
+		}
+	}
+	for p, parts := range c.partitions {
+		c.partitions[p] = slices.DeleteFunc(parts, func(t string) bool { return catalogKey(t) == key })
+		if catalogKey(c.defaultPartition[p]) == key {
+			delete(c.defaultPartition, p)
+		}
+	}
+	c.foreignKeys = slices.DeleteFunc(c.foreignKeys, func(fk catalogFK) bool {
+		return catalogKey(fk.table) == key || catalogKey(fk.refTable) == key
+	})
 }

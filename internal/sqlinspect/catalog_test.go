@@ -241,7 +241,12 @@ ALTER TABLE line_items DROP CONSTRAINT line_items_pkey CASCADE;
 ALTER TABLE invoices DROP CONSTRAINT invoices_customer_id_fkey;
 DROP TABLE invoices;
 `)
-	NewCatalog(parse(t, fkSchema)).Resolve(stmts)
+	// Each statement on the original schema, except the last two, which
+	// test that a dropped foreign key is forgotten.
+	for _, st := range stmts[:5] {
+		NewCatalog(parse(t, fkSchema)).Resolve([]*Statement{st})
+	}
+	NewCatalog(parse(t, fkSchema)).Resolve(stmts[5:])
 	cases := []struct {
 		stmt  int
 		table string
@@ -621,7 +626,7 @@ ALTER TABLE orders DROP COLUMN state;
 }
 
 func TestPerTableRulesIgnoreImpliedLocks(t *testing.T) {
-	stmts := parse(t, "DROP TABLE line_items;\nTRUNCATE invoices CASCADE;\nLOCK TABLE invoices IN SHARE MODE;\n")
+	stmts := parse(t, "TRUNCATE invoices CASCADE;\nDROP TABLE line_items;\nLOCK TABLE invoices IN SHARE MODE;\n")
 	NewCatalog(parse(t, fkSchema)).Resolve(stmts)
 	var ps109 []string
 	locks := 0
@@ -633,11 +638,34 @@ func TestPerTableRulesIgnoreImpliedLocks(t *testing.T) {
 			locks++
 		}
 	}
-	want := []string{"1.1 Dropping line_items", "1.2 Truncating invoices", "1.2 Truncating line_items (through CASCADE, foreign key line_items_invoice_fk)", "1.2 Truncating notes (through CASCADE, foreign key notes_line_item_fk)"}
+	want := []string{"1.1 Truncating invoices", "1.1 Truncating line_items (through CASCADE, foreign key line_items_invoice_fk)", "1.1 Truncating notes (through CASCADE, foreign key notes_line_item_fk)", "1.2 Dropping line_items"}
 	if !slices.Equal(ps109, want) {
 		t.Errorf("PS109 = %q, want %q", ps109, want)
 	}
 	if locks != 1 {
 		t.Errorf("LOCK TABLE names one table: %d findings", locks)
+	}
+}
+
+func TestCatalogForgetsDroppedObjects(t *testing.T) {
+	analyse := func(migration string) []Finding {
+		stmts := parse(t, migration)
+		NewCatalog(parse(t, fkSchema)).Resolve(stmts)
+		var out []Finding
+		for _, f := range Analyze(stmts, Options{}) {
+			if f.RuleID == "PS157" {
+				out = append(out, f)
+			}
+		}
+		return out
+	}
+	expectCount(t, analyse("DROP TABLE notes;\nDROP TABLE line_items;\nDROP TABLE invoices;\nDROP TABLE customers;"), 0)
+	if got := analyse("DROP TABLE customers;"); len(got) != 1 || !strings.Contains(got[0].Message, "refuses to drop a table") {
+		t.Fatalf("PS157 = %+v", got)
+	}
+	stmts := parse(t, "DROP INDEX invoices_pkey;\nDROP INDEX invoices_pkey;")
+	NewCatalog(parse(t, fkSchema)).Resolve(stmts)
+	if len(stmts[1].Locks) != 1 {
+		t.Errorf("a dropped index has no table any more: %+v", stmts[1].Locks)
 	}
 }
