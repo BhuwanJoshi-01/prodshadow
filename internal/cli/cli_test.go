@@ -860,6 +860,21 @@ func TestValidateWarnsAboutMergeOnOldPostgres(t *testing.T) {
 	}
 }
 
+func TestValidateWarnsAboutUnparsableSchema(t *testing.T) {
+	dir := initProject(t)
+	schema := filepath.Join(dir, "fixtures", "schema.sql")
+	raw, _ := os.ReadFile(schema)
+	writeFile(t, schema, string(raw)+"\nCREATE TABLE broken (id int,;\n")
+	r := run(t, dir, nil, "validate")
+	if r.code != ExitOK || !strings.Contains(r.stdout, "cannot be parsed with the PostgreSQL 17") {
+		t.Fatalf("validate: %+v", r)
+	}
+	writeFile(t, schema, string(raw))
+	if r := run(t, dir, nil, "validate"); strings.Contains(r.stdout, "cannot be parsed") {
+		t.Fatalf("starter schema warned: %+v", r)
+	}
+}
+
 func TestValidateWarnsAboutUnknownMigrationTables(t *testing.T) {
 	dir := initProject(t)
 	writeFile(t, filepath.Join(dir, "migrations", "0001_add_order_note.sql"), "CREATE TABLE refunds (id bigint PRIMARY KEY);\nALTER TABLE refunds ADD COLUMN note text;\nALTER TABLE invoice ADD COLUMN note text;\nALTER TABLE orders ADD COLUMN note text;\n")

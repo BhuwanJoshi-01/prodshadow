@@ -67,6 +67,15 @@ func validateReferences(cfg *config.Config) config.Problems {
 	warn := func(path, msg string) {
 		ps = append(ps, config.Problem{Level: config.LevelWarning, Path: path, Message: msg, Line: cfg.LineOf(path)})
 	}
+	if s := cfg.Fixture.Schema; s != "" {
+		if stmts, err := schemaStatements(cfg.Resolve(s), s); err == nil {
+			for _, st := range stmts {
+				if !st.Parsed {
+					warn("fixture.schema", fmt.Sprintf("%s:%d cannot be parsed with the %s grammar; the tables, keys and views it defines are not used to predict locks", st.File, st.StartLine, sqlinspect.ParserGrammar))
+				}
+			}
+		}
+	}
 	if f := cfg.Workload.File; f != "" {
 		wl, err := workload.Load(cfg.Resolve(f))
 		if err != nil {
