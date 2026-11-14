@@ -115,6 +115,27 @@ prodshadow diff --base out/original/report.json --head out/alternative/report.js
 | `--head` | — | Report of the alternative. |
 | `--json` | `false` | Machine-readable output. |
 
+## `prodshadow history`
+
+Summarises stored JSON reports as a timeline, oldest first: decision,
+longest candidate migration, longest lock wait, most sessions blocked by the
+migration, and unsuppressed findings by severity. Name report files or
+directories; a directory contributes every `*.json` file directly inside it,
+and files there that are not reports are skipped with a note. A run whose
+fixture, workload or PostgreSQL version changed since the previous one is
+marked with `*`.
+
+```bash
+# keep each CI run's report, e.g. as reports/<run-id>.json, then:
+prodshadow history reports/ --project shop --last 20
+```
+
+| Flag | Default | |
+|---|---|---|
+| `--project` | — | Only runs of this project. |
+| `--last` | `0` | Only the N most recent runs (0 shows all). |
+| `--json` | `false` | Machine-readable output. |
+
 ## `prodshadow doctor`
 
 Checks the platform, the configuration (if present), the container engine

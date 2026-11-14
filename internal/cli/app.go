@@ -47,6 +47,7 @@ func commands() []command {
 		{"verify", "Run the paired baseline/candidate experiment in a disposable database", runVerify},
 		{"report", "Re-render a JSON report as Markdown, HTML, JSON, SARIF or JUnit", runReport},
 		{"diff", "Compare two reports, e.g. a migration and its rewrite", runDiff},
+		{"history", "Summarise stored reports over time", runHistory},
 		{"doctor", "Check that this machine can run experiments", runDoctor},
 		{"cleanup", "Remove disposable servers left behind by interrupted runs", runCleanup},
 		{"rules", "List static and observed rules", runRules},

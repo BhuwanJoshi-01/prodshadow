@@ -8,6 +8,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/BhuwanJoshi-01/Open-Source-1/internal/report"
 )
 
 type result struct {
@@ -392,5 +395,42 @@ func TestInspectReadsStdin(t *testing.T) {
 	}
 	if r := run(t, "", nil, "inspect", "--migration", "-"); r.code != ExitInvalid {
 		t.Fatalf("no stdin: %+v", r)
+	}
+}
+
+func TestHistory(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, id, project string, at time.Time) {
+		r := report.Report{SchemaVersion: report.SchemaVersion, RunID: id, Project: project, StartedAt: at}
+		r.Decision.Outcome = "pass"
+		b, _ := json.Marshal(r)
+		writeFile(t, filepath.Join(dir, "reports", name), string(b))
+	}
+	if err := os.MkdirAll(filepath.Join(dir, "reports"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	day := time.Date(2026, 11, 2, 8, 0, 0, 0, time.UTC)
+	write("b.json", "run-b", "shop", day.Add(24*time.Hour))
+	write("a.json", "run-a", "shop", day)
+	write("c.json", "run-c", "billing", day.Add(48*time.Hour))
+	writeFile(t, filepath.Join(dir, "reports", "notes.json"), `{"hello": "world"}`)
+
+	r := run(t, dir, nil, "history", "reports", "--project", "shop", "--json")
+	var got []report.HistoryEntry
+	if r.code != ExitOK || json.Unmarshal([]byte(r.stdout), &got) != nil || len(got) != 2 || got[0].RunID != "run-a" || got[1].RunID != "run-b" {
+		t.Fatalf("history --project shop: %+v", r)
+	}
+	if !strings.Contains(r.stderr, "skipping") || !strings.Contains(r.stderr, "notes.json") {
+		t.Errorf("non-report file not reported: %q", r.stderr)
+	}
+	r = run(t, dir, nil, "history", "--last", "1", "reports")
+	if r.code != ExitOK || !strings.Contains(r.stdout, "billing") || strings.Contains(r.stdout, "2026-11-02") {
+		t.Fatalf("history --last 1: %+v", r)
+	}
+	if r := run(t, dir, nil, "history", "reports/notes.json"); r.code != ExitInvalid {
+		t.Fatalf("named non-report: %+v", r)
+	}
+	if r := run(t, dir, nil, "history"); r.code != ExitInvalid {
+		t.Fatalf("no arguments: %+v", r)
 	}
 }
