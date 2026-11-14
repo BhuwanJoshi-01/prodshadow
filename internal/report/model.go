@@ -20,7 +20,7 @@ import (
 
 // SchemaVersion follows semantic versioning: additive fields bump the
 // minor version, removals or meaning changes bump the major version.
-const SchemaVersion = "1.6.0"
+const SchemaVersion = "1.7.0"
 
 // Run statuses.
 const (
@@ -152,10 +152,14 @@ type TableLock struct {
 	// CreatedBy is the ID of the statement that created Table earlier in
 	// the migration; such a lock cannot block the application.
 	CreatedBy string `json:"created_by,omitempty"`
+	// Via names the object that implies a lock on a relation the statement
+	// does not name, resolved from the fixture schema ("index ...",
+	// "partition of ...", "materialized view ...").
+	Via string `json:"via,omitempty"`
 }
 
 func lockOf(l sqlinspect.TableLock) TableLock {
-	return TableLock{Table: l.Table, Mode: l.Mode.String(), Impact: string(l.Mode.Impact()), CreatedBy: l.CreatedBy}
+	return TableLock{Table: l.Table, Mode: l.Mode.String(), Impact: string(l.Mode.Impact()), CreatedBy: l.CreatedBy, Via: l.Via}
 }
 
 // Phase is one baseline or candidate phase.

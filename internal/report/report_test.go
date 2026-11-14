@@ -2,6 +2,7 @@ package report
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"flag"
 	"os"
@@ -265,5 +266,25 @@ func TestLocksOnNewTablesAreMarked(t *testing.T) {
 	page, err := r.HTML()
 	if err != nil || !strings.Contains(page, "(created by 1.1)") {
 		t.Fatalf("HTML does not mark the lock (err %v)", err)
+	}
+}
+
+func TestImpliedLocksShowTheirOrigin(t *testing.T) {
+	in := sampleInput(t)
+	schema, _ := sqlinspect.ParseSources([]sqlinspect.Source{{Path: "schema.sql", Content: "CREATE INDEX orders_status_idx ON orders (status);\n"}})
+	stmts, err := sqlinspect.ParseSources([]sqlinspect.Source{{Path: "m.sql", Content: "DROP INDEX orders_status_idx;\n"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sqlinspect.NewCatalog(schema).Resolve(stmts)
+	in.Statements = stmts
+	r := Build(in)
+	if md := r.Markdown(); !strings.Contains(md, "ACCESS EXCLUSIVE on orders (via index orders_status_idx)") {
+		t.Fatalf("markdown lacks the implied lock:\n%s", md)
+	}
+	var back Report
+	data, _ := json.Marshal(r)
+	if err := json.Unmarshal(data, &back); err != nil || back.Migration.Statements[0].Locks[1].Via != "index orders_status_idx" {
+		t.Fatalf("via does not survive JSON (err %v): %s", err, data)
 	}
 }

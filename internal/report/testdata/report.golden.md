@@ -80,7 +80,7 @@ M    1        4       0  1400 ms   1500 ms
 | Item | Value |
 |---|---|
 | Tool | prodshadow v0.1.0-test (commit test, go1.26, linux/amd64) |
-| Report schema | 1.6.0 |
+| Report schema | 1.7.0 |
 | Git commit | `0123abcd` |
 | Image | `postgres:17-alpine` |
 | Server | PostgreSQL 17.12 on x86_64 |
