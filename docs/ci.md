@@ -142,3 +142,21 @@ start-up + seeding + repeats × 2 × (warmup + measurement + ~3 s)
 The examples (3 repeats, 3 s warm-up, 15 s measurement) take about two
 minutes on a 4-CPU runner. Measure your own fixtures rather than relying on
 these numbers.
+
+## This repository's own CI
+
+The project's workflows are tuned for a private repository, where Actions
+minutes are billed and macOS minutes cost ten times the Linux rate:
+
+| Workflow | Pull requests | Scheduled |
+|---|---|---|
+| CI (lint, tidy, unit tests with `-race`, build) | every change except documentation | nightly, plus macOS and fuzzing |
+| Integration | PostgreSQL 17 and the local provider, when database-facing code changes | nightly, PostgreSQL 15–18 |
+| Examples | — | weekly |
+| CodeQL | — | weekly; results kept as an artifact on private repositories |
+
+Pull requests are merged by fast-forward, so the commit tested on the pull
+request is the commit that lands on `main`. Scheduled workflows run on the
+repository's **default branch** only. Set Docker Hub credentials as the
+`DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` secrets to avoid anonymous pull
+limits. All workflows can be started manually from the Actions tab.
