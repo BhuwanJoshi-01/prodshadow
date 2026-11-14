@@ -12,6 +12,11 @@ migration (for the fixture) and the migration itself.
 * [golang-migrate and goose](go-migration-tools.md)
 * [Prisma Migrate](prisma.md)
 
+## Patterns
+
+* [Safe migration patterns](safe-migration-patterns.md): recipes for common
+  schema changes, with the rules that report the risky version
+
 ## Modelling
 
 * [Modelling a workload from production statistics](modelling-traffic.md)
