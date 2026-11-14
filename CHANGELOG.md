@@ -105,6 +105,18 @@ versioning; the report schema (`schema_version`) is versioned separately.
   (`prodshadow schema suppressions`); GitHub Action input `args`.
 - Built-in redaction of SQL `PASSWORD '...'` clauses and Stripe and Google
   API keys.
+- `prodshadow report --format text` prints a terminal summary of a stored
+  report; `history --since` limits the timeline to recent runs; every
+  report links the reading guide.
+- Static rule PS155 (files that cannot be re-run after a partial failure).
+- Failing scenarios keep their first (redacted) error message in the
+  report (schema 1.4.0); quality rule `QUAL013` reports scenarios that fail
+  even without a migration.
+- Example `partition-maintenance`: `PARTITION OF` blocks the partitioned
+  table, attaching a prepared table does not.
+- `inspect` and `plan` mark locks on tables the migration itself created.
+- A lock oracle integration test checks the classifier's predictions for
+  80 statements against `pg_locks` on a real server.
 - Every rule has a documentation page under `docs/rules/`, linked from
   SARIF results.
 - Guides for Alembic, Atlas, Django, Prisma, Flyway/Liquibase,
@@ -122,6 +134,13 @@ versioning; the report schema (`schema_version`) is versioned separately.
 - `SELECT` statements, and the tables read by `INSERT ... SELECT`,
   `UPDATE ... FROM` and `DELETE ... USING`, now record their locks.
 - `on` and `off` in storage parameters are read correctly.
+- Lock predictions for `CREATE TABLE ... (LIKE ...)` and `INHERITS`,
+  `CREATE TABLE AS`, `CREATE [MATERIALIZED] VIEW`, `CREATE OR REPLACE VIEW`,
+  `COMMENT ON`, `DROP TRIGGER/POLICY/RULE`, `CREATE/ALTER POLICY`,
+  `CREATE RULE`, `CREATE STATISTICS`, `MERGE` and data-modifying `WITH`
+  clauses, all found by the lock oracle.
+- Partitioned tables no longer count their partitions' rows a second time
+  in the fixture size (report schema 1.5.0 marks them).
 - Compatibility probe results are paired by version and probe ID, so a
   missing result is never reported as a broken probe.
 - The disposable server is stopped gracefully before removal, and socket
