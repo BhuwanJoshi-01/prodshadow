@@ -472,3 +472,24 @@ func TestPlanListsCompatibilityProbes(t *testing.T) {
 		t.Fatalf("no probes, no line: %s", r.stdout)
 	}
 }
+
+func TestLocks(t *testing.T) {
+	r := run(t, "", nil, "locks")
+	if r.code != ExitOK || strings.Count(r.stdout, "\n") < 9 || !strings.Contains(r.stdout, "ACCESS EXCLUSIVE") {
+		t.Fatalf("locks: %+v", r)
+	}
+	for _, spelling := range [][]string{{"share", "row", "exclusive"}, {"SHARE_ROW_EXCLUSIVE"}, {"share-row-exclusive"}, {"ShareRowExclusiveLock"}} {
+		r := run(t, "", nil, append([]string{"locks"}, spelling...)...)
+		if r.code != ExitOK || !strings.HasPrefix(r.stdout, "SHARE ROW EXCLUSIVE (ShareRowExclusiveLock in pg_locks)") {
+			t.Fatalf("locks %v: %+v", spelling, r)
+		}
+	}
+	r = run(t, "", nil, "locks", "--json", "access", "share")
+	var got []lockInfo
+	if r.code != ExitOK || json.Unmarshal([]byte(r.stdout), &got) != nil || len(got) != 1 || len(got[0].Conflicts) != 1 || got[0].Conflicts[0] != "ACCESS EXCLUSIVE" {
+		t.Fatalf("locks --json access share: %+v", r)
+	}
+	if r := run(t, "", nil, "locks", "shared"); r.code != ExitInvalid {
+		t.Fatalf("unknown mode: %+v", r)
+	}
+}

@@ -111,3 +111,29 @@ func TestBlockedStatements(t *testing.T) {
 		t.Fatalf("ACCESS SHARE only conflicts with ACCESS EXCLUSIVE: %v", AccessShare.BlockedStatements())
 	}
 }
+
+func TestModeReference(t *testing.T) {
+	if got := Modes(); len(got) != 8 || got[0] != AccessShare || got[7] != AccessExclusive {
+		t.Fatalf("Modes() = %v", got)
+	}
+	if got := Share.AcquiredBy(); len(got) != 1 || got[0] != "CREATE INDEX" {
+		t.Fatalf("Share.AcquiredBy() = %v", got)
+	}
+	if got := RowShare.AcquiredBy(); len(got) != 1 {
+		t.Fatalf("RowShare.AcquiredBy() = %v", got)
+	}
+	if got := AccessShare.ConflictingModes(); len(got) != 1 || got[0] != AccessExclusive {
+		t.Fatalf("AccessShare conflicts with %v", got)
+	}
+	if got := AccessExclusive.ConflictingModes(); len(got) != 8 {
+		t.Fatalf("AccessExclusive conflicts with %v", got)
+	}
+	// The conflict relation is symmetric.
+	for _, a := range Modes() {
+		for _, b := range a.ConflictingModes() {
+			if !Conflicts(b, a) {
+				t.Errorf("%s conflicts with %s but not the reverse", a, b)
+			}
+		}
+	}
+}

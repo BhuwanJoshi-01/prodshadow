@@ -51,6 +51,7 @@ func commands() []command {
 		{"doctor", "Check that this machine can run experiments", runDoctor},
 		{"cleanup", "Remove disposable servers left behind by interrupted runs", runCleanup},
 		{"rules", "List static and observed rules", runRules},
+		{"locks", "Explain PostgreSQL table lock modes and what they block", runLocks},
 		{"schema", "Print a JSON Schema (config, workload or report)", runSchema},
 		{"version", "Print version information", runVersion},
 		{"completion", "Print a shell completion script (bash, zsh or fish)", runCompletion},

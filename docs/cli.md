@@ -152,12 +152,17 @@ remove anything else.
 | `--run` | — | Only this run ID. |
 | `--dry-run` | `false` | List without removing. |
 
-## `prodshadow rules`, `schema`, `completion`, `version`
+## `prodshadow rules`, `locks`, `schema`, `completion`, `version`
 
 * `prodshadow rules [--kind static|observed|quality] [--json] [RULE ...]`
   lists every rule with its default severity. Name one or more rules, by ID
   or name, to see their details and a link to their documentation page,
   for example `prodshadow rules PS103 OBS002`.
+* `prodshadow locks [--json] [MODE]` explains PostgreSQL's table lock modes:
+  which statements take each one, which modes it conflicts with and which
+  statements wait while it is held or queued. Name a mode in any spelling
+  (`access exclusive`, `ACCESS_EXCLUSIVE`, `AccessExclusiveLock`) for its
+  details.
 * `prodshadow schema config|workload|report` prints a JSON Schema.
 * `prodshadow completion bash|zsh|fish` prints a shell completion script for
   commands, flags and schema names, e.g. `source <(prodshadow completion bash)`
