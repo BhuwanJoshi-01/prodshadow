@@ -98,18 +98,30 @@ func loadMigrations(base string, files []string) ([]*sqlinspect.Statement, error
 	return sqlinspect.ParseSources(srcs)
 }
 
-// fixtureCatalog learns indexes, partitions, views, sequences and foreign
-// keys from the fixture schema, or returns nil when there is no readable
-// schema (validate reports that).
+// fixtureCatalog learns indexes, partitions, views, sequences, foreign keys,
+// functions, triggers and rules from the fixture schema and seed, or
+// returns nil when there is neither or one cannot be read (validate
+// reports that).
 func fixtureCatalog(cfg *config.Config) *sqlinspect.Catalog {
-	if cfg == nil || cfg.Fixture.Schema == "" {
+	if cfg == nil || (cfg.Fixture.Schema == "" && cfg.Fixture.SeedSQL == "") {
 		return nil
 	}
-	schema, err := schemaStatements(cfg.Resolve(cfg.Fixture.Schema), cfg.Fixture.Schema)
-	if err != nil {
-		return nil
+	// The fixture is loaded schema first, then seed; DDL in the seed (an
+	// index built after loading data, or the whole schema when there is
+	// no schema file) counts too. Data statements teach the catalog
+	// nothing.
+	var all []*sqlinspect.Statement
+	for _, f := range []string{cfg.Fixture.Schema, cfg.Fixture.SeedSQL} {
+		if f == "" {
+			continue
+		}
+		stmts, err := schemaStatements(cfg.Resolve(f), f)
+		if err != nil {
+			return nil
+		}
+		all = append(all, stmts...)
 	}
-	return sqlinspect.NewCatalog(schema)
+	return sqlinspect.NewCatalog(all)
 }
 
 // schemaStatements parses a schema file (path on disk, display name for

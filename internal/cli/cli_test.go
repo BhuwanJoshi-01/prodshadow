@@ -175,6 +175,18 @@ func TestInspectSchemaFlag(t *testing.T) {
 	}
 }
 
+func TestCatalogLearnsFromSeedDDL(t *testing.T) {
+	dir := initProject(t)
+	seed := filepath.Join(dir, "fixtures", "seed.sql")
+	raw, _ := os.ReadFile(seed)
+	writeFile(t, seed, string(raw)+"\nCREATE INDEX orders_status_after_load ON orders (status);\n")
+	writeFile(t, filepath.Join(dir, "drop.sql"), "DROP INDEX orders_status_after_load;\n")
+	r := run(t, dir, nil, "inspect", "--config", "prodshadow.yaml", "--migration", "drop.sql")
+	if !strings.Contains(r.stdout, "ACCESS EXCLUSIVE on orders (via index orders_status_after_load") {
+		t.Fatalf("an index the seed builds should be known: %+v", r)
+	}
+}
+
 func TestInspect(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, filepath.Join(dir, "m.sql"), "CREATE INDEX idx ON orders (customer_id);\nALTER TABLE orders ADD COLUMN x int;\n")
