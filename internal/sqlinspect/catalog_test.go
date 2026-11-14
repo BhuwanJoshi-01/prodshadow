@@ -120,3 +120,18 @@ func TestNilCatalogIsANoOp(t *testing.T) {
 		t.Fatal("a nil catalog must change nothing")
 	}
 }
+
+func TestCatalogPartitionedMaintenanceRunsOutsideTransactions(t *testing.T) {
+	stmts := resolved(t, "REINDEX TABLE events;\nCLUSTER events USING events_at_idx;\nREINDEX TABLE orders;\n")
+	for _, s := range stmts[:2] {
+		if s.Txn != TxnNotInBlock {
+			t.Errorf("%s on a partitioned table cannot run in a transaction block", s.Tag)
+		}
+		if _, ok := lockOn(s, "events_2026_h1"); !ok {
+			t.Errorf("%s should lock every partition: %+v", s.Tag, s.Locks)
+		}
+	}
+	if stmts[2].Txn != TxnAny {
+		t.Error("REINDEX TABLE on a plain table can run in a transaction block")
+	}
+}

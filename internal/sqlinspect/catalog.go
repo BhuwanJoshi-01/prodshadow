@@ -195,6 +195,10 @@ func (c *Catalog) resolve(s *Statement) {
 			}
 		}
 	case *pg_query.Node_ReindexStmt:
+		if x.ReindexStmt.Kind == pg_query.ReindexObjectType_REINDEX_OBJECT_TABLE {
+			c.partitionedMaintenance(s, relName(x.ReindexStmt.Relation))
+			break
+		}
 		if x.ReindexStmt.Kind != pg_query.ReindexObjectType_REINDEX_OBJECT_INDEX {
 			break
 		}
@@ -205,6 +209,10 @@ func (c *Catalog) resolve(s *Statement) {
 				mode = pglock.ShareUpdateExclusive
 			}
 			s.addImpliedLock(t, mode, "index "+idx)
+		}
+	case *pg_query.Node_ClusterStmt:
+		if x.ClusterStmt.Relation != nil {
+			c.partitionedMaintenance(s, relName(x.ClusterStmt.Relation))
 		}
 	case *pg_query.Node_RefreshMatViewStmt:
 		view := relName(x.RefreshMatViewStmt.Relation)
@@ -237,6 +245,18 @@ func (c *Catalog) resolve(s *Statement) {
 			}
 		}
 	}
+}
+
+// partitionedMaintenance handles REINDEX TABLE and CLUSTER on a
+// partitioned table: PostgreSQL processes each partition in its own
+// transaction, so the statement cannot run inside a transaction block, and
+// each partition is locked in turn.
+func (c *Catalog) partitionedMaintenance(s *Statement, table string) {
+	if !c.IsPartitioned(table) {
+		return
+	}
+	s.Txn = TxnNotInBlock
+	c.propagate(s, table)
 }
 
 // propagate gives every partition of table the lock s takes on table:

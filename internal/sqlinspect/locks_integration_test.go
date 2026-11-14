@@ -30,6 +30,7 @@ ALTER TABLE orders ADD CONSTRAINT orders_amount_check CHECK (amount >= 0) NOT VA
 CREATE TABLE staging (id int, customer_id int, status text, amount int, note text);
 CREATE TABLE events (id bigint, at timestamptz NOT NULL) PARTITION BY RANGE (at);
 CREATE TABLE events_2026 PARTITION OF events FOR VALUES FROM ('2026-01-01') TO ('2027-01-01');
+CREATE INDEX events_at_part_idx ON events (at);
 CREATE TABLE events_2027 (id bigint, at timestamptz NOT NULL);
 CREATE MATERIALIZED VIEW order_totals AS SELECT customer_id, sum(amount) AS total FROM orders GROUP BY 1;
 CREATE UNIQUE INDEX order_totals_customer ON order_totals (customer_id);
@@ -248,6 +249,10 @@ func TestNotInBlockOracle(t *testing.T) {
 	if _, err := conn.Exec(ctx, oracleSchema); err != nil {
 		t.Fatal(err)
 	}
+	schema, err := ParseSources([]Source{{Path: "schema.sql", Content: oracleSchema}})
+	if err != nil {
+		t.Fatal(err)
+	}
 	for _, sql := range []string{
 		"CREATE INDEX CONCURRENTLY orders_customer_idx ON orders (customer_id)",
 		"DROP INDEX CONCURRENTLY orders_status_idx",
@@ -258,12 +263,15 @@ func TestNotInBlockOracle(t *testing.T) {
 		"REINDEX DATABASE postgres",
 		"CREATE DATABASE oracle_db",
 		"ALTER SYSTEM SET work_mem = '8MB'",
+		"REINDEX TABLE events",
+		"CLUSTER events USING events_at_part_idx",
 	} {
 		t.Run(sql, func(t *testing.T) {
 			stmts, err := ParseSources([]Source{{Path: "oracle.sql", Content: sql + ";"}})
 			if err != nil || len(stmts) != 1 {
 				t.Fatalf("parse: %v", err)
 			}
+			NewCatalog(schema).Resolve(stmts)
 			if stmts[0].Txn != TxnNotInBlock {
 				t.Errorf("classifier says %v, want TxnNotInBlock", stmts[0].Txn)
 			}
