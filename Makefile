@@ -39,7 +39,7 @@ vet:
 
 lint: vet
 	@test -z "$$(gofmt -l cmd internal schemas)" || (echo "run make fmt" && gofmt -l cmd internal schemas && exit 1)
-	@command -v golangci-lint >/dev/null && golangci-lint run || echo "golangci-lint not installed; skipped"
+	@command -v golangci-lint >/dev/null && golangci-lint run || echo "golangci-lint not installed; skipped (CI uses v2.15.0)"
 
 tidy:
 	$(GO) mod tidy

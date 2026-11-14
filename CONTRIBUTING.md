@@ -69,12 +69,28 @@ non-root user (PostgreSQL refuses to start as root).
 
 ## Adding a static rule
 
-1. Add the rule to the matching `internal/sqlinspect/rules_*.go` file with a
-   new `PS1xx` ID, a kebab-case name, a summary and a documentation link.
+1. Add the rule to the matching `internal/sqlinspect/rules_*.go` file (or a
+   new one) with the next free `PS1xx` ID, a kebab-case name, a summary and a
+   documentation link, registered from an `init` function. Use `check` for a
+   per-statement rule and `checkAll` for one that looks at the whole
+   migration.
 2. Keep it conservative. If the hazard depends on data the parser cannot
-   see, mark the finding `heuristic` with lowered confidence.
-3. Add positive and negative cases to the rule's test file.
-4. Document it in [docs/rules.md](docs/rules.md).
+   see, mark the finding `heuristic` with lowered confidence. Skip relations
+   created earlier in the migration (`Context.CreatedEarlier`), since
+   nothing uses them yet, and follow the transaction plan
+   (`Context.Group`) when the hazard depends on transaction scope.
+3. Add positive and negative cases to the rule's test file; the
+   `findings(t, "PS1xx", Options{}, sql...)` helper analyses one or more
+   files.
+4. Document it: add `docs/rules/PS1xx.md` (what it detects, why it matters,
+   a flagged and a preferred example, how the experiment verifies it,
+   configuration and references) and a row in [docs/rules.md](docs/rules.md)
+   linking the page. `TestEveryRuleIsDocumented` fails until both exist,
+   and SARIF results link the page.
+5. Mention it in `CHANGELOG.md`.
+
+Observed (`OBS`) and quality (`QUAL`) rules live in `internal/risk`; they
+need the same page and catalogue row.
 
 ## Commit messages
 
