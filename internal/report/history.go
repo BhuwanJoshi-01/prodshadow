@@ -11,8 +11,8 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/evidence"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/experiment"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/evidence"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/experiment"
 )
 
 // HistoryEntry summarises one run for a timeline of stored reports.

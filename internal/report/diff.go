@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/risk"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/risk"
 )
 
 // Diff compares two reports, typically a migration and its rewritten

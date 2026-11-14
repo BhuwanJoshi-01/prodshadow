@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/BhuwanJoshi-01/Open-Source-1/schemas/workload.v1.schema.json",
+  "$id": "https://github.com/BhuwanJoshi-01/prodshadow/schemas/workload.v1.schema.json",
   "title": "ProdShadow workload definition",
   "type": "object",
   "additionalProperties": false,

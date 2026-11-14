@@ -7,7 +7,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/sqlsplit"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/sqlsplit"
 
 	pg_query "github.com/pganalyze/pg_query_go/v6"
 )

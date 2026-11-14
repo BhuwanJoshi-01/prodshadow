@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/config"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/config"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -13,10 +13,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/fixture"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/isolation"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/report"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/workload"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/fixture"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/isolation"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/report"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/workload"
 )
 
 type result struct {
@@ -755,7 +755,7 @@ func TestInspectMarkdownLinksRules(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, filepath.Join(dir, "m.sql"), "CREATE INDEX orders_note_idx ON orders (note);\n")
 	r := run(t, dir, nil, "inspect", "--migration", "m.sql", "--format", "markdown")
-	if r.code != ExitOK || !strings.Contains(r.stdout, "[PS101](https://github.com/BhuwanJoshi-01/Open-Source-1/blob/main/docs/rules/PS101.md) create-index-blocks-writes") {
+	if r.code != ExitOK || !strings.Contains(r.stdout, "[PS101](https://github.com/BhuwanJoshi-01/prodshadow/blob/main/docs/rules/PS101.md) create-index-blocks-writes") {
 		t.Fatalf("inspect --format markdown: %+v", r)
 	}
 }

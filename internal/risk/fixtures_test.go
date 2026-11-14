@@ -3,11 +3,11 @@ package risk
 import (
 	"time"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/experiment"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/migrate"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/stats"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/telemetry"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/workload"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/experiment"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/migrate"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/stats"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/telemetry"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/workload"
 )
 
 // scen builds scenario stats with the given p95/p99 and max latency.

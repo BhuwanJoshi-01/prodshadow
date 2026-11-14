@@ -3,7 +3,7 @@ GO        ?= go
 BIN       := bin/prodshadow
 PKGS      := ./...
 VERSION   ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
-LDFLAGS   := -s -w -X github.com/BhuwanJoshi-01/Open-Source-1/internal/version.Version=$(VERSION)
+LDFLAGS   := -s -w -X github.com/BhuwanJoshi-01/prodshadow/internal/version.Version=$(VERSION)
 
 export CGO_ENABLED = 1
 

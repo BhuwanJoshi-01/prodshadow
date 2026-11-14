@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/schemas"
+	"github.com/BhuwanJoshi-01/prodshadow/schemas"
 )
 
 // completionFlag is one flag of a command, as shown by its -h output.

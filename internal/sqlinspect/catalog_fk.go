@@ -6,7 +6,7 @@ import (
 
 	pg_query "github.com/pganalyze/pg_query_go/v6"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/pglock"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/pglock"
 )
 
 // catalogFK is a foreign key constraint known to the catalog.

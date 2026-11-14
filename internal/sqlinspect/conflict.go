@@ -1,7 +1,7 @@
 package sqlinspect
 
 import (
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/pglock"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/pglock"
 )
 
 // Conflict is a predicted lock conflict between a migration statement and

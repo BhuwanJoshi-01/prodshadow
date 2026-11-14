@@ -2,7 +2,7 @@
 //
 // The variables are overridden at link time by the release pipeline, e.g.
 //
-//	go build -ldflags "-X github.com/BhuwanJoshi-01/Open-Source-1/internal/version.Version=v0.1.0"
+//	go build -ldflags "-X github.com/BhuwanJoshi-01/prodshadow/internal/version.Version=v0.1.0"
 package version
 
 import (

@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/security"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/security"
 )
 
 // Label keys applied to container resources.

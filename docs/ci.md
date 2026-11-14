@@ -17,7 +17,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
-      - uses: BhuwanJoshi-01/Open-Source-1@main   # pin a release tag or commit SHA
+      - uses: BhuwanJoshi-01/prodshadow@main   # pin a release tag or commit SHA
         with:
           config: prodshadow.yaml
 ```
@@ -49,7 +49,7 @@ Outputs: `exit-code`, `decision` (`pass`, `block`, `inconclusive`,
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: BhuwanJoshi-01/Open-Source-1@main
+      - uses: BhuwanJoshi-01/prodshadow@main
         with:
           changed-since: origin/${{ github.base_ref }}
 ```
@@ -95,7 +95,7 @@ not annotated.
 Add `sarif` to `report.formats` and upload the file:
 
 ```yaml
-      - uses: BhuwanJoshi-01/Open-Source-1@main
+      - uses: BhuwanJoshi-01/prodshadow@main
         id: prodshadow
         with:
           fail: "false"
@@ -128,7 +128,7 @@ failing, set `policy.inconclusive: pass` — the report still says
 Any Linux runner with Docker or Podman works:
 
 ```bash
-CGO_ENABLED=1 go install github.com/BhuwanJoshi-01/Open-Source-1/cmd/prodshadow@main
+CGO_ENABLED=1 go install github.com/BhuwanJoshi-01/prodshadow/cmd/prodshadow@main
 prodshadow verify --config prodshadow.yaml
 status=$?
 # publish prodshadow-results/ as an artifact, then:

@@ -6,7 +6,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/schemas"
+	"github.com/BhuwanJoshi-01/prodshadow/schemas"
 )
 
 type schemaNode struct {

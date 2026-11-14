@@ -12,7 +12,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/sqlinspect"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/sqlinspect"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"

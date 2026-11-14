@@ -6,7 +6,7 @@ import (
 	"math/rand/v2"
 	"strings"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/gen"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/gen"
 
 	"github.com/jackc/pgx/v5"
 )

@@ -8,7 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/cli"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/cli"
 )
 
 func main() {

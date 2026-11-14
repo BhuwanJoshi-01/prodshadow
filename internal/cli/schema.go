@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/schemas"
+	"github.com/BhuwanJoshi-01/prodshadow/schemas"
 )
 
 func runSchema(_ context.Context, env *Env, args []string) int {

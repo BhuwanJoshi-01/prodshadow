@@ -10,7 +10,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/risk"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/risk"
 )
 
 // Exit codes. They are part of the public contract; see docs/cli.md.

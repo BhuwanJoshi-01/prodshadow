@@ -6,7 +6,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/workload"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/workload"
 )
 
 // TestExamplePlansPredictConflicts pins the conflicts plan predicts for

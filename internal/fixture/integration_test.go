@@ -6,9 +6,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/isolation"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/pgtest"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/sqlinspect"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/isolation"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/pgtest"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/sqlinspect"
 
 	"go.yaml.in/yaml/v3"
 )

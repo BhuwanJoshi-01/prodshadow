@@ -3,7 +3,7 @@ package sqlinspect
 import (
 	"testing"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/evidence"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/evidence"
 )
 
 func TestPS116Unparsed(t *testing.T) {

@@ -6,7 +6,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/schemas"
+	"github.com/BhuwanJoshi-01/prodshadow/schemas"
 
 	"github.com/santhosh-tekuri/jsonschema/v6"
 )

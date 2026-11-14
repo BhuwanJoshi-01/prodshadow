@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/migrate"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/workload"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/migrate"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/workload"
 )
 
 func TestScheduleAlternatesOrder(t *testing.T) {

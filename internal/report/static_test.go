@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/risk"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/risk"
 )
 
 // A static-only run (no workload) still produces complete, honest reports.

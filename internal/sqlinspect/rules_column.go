@@ -3,8 +3,8 @@ package sqlinspect
 import (
 	"fmt"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/evidence"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/pglock"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/evidence"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/pglock"
 
 	pg_query "github.com/pganalyze/pg_query_go/v6"
 )

@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/fixture"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/isolation"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/postgres"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/fixture"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/isolation"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/postgres"
 
 	"github.com/jackc/pgx/v5"
 )

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/isolation"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/isolation"
 )
 
 func runCleanup(ctx context.Context, env *Env, args []string) int {

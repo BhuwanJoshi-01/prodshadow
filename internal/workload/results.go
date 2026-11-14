@@ -5,7 +5,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/stats"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/stats"
 )
 
 // Window selects operations by start time relative to the measurement

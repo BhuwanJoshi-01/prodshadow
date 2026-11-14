@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/BhuwanJoshi-01/Open-Source-1/schemas/report.v1.schema.json",
+  "$id": "https://github.com/BhuwanJoshi-01/prodshadow/schemas/report.v1.schema.json",
   "title": "ProdShadow report",
   "description": "Result of a ProdShadow verification run. Versioned with semantic versioning independently of the CLI: additive changes bump the minor version.",
   "type": "object",

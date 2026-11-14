@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"sort"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/evidence"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/risk"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/sqlinspect"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/evidence"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/risk"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/sqlinspect"
 )
 
 // SARIF 2.1.0 output, so findings appear as code scanning alerts and pull
@@ -16,7 +16,7 @@ import (
 const (
 	sarifSchema  = "https://json.schemastore.org/sarif-2.1.0.json"
 	sarifVersion = "2.1.0"
-	toolURI      = "https://github.com/BhuwanJoshi-01/Open-Source-1"
+	toolURI      = "https://github.com/BhuwanJoshi-01/prodshadow"
 )
 
 type sarifLog struct {

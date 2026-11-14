@@ -9,7 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/gen"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/gen"
 
 	"github.com/jackc/pgx/v5/pgconn"
 )

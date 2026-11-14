@@ -8,9 +8,9 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/report"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/risk"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/sqlinspect"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/report"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/risk"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/sqlinspect"
 )
 
 type ruleInfo struct {

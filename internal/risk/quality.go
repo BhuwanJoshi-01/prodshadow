@@ -4,9 +4,9 @@ import (
 	"math"
 	"sort"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/experiment"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/postgres"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/stats"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/experiment"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/postgres"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/stats"
 )
 
 // UnstableCV is the baseline p95 coefficient of variation above which

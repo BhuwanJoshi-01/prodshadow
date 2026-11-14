@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/config"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/workload"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/config"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/workload"
 )
 
 func TestCheckCapacity(t *testing.T) {

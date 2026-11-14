@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/evidence"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/evidence"
 )
 
 func init() {
@@ -14,7 +14,7 @@ func init() {
 		Name:     "invalid-annotation",
 		Summary:  "A prodshadow: comment directive is malformed and is ignored",
 		Severity: evidence.Warning,
-		DocsURL:  "https://github.com/BhuwanJoshi-01/Open-Source-1/blob/main/docs/rules.md#suppressions",
+		DocsURL:  "https://github.com/BhuwanJoshi-01/prodshadow/blob/main/docs/rules.md#suppressions",
 		check:    checkInvalidAnnotation,
 	})
 }
@@ -42,7 +42,7 @@ func init() {
 		Name:     "expired-annotation",
 		Summary:  "An inline suppression has passed its expiry date and no longer applies",
 		Severity: evidence.Info,
-		DocsURL:  "https://github.com/BhuwanJoshi-01/Open-Source-1/blob/main/docs/rules.md#suppressions",
+		DocsURL:  "https://github.com/BhuwanJoshi-01/prodshadow/blob/main/docs/rules.md#suppressions",
 		check:    checkExpiredAnnotation,
 	})
 }
@@ -77,7 +77,7 @@ func init() {
 		Name:          "unused-annotation",
 		Summary:       "An inline suppression names a static rule that reports nothing for its statement",
 		Severity:      evidence.Info,
-		DocsURL:       "https://github.com/BhuwanJoshi-01/Open-Source-1/blob/main/docs/rules.md#suppressions",
+		DocsURL:       "https://github.com/BhuwanJoshi-01/prodshadow/blob/main/docs/rules.md#suppressions",
 		checkFindings: unusedAnnotations,
 	})
 }

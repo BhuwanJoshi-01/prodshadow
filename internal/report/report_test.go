@@ -12,17 +12,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/config"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/experiment"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/migrate"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/postgres"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/risk"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/security"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/sqlinspect"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/stats"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/telemetry"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/version"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/workload"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/config"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/experiment"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/migrate"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/postgres"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/risk"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/security"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/sqlinspect"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/stats"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/telemetry"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/version"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/workload"
 )
 
 var update = flag.Bool("update", false, "rewrite golden files")

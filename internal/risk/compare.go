@@ -7,9 +7,9 @@ package risk
 import (
 	"math"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/experiment"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/stats"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/workload"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/experiment"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/stats"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/workload"
 )
 
 // Side summarises one scenario across all repeats of one phase kind.

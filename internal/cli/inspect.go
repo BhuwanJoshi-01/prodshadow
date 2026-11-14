@@ -8,12 +8,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/config"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/evidence"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/report"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/risk"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/sqlinspect"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/version"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/config"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/evidence"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/report"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/risk"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/sqlinspect"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/version"
 )
 
 func runInspect(_ context.Context, env *Env, args []string) int {

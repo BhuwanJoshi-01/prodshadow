@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/workload"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/workload"
 )
 
 // maxStatsFile bounds the statistics export read by draft-workload.

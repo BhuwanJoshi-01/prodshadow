@@ -9,7 +9,7 @@
 package sqlinspect
 
 import (
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/pglock"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/pglock"
 
 	pg_query "github.com/pganalyze/pg_query_go/v6"
 )

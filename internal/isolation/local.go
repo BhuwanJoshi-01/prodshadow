@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/security"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/security"
 )
 
 // localProvider runs PostgreSQL binaries installed on the host, in a private

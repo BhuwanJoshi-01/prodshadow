@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/security"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/security"
 )
 
 func testSpec() Spec {

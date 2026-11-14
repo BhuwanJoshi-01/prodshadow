@@ -79,7 +79,7 @@ engine, the `local` provider runs installed PostgreSQL binaries (without
 resource limits).
 
 ```bash
-go install github.com/BhuwanJoshi-01/Open-Source-1/cmd/prodshadow@latest
+go install github.com/BhuwanJoshi-01/prodshadow/cmd/prodshadow@latest
 
 prodshadow init            # starter config, fixture, workload and migration
 prodshadow doctor          # check Docker and the configuration
@@ -123,7 +123,7 @@ JUnit XML on request) and exits with:
 
 ```yaml
 - uses: actions/checkout@v4
-- uses: BhuwanJoshi-01/Open-Source-1@main
+- uses: BhuwanJoshi-01/prodshadow@main
   with:
     config: prodshadow.yaml
 ```

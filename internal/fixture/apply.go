@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/sqlinspect"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/sqlsplit"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/sqlinspect"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/sqlsplit"
 
 	"github.com/jackc/pgx/v5"
 )

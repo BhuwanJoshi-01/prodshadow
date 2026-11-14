@@ -3,7 +3,7 @@ package report
 import (
 	"fmt"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/experiment"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/experiment"
 )
 
 // CompatibilityRow summarises one compatibility probe across the candidate

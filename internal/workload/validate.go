@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/sqlinspect"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/sqlinspect"
 )
 
 var idRe = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{0,63}$`)

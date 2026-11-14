@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/report"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/sqlinspect"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/version"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/report"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/sqlinspect"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/version"
 )
 
 func runVersion(_ context.Context, env *Env, args []string) int {

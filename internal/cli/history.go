@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/report"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/report"
 )
 
 func runHistory(_ context.Context, env *Env, args []string) int {

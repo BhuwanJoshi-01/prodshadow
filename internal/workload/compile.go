@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/gen"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/sqlinspect"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/gen"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/sqlinspect"
 )
 
 // DefaultTimeout is the statement_timeout of workload sessions when a

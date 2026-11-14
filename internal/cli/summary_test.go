@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/report"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/risk"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/workload"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/report"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/risk"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/workload"
 )
 
 func TestSummaryShowsStallsAndPredictions(t *testing.T) {

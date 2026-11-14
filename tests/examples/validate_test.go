@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/cli"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/cli"
 )
 
 func TestExamplesValidate(t *testing.T) {

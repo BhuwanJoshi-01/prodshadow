@@ -1,8 +1,8 @@
 package sqlinspect
 
 import (
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/evidence"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/pglock"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/evidence"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/pglock"
 )
 
 // Finding is a static hazard attached to a statement or to the migration.

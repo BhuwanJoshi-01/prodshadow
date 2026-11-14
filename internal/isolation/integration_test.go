@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/security"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/security"
 )
 
 // Integration tests need a container engine (or local PostgreSQL binaries)

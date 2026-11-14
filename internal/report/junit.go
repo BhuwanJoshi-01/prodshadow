@@ -7,8 +7,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/evidence"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/risk"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/evidence"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/risk"
 )
 
 // JUnit XML lets CI systems that understand test reports (GitLab, Jenkins,

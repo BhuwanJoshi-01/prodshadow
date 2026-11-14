@@ -11,8 +11,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/fixture"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/sqlinspect"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/fixture"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/sqlinspect"
 )
 
 func runDraftFixture(_ context.Context, env *Env, args []string) int {

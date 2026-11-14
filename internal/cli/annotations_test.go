@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/risk"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/risk"
 )
 
 func TestWriteAnnotations(t *testing.T) {
@@ -20,7 +20,7 @@ func TestWriteAnnotations(t *testing.T) {
 	if len(lines) != 2 {
 		t.Fatalf("expected two annotations, got %q", lines)
 	}
-	if lines[0] != "::error title=ProdShadow OBS002 migration-lock-timeout,file=m.sql,line=4::blocked%0A::error::injected See https://github.com/BhuwanJoshi-01/Open-Source-1/blob/main/docs/rules/OBS002.md" {
+	if lines[0] != "::error title=ProdShadow OBS002 migration-lock-timeout,file=m.sql,line=4::blocked%0A::error::injected See https://github.com/BhuwanJoshi-01/prodshadow/blob/main/docs/rules/OBS002.md" {
 		t.Fatalf("unexpected first annotation %q", lines[0])
 	}
 	if !strings.Contains(lines[1], "file=a%2Cb.sql") || !strings.Contains(lines[1], "::100%25 sure See ") {

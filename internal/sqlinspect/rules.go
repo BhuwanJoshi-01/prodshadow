@@ -4,7 +4,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/evidence"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/evidence"
 )
 
 // Rule is a static hazard check. Rules are deliberately conservative and

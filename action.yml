@@ -70,7 +70,7 @@ runs:
       run: |
         set -euo pipefail
         version="${PS_VERSION:-${PS_ACTION_REF:-main}}"
-        CGO_ENABLED=1 go install "github.com/BhuwanJoshi-01/Open-Source-1/cmd/prodshadow@${version}"
+        CGO_ENABLED=1 go install "github.com/BhuwanJoshi-01/prodshadow/cmd/prodshadow@${version}"
         prodshadow version
 
     - name: Predicted locks and conflicts

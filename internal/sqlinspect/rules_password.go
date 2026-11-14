@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/evidence"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/evidence"
 
 	pg_query "github.com/pganalyze/pg_query_go/v6"
 	"google.golang.org/protobuf/reflect/protoreflect"

@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/security"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/security"
 )
 
 // containerSocketDir is where the official image's server creates its socket.

@@ -10,9 +10,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/isolation"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/pglock"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/pgtest"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/isolation"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/pglock"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/pgtest"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"

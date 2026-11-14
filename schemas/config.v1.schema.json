@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/BhuwanJoshi-01/Open-Source-1/schemas/config.v1.schema.json",
+  "$id": "https://github.com/BhuwanJoshi-01/prodshadow/schemas/config.v1.schema.json",
   "title": "ProdShadow configuration (prodshadow.yaml)",
   "description": "There is intentionally no field for a database connection string: every database is created by the isolation manager.",
   "type": "object",

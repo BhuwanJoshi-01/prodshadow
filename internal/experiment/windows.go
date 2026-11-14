@@ -3,8 +3,8 @@ package experiment
 import (
 	"time"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/migrate"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/workload"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/migrate"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/workload"
 )
 
 // migrationWindows splits a candidate measurement into the part before the

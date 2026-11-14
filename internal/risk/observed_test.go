@@ -4,12 +4,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/evidence"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/experiment"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/migrate"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/sqlinspect"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/telemetry"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/workload"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/evidence"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/experiment"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/migrate"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/sqlinspect"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/telemetry"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/workload"
 )
 
 func failingWith(state, msg string) *experiment.Result {

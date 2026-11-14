@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/report"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/report"
 )
 
 func runReport(_ context.Context, env *Env, args []string) int {

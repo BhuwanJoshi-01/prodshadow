@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/pglock"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/pglock"
 )
 
 func TestPS107ValidatedConstraints(t *testing.T) {

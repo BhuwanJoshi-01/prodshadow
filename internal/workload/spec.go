@@ -13,7 +13,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/gen"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/gen"
 
 	"go.yaml.in/yaml/v3"
 )

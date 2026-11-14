@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/BhuwanJoshi-01/Open-Source-1/schemas/suppressions.v1.schema.json",
+  "$id": "https://github.com/BhuwanJoshi-01/prodshadow/schemas/suppressions.v1.schema.json",
   "title": "ProdShadow suppression file",
   "description": "Audited exceptions referenced by policy.suppressions in prodshadow.yaml.",
   "type": "object",

@@ -34,7 +34,7 @@ jobs:
           name="prodshadow_${VERSION#v}_${{ matrix.goos }}_${{ matrix.goarch }}"
           mkdir -p "dist/$name"
           go build -trimpath \
-            -ldflags "-s -w -X github.com/BhuwanJoshi-01/Open-Source-1/internal/version.Version=${VERSION} -X github.com/BhuwanJoshi-01/Open-Source-1/internal/version.Commit=${GITHUB_SHA} -X github.com/BhuwanJoshi-01/Open-Source-1/internal/version.Date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            -ldflags "-s -w -X github.com/BhuwanJoshi-01/prodshadow/internal/version.Version=${VERSION} -X github.com/BhuwanJoshi-01/prodshadow/internal/version.Commit=${GITHUB_SHA} -X github.com/BhuwanJoshi-01/prodshadow/internal/version.Date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             -o "dist/$name/prodshadow" ./cmd/prodshadow
           cp LICENSE NOTICE README.md "dist/$name/"
           go version -m "dist/$name/prodshadow" > "dist/$name/BUILDINFO.txt"

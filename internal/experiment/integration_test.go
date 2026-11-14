@@ -9,13 +9,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/config"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/isolation"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/migrate"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/pgtest"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/security"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/sqlinspect"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/workload"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/config"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/isolation"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/migrate"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/pgtest"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/security"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/sqlinspect"
+	"github.com/BhuwanJoshi-01/prodshadow/internal/workload"
 )
 
 const schema = `CREATE TABLE orders (id bigint PRIMARY KEY, customer_id int NOT NULL, status text NOT NULL);

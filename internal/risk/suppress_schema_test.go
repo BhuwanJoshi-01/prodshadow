@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/BhuwanJoshi-01/Open-Source-1/schemas"
+	"github.com/BhuwanJoshi-01/prodshadow/schemas"
 )
 
 // TestSuppressionSchemaMatchesStruct keeps the published JSON Schema and

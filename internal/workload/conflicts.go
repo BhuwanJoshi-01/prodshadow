@@ -1,6 +1,6 @@
 package workload
 
-import "github.com/BhuwanJoshi-01/Open-Source-1/internal/sqlinspect"
+import "github.com/BhuwanJoshi-01/prodshadow/internal/sqlinspect"
 
 // Conflict is a predicted lock conflict between a migration statement and
 // the SQL of a scenario or background session: whichever comes second
