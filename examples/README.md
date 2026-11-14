@@ -5,7 +5,8 @@ workload and migration, plus a README with the expected decision and what
 to change. Run any of them from the repository root:
 
 ```bash
-prodshadow verify --config examples/<name>/prodshadow.yaml
+prodshadow plan   --config examples/<name>/prodshadow.yaml   # predicted locks and conflicts, in a second
+prodshadow verify --config examples/<name>/prodshadow.yaml   # the measured experiment
 ```
 
 | Example | Migration | What happens | Expected |

@@ -94,3 +94,15 @@ fixture schema and shows such locks with their origin, for example
 `ACCESS EXCLUSIVE on customers (via foreign key invoices_customer_fk)`.
 [Locks beyond the named table](guides/locks-beyond-the-named-table.md)
 lists every case, each checked against a real server.
+
+## `plan` predicted a conflict that `verify` did not measure. Which is right?
+
+Both. `plan` says which sessions *can* wait for which migration statement,
+from the lock modes alone; `verify` measures how long they did. A
+conflicting lock that is granted and released within milliseconds (an
+`ADD COLUMN` with nothing holding the table) costs nothing measurable,
+while the same statement behind a long transaction stalls everything.
+That difference is why ProdShadow runs the experiment at all. When the two
+disagree the other way (a stall without a predicted conflict, or a wait on
+a table nothing was predicted to lock), see
+[Troubleshooting](troubleshooting.md#a-prediction-does-not-match-the-measurement).
