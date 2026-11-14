@@ -57,6 +57,13 @@ func runPhase(ctx context.Context, plan Plan, srv *isolation.Server, step Step) 
 		return nil, err
 	}
 
+	var probesBefore []workload.ProbeResult
+	if step.Kind == Candidate && hasProbes(plan) {
+		if probesBefore, err = runProbes(ctx, plan, srv, db, step); err != nil {
+			return nil, err
+		}
+	}
+
 	pr := &PhaseResult{Step: step, StartedAt: time.Now()}
 	interval := time.Duration(cfg.Telemetry.SampleIntervalMS) * time.Millisecond
 	sampler := telemetry.NewSampler(monitor, interval)
@@ -128,6 +135,13 @@ func runPhase(ctx context.Context, plan Plan, srv *isolation.Server, step Step) 
 	if migrationErr != nil {
 		return nil, fmt.Errorf("migration session: %w", migrationErr)
 	}
+	if probesBefore != nil {
+		after, err := runProbes(ctx, plan, srv, db, step)
+		if err != nil {
+			return nil, err
+		}
+		pr.Compatibility = pairProbes(plan, probesBefore, after)
+	}
 
 	time.Sleep(statsFlushDelay)
 	after, err := telemetry.Snapshot(ctx, monitor)
@@ -188,6 +202,41 @@ func runMigration(ctx context.Context, plan Plan, srv *isolation.Server, db stri
 		Transaction:      sqlinspect.TransactionMode(cfg.Migration.Transaction),
 		Reference:        measureStart,
 	})
+}
+
+func hasProbes(plan Plan) bool {
+	return plan.Workload != nil && len(plan.Workload.Compatibility) > 0
+}
+
+// runProbes runs the compatibility probes as the application role. Before
+// and after the migration the same parameter values are drawn.
+func runProbes(ctx context.Context, plan Plan, srv *isolation.Server, db string, step Step) ([]workload.ProbeResult, error) {
+	app, _ := srv.App()
+	conn, err := srv.Connect(ctx, app, isolation.ConnOptions{Database: db, ApplicationName: "prodshadow/compatibility"})
+	if err != nil {
+		return nil, err
+	}
+	defer isolation.Close(conn)
+	res, err := workload.RunProbes(ctx, conn, plan.Workload, plan.Config.Workload.Seed, fmt.Sprintf("repeat-%d", step.Repeat))
+	if err != nil {
+		return nil, fmt.Errorf("compatibility probes: %w", err)
+	}
+	return res, nil
+}
+
+// pairProbes joins the before and after results, which come in the same
+// order, and redacts server messages.
+func pairProbes(plan Plan, before, after []workload.ProbeResult) []Compatibility {
+	out := make([]Compatibility, 0, len(before))
+	for i, b := range before {
+		c := Compatibility{Version: b.Version, Probe: b.ID, BeforeOK: b.OK, BeforeSQLState: b.SQLState, BeforeError: plan.Redactor.String(b.Error)}
+		if i < len(after) {
+			a := after[i]
+			c.AfterOK, c.AfterSQLState, c.AfterError = a.OK, a.SQLState, plan.Redactor.String(a.Error)
+		}
+		out = append(out, c)
+	}
+	return out
 }
 
 // redactOutcome removes secrets from server error messages.

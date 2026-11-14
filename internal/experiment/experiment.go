@@ -51,10 +51,29 @@ type PhaseResult struct {
 	LoggedWaits     telemetry.LogSummary     `json:"logged_waits"`
 	Counters        telemetry.Counters       `json:"counters"`
 	Migration       *migrate.Outcome         `json:"migration,omitempty"`
-	Sessions        int                      `json:"sessions"`
-	ConnectFailures int                      `json:"connect_failures"`
-	Mode            string                   `json:"mode"`
+	// Compatibility holds the compatibility probes' outcomes before and
+	// after the migration (candidate phases only).
+	Compatibility   []Compatibility `json:"compatibility,omitempty"`
+	Sessions        int             `json:"sessions"`
+	ConnectFailures int             `json:"connect_failures"`
+	Mode            string          `json:"mode"`
 }
+
+// Compatibility is one probe's outcome before and after the migration.
+type Compatibility struct {
+	Version        string `json:"version"`
+	Probe          string `json:"probe"`
+	BeforeOK       bool   `json:"before_ok"`
+	AfterOK        bool   `json:"after_ok"`
+	BeforeSQLState string `json:"before_sqlstate,omitempty"`
+	AfterSQLState  string `json:"after_sqlstate,omitempty"`
+	BeforeError    string `json:"before_error,omitempty"`
+	AfterError     string `json:"after_error,omitempty"`
+}
+
+// Broken reports whether the probe worked before the migration and failed
+// after it.
+func (c Compatibility) Broken() bool { return c.BeforeOK && !c.AfterOK }
 
 // Result is the outcome of the whole experiment.
 type Result struct {

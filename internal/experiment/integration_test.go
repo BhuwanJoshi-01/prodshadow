@@ -121,6 +121,37 @@ func TestHarmlessMigrationDoesNotStall(t *testing.T) {
 	}
 }
 
+func TestCompatibilityProbesSeeTheMigration(t *testing.T) {
+	p := plan(t, "ALTER TABLE orders DROP COLUMN status;")
+	p.Workload.Background = nil
+	p.Workload.Scenarios = p.Workload.Scenarios[:1]
+	p.Workload.Scenarios[0].SQL = "SELECT customer_id FROM orders WHERE id = $1"
+	p.Workload.Compatibility = []workload.AppVersion{
+		{Version: "old", Probes: []workload.Probe{{ID: "status", SQL: "SELECT status FROM orders WHERE id = 1"}}},
+		{Version: "new", Probes: []workload.Probe{{ID: "customer", SQL: "SELECT customer_id FROM orders WHERE id = 1"}}},
+	}
+	p.Config.Workload.Repeats = 1
+	res, err := Run(context.Background(), p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, ph := range res.Phases {
+		if ph.Kind != Candidate {
+			if len(ph.Compatibility) != 0 {
+				t.Fatalf("baseline phases do not run probes: %+v", ph.Compatibility)
+			}
+			continue
+		}
+		if len(ph.Compatibility) != 2 {
+			t.Fatalf("compatibility = %+v", ph.Compatibility)
+		}
+		old, current := ph.Compatibility[0], ph.Compatibility[1]
+		if !old.Broken() || old.AfterSQLState != "42703" || current.Broken() || !current.AfterOK {
+			t.Fatalf("old version should break, new should not: %+v", ph.Compatibility)
+		}
+	}
+}
+
 func leftovers(t *testing.T, runID string) string {
 	t.Helper()
 	out, err := exec.Command("docker", "ps", "-aq", "--filter", "label="+isolation.LabelRun+"="+runID).Output()
