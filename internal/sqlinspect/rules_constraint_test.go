@@ -1,6 +1,7 @@
 package sqlinspect
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/pglock"
@@ -31,4 +32,16 @@ func TestInlineForeignKeyOnAddColumn(t *testing.T) {
 	}
 	expectCount(t, findings(t, "PS107", Options{}, "ALTER TABLE orders ADD COLUMN coupon_id int REFERENCES coupons (id);"), 1)
 	expectCount(t, findings(t, "PS107", Options{}, "ALTER TABLE orders ADD COLUMN coupon_id int;"), 0)
+}
+
+func TestInlineColumnConstraints(t *testing.T) {
+	expectCount(t, findings(t, "PS108", Options{}, "ALTER TABLE orders ADD COLUMN ref text UNIQUE;"), 1)
+	expectCount(t, findings(t, "PS108", Options{}, "ALTER TABLE orders ADD COLUMN code bigint PRIMARY KEY;"), 1)
+	expectCount(t, findings(t, "PS108", Options{}, "ALTER TABLE orders ADD COLUMN ref text;"), 0)
+	got := findings(t, "PS107", Options{}, "ALTER TABLE orders ADD COLUMN qty int CHECK (qty > 0);")
+	if len(got) != 1 || !strings.Contains(got[0].Message, "inline CHECK") {
+		t.Fatalf("inline CHECK: %+v", got)
+	}
+	// New tables carry no traffic yet.
+	expectCount(t, findings(t, "PS108", Options{}, "CREATE TABLE t (id int);\nALTER TABLE t ADD COLUMN ref text UNIQUE;"), 0)
 }

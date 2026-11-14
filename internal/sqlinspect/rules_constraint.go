@@ -2,6 +2,7 @@ package sqlinspect
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/evidence"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/pglock"
@@ -71,6 +72,11 @@ func checkValidatedConstraint(c *Context, s *Statement) []Finding {
 			out = append(out, f)
 		}
 	}
+	inline := map[*pg_query.Constraint]bool{}
+	for _, con := range inlineColumnConstraints(c, s, pg_query.ConstrType_CONSTR_CHECK) {
+		inline[con] = true
+		cons = append(cons, con)
+	}
 	for _, con := range cons {
 		if con.SkipValidation {
 			continue
@@ -84,6 +90,9 @@ func checkValidatedConstraint(c *Context, s *Statement) []Finding {
 			out = append(out, f)
 		case pg_query.ConstrType_CONSTR_CHECK:
 			f := at(s, fmt.Sprintf("Adding CHECK constraint %s on %s scans every row while holding ACCESS EXCLUSIVE; reads and writes wait for the scan.", nameOr(con.Conname, "(unnamed)"), table))
+			if inline[con] {
+				f.Message = fmt.Sprintf("Adding a column with an inline CHECK constraint to %s checks every existing row while holding ACCESS EXCLUSIVE; an inline CHECK cannot be NOT VALID.", table)
+			}
 			f.Table, f.Lock = table, pglock.AccessExclusive
 			f.Remediation = "Add the constraint with NOT VALID, then VALIDATE CONSTRAINT in a separate transaction."
 			out = append(out, f)
@@ -94,6 +103,8 @@ func checkValidatedConstraint(c *Context, s *Statement) []Finding {
 
 func checkConstraintIndexBuild(c *Context, s *Statement) []Finding {
 	table, cons := addedConstraints(c, s)
+	// Inline UNIQUE and PRIMARY KEY on ADD COLUMN build an index too.
+	cons = append(cons, inlineColumnConstraints(c, s, pg_query.ConstrType_CONSTR_UNIQUE, pg_query.ConstrType_CONSTR_PRIMARY)...)
 	var out []Finding
 	for _, con := range cons {
 		var kind string
@@ -149,4 +160,23 @@ func nameOr(name, fallback string) string {
 		return fallback
 	}
 	return name
+}
+
+// inlineColumnConstraints returns constraints of the given types declared
+// inline on columns that ALTER TABLE ... ADD COLUMN adds to an existing
+// table.
+func inlineColumnConstraints(c *Context, s *Statement, types ...pg_query.ConstrType) []*pg_query.Constraint {
+	_, cmds := alterCmds(c, s)
+	var out []*pg_query.Constraint
+	for _, cmd := range cmds {
+		if cmd.Subtype != pg_query.AlterTableType_AT_AddColumn {
+			continue
+		}
+		for _, n := range cmd.Def.GetColumnDef().GetConstraints() {
+			if con := n.GetConstraint(); con != nil && slices.Contains(types, con.Contype) {
+				out = append(out, con)
+			}
+		}
+	}
+	return out
 }
