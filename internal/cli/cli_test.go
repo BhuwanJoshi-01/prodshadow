@@ -146,7 +146,7 @@ func TestInspect(t *testing.T) {
 	if strings.Contains(r.stdout, "CREATE INDEX idx") {
 		t.Fatal("raw SQL must not appear in inspect JSON")
 	}
-	if r := run(t, dir, nil, "inspect", "--migration", "m.sql", "--format", "markdown"); !strings.Contains(r.stdout, "| PS101") && !strings.Contains(r.stdout, "PS101 create-index") {
+	if r := run(t, dir, nil, "inspect", "--migration", "m.sql", "--format", "markdown"); !strings.Contains(r.stdout, "[PS101](") {
 		t.Fatalf("inspect markdown: %+v", r)
 	}
 	if r := run(t, dir, nil, "inspect"); r.code != ExitInvalid {
@@ -590,5 +590,14 @@ func TestDraftWorkload(t *testing.T) {
 	}
 	if r := run(t, dir, nil, "draft-workload"); r.code != ExitInvalid {
 		t.Fatalf("--stats is required: %+v", r)
+	}
+}
+
+func TestInspectMarkdownLinksRules(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "m.sql"), "CREATE INDEX orders_note_idx ON orders (note);\n")
+	r := run(t, dir, nil, "inspect", "--migration", "m.sql", "--format", "markdown")
+	if r.code != ExitOK || !strings.Contains(r.stdout, "[PS101](https://github.com/BhuwanJoshi-01/Open-Source-1/blob/main/docs/rules/PS101.md) create-index-blocks-writes") {
+		t.Fatalf("inspect --format markdown: %+v", r)
 	}
 }

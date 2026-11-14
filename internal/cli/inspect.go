@@ -212,7 +212,7 @@ func printInspectMarkdown(w io.Writer, stmts []*sqlinspect.Statement, findings [
 		if f.Suppressed {
 			msg = "~~" + msg + "~~ (suppressed: " + f.SuppressionReason + ")"
 		}
-		fmt.Fprintf(w, "| %s | %s %s | %s:%d | %s |\n", f.Severity, f.RuleID, f.Rule, f.File, f.Line, msg)
+		fmt.Fprintf(w, "| %s | [%s](%s) %s | %s:%d | %s |\n", f.Severity, f.RuleID, report.RulePageURL(f.RuleID), f.Rule, f.File, f.Line, msg)
 	}
 	fmt.Fprintln(w)
 }
