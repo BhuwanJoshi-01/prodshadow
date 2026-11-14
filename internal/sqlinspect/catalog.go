@@ -14,15 +14,16 @@ import (
 // partitions, and refreshing a materialized view reads the tables of its
 // query. With a catalog the classifier can predict those locks too.
 type Catalog struct {
-	indexTable map[string]string   // index -> its table
-	partitions map[string][]string // partitioned table -> direct partitions
-	viewReads  map[string][]string // view or materialized view -> relations its query reads
+	indexTable  map[string]string   // index -> its table
+	partitions  map[string][]string // partitioned table -> direct partitions
+	partitioned map[string]bool     // tables declared with PARTITION BY
+	viewReads   map[string][]string // view or materialized view -> relations its query reads
 }
 
 // NewCatalog learns indexes, partitions and views from schema statements,
 // typically the parsed fixture schema.
 func NewCatalog(schema []*Statement) *Catalog {
-	c := &Catalog{indexTable: map[string]string{}, partitions: map[string][]string{}, viewReads: map[string][]string{}}
+	c := &Catalog{indexTable: map[string]string{}, partitions: map[string][]string{}, partitioned: map[string]bool{}, viewReads: map[string][]string{}}
 	for _, s := range schema {
 		c.learn(s)
 	}
@@ -41,6 +42,11 @@ func (c *Catalog) TableOfIndex(index string) string {
 		return ""
 	}
 	return c.indexTable[catalogKey(index)]
+}
+
+// IsPartitioned reports whether the schema declares table with PARTITION BY.
+func (c *Catalog) IsPartitioned(table string) bool {
+	return c != nil && c.partitioned[catalogKey(table)]
 }
 
 // Partitions returns every partition of a partitioned table, including
@@ -81,6 +87,9 @@ func (c *Catalog) learn(s *Statement) {
 			if name := constraintIndexName(x.CreateStmt.Relation.GetRelname(), con); name != "" {
 				c.indexTable[catalogKey(name)] = table
 			}
+		}
+		if x.CreateStmt.Partspec != nil {
+			c.partitioned[catalogKey(table)] = true
 		}
 		if x.CreateStmt.Partbound != nil {
 			for _, parent := range x.CreateStmt.InhRelations {

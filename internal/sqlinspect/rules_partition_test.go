@@ -45,3 +45,11 @@ func TestPS154ConcurrentIndexOnPartitionedTable(t *testing.T) {
 		}
 	}
 }
+
+func TestPS154UsesTheSchemaCatalog(t *testing.T) {
+	sql := "CREATE INDEX CONCURRENTLY events_kind_idx ON events (kind);"
+	expectCount(t, findings(t, "PS154", Options{}, sql), 0)
+	catalog := NewCatalog(parse(t, "CREATE TABLE events (id bigint, kind text, at timestamptz) PARTITION BY RANGE (at);"))
+	expectCount(t, findings(t, "PS154", Options{Catalog: catalog}, sql), 1)
+	expectCount(t, findings(t, "PS154", Options{Catalog: catalog}, "CREATE INDEX CONCURRENTLY orders_idx ON orders (id);"), 0)
+}

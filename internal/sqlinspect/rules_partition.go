@@ -175,9 +175,12 @@ func checkConcurrentPartitionedIndex(c *Context, s *Statement) []Finding {
 	return []Finding{f}
 }
 
-// partitionedBefore reports whether a statement before s shows table to be
-// partitioned.
+// partitionedBefore reports whether the existing schema or a statement
+// before s shows table to be partitioned.
 func (c *Context) partitionedBefore(s *Statement, table string) bool {
+	if c.Options.Catalog.IsPartitioned(table) {
+		return true
+	}
 	for _, o := range c.Statements[:c.position[s]] {
 		if o.node == nil {
 			continue

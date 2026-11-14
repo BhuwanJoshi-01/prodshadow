@@ -93,7 +93,7 @@ func runInspect(_ context.Context, env *Env, args []string) int {
 		fmt.Fprintf(env.Stderr, "prodshadow: %v\n", err)
 		return ExitInvalid
 	}
-	resolveFromFixture(cfg, stmts)
+	opts.Catalog = resolveFromFixture(cfg, stmts)
 	findings := sqlinspect.Analyze(stmts, opts)
 
 	switch *format {

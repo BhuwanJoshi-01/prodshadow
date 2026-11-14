@@ -32,6 +32,9 @@ type Options struct {
 	Overrides map[string]string
 	// Now is used to evaluate annotation expiry. Zero means time.Now().
 	Now time.Time
+	// Catalog describes the existing schema, when known (from the fixture
+	// schema). Rules use it to recognise partitioned tables; nil is fine.
+	Catalog *Catalog
 }
 
 // Context gives rules access to the whole migration.

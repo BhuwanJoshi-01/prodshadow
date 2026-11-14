@@ -101,20 +101,24 @@ func loadMigrations(base string, files []string) ([]*sqlinspect.Statement, error
 // resolveFromFixture adds the locks migration statements take on relations
 // they do not name (an index's table, the partitions of a partitioned
 // table, the tables behind a materialized view), learned from the fixture
-// schema. Without a readable schema nothing changes; validate reports that.
-func resolveFromFixture(cfg *config.Config, stmts []*sqlinspect.Statement) {
+// schema, and returns the catalog for the static rules. Without a readable
+// schema it changes nothing and returns nil; validate reports that.
+func resolveFromFixture(cfg *config.Config, stmts []*sqlinspect.Statement) *sqlinspect.Catalog {
 	if cfg == nil || cfg.Fixture.Schema == "" {
-		return
+		return nil
 	}
 	src, err := sqlinspect.ReadSource(cfg.Resolve(cfg.Fixture.Schema), cfg.Fixture.Schema)
 	if err != nil {
-		return
+		return nil
 	}
 	schema, err := sqlinspect.ParseSources([]sqlinspect.Source{src})
 	if err != nil {
-		return
+		return nil
 	}
+	// Resolve learns from the migration as it goes; the rules get a fresh
+	// catalog of the schema as it was before the migration.
 	sqlinspect.NewCatalog(schema).Resolve(stmts)
+	return sqlinspect.NewCatalog(schema)
 }
 
 func printProblems(w io.Writer, ps config.Problems) {
