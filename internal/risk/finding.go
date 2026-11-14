@@ -101,6 +101,7 @@ var ObservedRules = []ObservedRule{
 	{"QUAL012", "compatibility-not-checked", "The migration drops or renames something running code may use, but no compatibility probes check the previous release", evidence.Info},
 	{"QUAL013", "scenario-always-fails", "A workload scenario fails almost every operation before any migration runs", evidence.Inconclusive},
 	{"QUAL014", "sessions-saturated", "Every closed-loop session waited behind the migration, so predicted conflicts of other scenarios could not show", evidence.Info},
+	{"QUAL015", "unpredicted-lock-wait", "Sessions waited on a relation because of the migration, but no migration statement was predicted to lock it", evidence.Info},
 }
 
 // Where describes what a finding is about for one-line displays: the

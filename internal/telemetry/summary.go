@@ -2,6 +2,7 @@ package telemetry
 
 import (
 	"math"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -43,6 +44,9 @@ type RelationWait struct {
 	Mode       string  `json:"mode"`
 	MaxWaiters int     `json:"max_waiters"`
 	MaxWaitMS  float64 `json:"max_wait_ms"`
+	// Migration is set when the migration waited on the relation, or a
+	// session waited on it behind the migration.
+	Migration bool `json:"migration,omitempty"`
 }
 
 // Point is the peak lock-wait state within one timeline bucket.
@@ -102,6 +106,9 @@ func Summarize(samples []Sample, failed int, interval time.Duration, measureStar
 				relations[key] = rw
 			}
 			rw.MaxWaitMS = math.Max(rw.MaxWaitMS, x.WaitMS)
+			if x.Application == AppMigration || slices.Contains(x.BlockedBy, migrationPID) {
+				rw.Migration = true
+			}
 
 			switch {
 			case x.Application == AppMigration:

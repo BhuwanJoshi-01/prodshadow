@@ -8,6 +8,7 @@ import (
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/experiment"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/migrate"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/sqlinspect"
+	"github.com/BhuwanJoshi-01/Open-Source-1/internal/telemetry"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/workload"
 )
 
@@ -340,5 +341,30 @@ func TestSaturatedSessions(t *testing.T) {
 	cfg.Workload.Concurrency = 16
 	if got := saturatedSessions(cfg, res, comps, predicted); len(got) != 0 {
 		t.Fatalf("not every session was queued: %+v", got)
+	}
+}
+
+func TestUnpredictedWaits(t *testing.T) {
+	stmts, _ := sqlinspect.ParseSources([]sqlinspect.Source{{Path: "m.sql", Content: "ALTER TABLE invoices DROP CONSTRAINT invoices_customer_fk;\n"}})
+	res := quietResult()
+	for i := range res.Phases {
+		if res.Phases[i].Kind == experiment.Candidate {
+			res.Phases[i].Locks.Relations = []telemetry.RelationWait{
+				{Relation: "invoices", Mode: "AccessShareLock", Migration: true},
+				{Relation: "customers", Mode: "AccessExclusiveLock", Migration: true},
+				{Relation: "transactionid", Mode: "ShareLock", Migration: true},
+				{Relation: "audit_log", Mode: "RowExclusiveLock"},
+			}
+		}
+	}
+	got := unpredictedWaits(res, stmts)
+	if len(got) != 1 || got[0].RuleID != "QUAL015" || got[0].Table != "customers" || !strings.Contains(got[0].Message, "waited on customers because of the migration") {
+		t.Fatalf("QUAL015 = %+v", got)
+	}
+	// With the schema, the lock on customers is predicted (via the foreign key).
+	schema, _ := sqlinspect.ParseSources([]sqlinspect.Source{{Path: "s.sql", Content: "CREATE TABLE customers (id int PRIMARY KEY);\nCREATE TABLE invoices (customer_id int CONSTRAINT invoices_customer_fk REFERENCES customers);\n"}})
+	sqlinspect.NewCatalog(schema).Resolve(stmts)
+	if got := unpredictedWaits(res, stmts); len(got) != 0 {
+		t.Fatalf("predicted through the schema: %+v", got)
 	}
 }

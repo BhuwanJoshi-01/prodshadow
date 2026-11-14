@@ -27,6 +27,7 @@
 
 | Version | Change |
 |---|---|
+| 1.9.0 | `phases[].locks.relations[].migration`: the migration waited on the relation, or a session waited on it behind the migration. |
 | 1.8.0 | `predicted_conflicts`: the lock conflicts expected per scenario and background session from the lock modes alone. |
 | 1.7.0 | `migration.statements[].locks[].via`: the index, partitioned table or materialized view that implies a lock on a relation the statement does not name. |
 | 1.6.0 | `migration.statements[].locks[].created_by`: the statement that created the locked relation earlier in the migration. |

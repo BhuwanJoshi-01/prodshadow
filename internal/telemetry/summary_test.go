@@ -42,7 +42,7 @@ func TestSummarizeLockQueue(t *testing.T) {
 	if len(s.Timeline) != 1 || s.Timeline[0].OffsetSec != 1 || s.Timeline[0].Waiting != 2 {
 		t.Fatalf("timeline wrong: %+v", s.Timeline)
 	}
-	if s.Relations[0].Relation != "orders" || s.Relations[0].Mode != "AccessExclusiveLock" {
+	if s.Relations[0].Relation != "orders" || s.Relations[0].Mode != "AccessExclusiveLock" || !s.Relations[0].Migration {
 		t.Fatalf("relations wrong: %+v", s.Relations)
 	}
 }

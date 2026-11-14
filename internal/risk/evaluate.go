@@ -99,6 +99,7 @@ func Evaluate(in Input) Assessment {
 	if in.Result != nil && in.Workload != nil {
 		findings = append(findings, unexplainedStalls(cfg, a.Comparisons, a.PredictedConflicts)...)
 		findings = append(findings, saturatedSessions(cfg, in.Result, a.Comparisons, a.PredictedConflicts)...)
+		findings = append(findings, unpredictedWaits(in.Result, in.Statements)...)
 	}
 	if in.NoExperiment == "" && in.Workload != nil {
 		findings = append(findings, writeBlockingUnexercised(in.Workload, in.Statements)...)
@@ -508,5 +509,45 @@ func saturatedSessions(cfg *config.Config, res *experiment.Result, comps []Compa
 	}
 	f := newFinding("QUAL014", evidence.High, "all closed-loop sessions were queued behind the migration at once",
 		fmt.Sprintf("All %d workload sessions were waiting behind the migration at the same time, so scenario(s) %s, which conflict with it, issued no queries while it waited and show no stall. Production clients keep arriving and would queue there too. Set workload.arrival_rate to model open-loop arrivals, or raise workload.concurrency.", cfg.Workload.Concurrency, strings.Join(hidden, ", ")))
+	return []Finding{f}
+}
+
+// lockTypes are the pg_locks lock types that are not relations; telemetry
+// reports waits on them under the type's name.
+var lockTypes = map[string]bool{"relation": true, "extend": true, "frozenid": true, "page": true, "tuple": true,
+	"transactionid": true, "virtualxid": true, "spectoken": true, "object": true, "userlock": true, "advisory": true,
+	"applytransaction": true}
+
+// unpredictedWaits reports relations on which sessions waited because of
+// the migration although no migration statement was predicted to lock them
+// (QUAL015): the static model, and plan's conflict prediction, missed a
+// connection between the tables.
+func unpredictedWaits(res *experiment.Result, stmts []*sqlinspect.Statement) []Finding {
+	norm := func(name string) string { return strings.ToLower(strings.TrimPrefix(name, "public.")) }
+	predicted := map[string]bool{}
+	for _, s := range stmts {
+		for _, l := range s.Locks {
+			predicted[norm(l.Table)] = true
+		}
+		if !s.Parsed || s.Kind == sqlinspect.KindProcedural {
+			return nil // the statement's locks are unknown anyway (PS116, PS117)
+		}
+	}
+	var missed []string
+	for _, ph := range candidates(res) {
+		for _, rw := range ph.Locks.Relations {
+			name := norm(rw.Relation)
+			if !rw.Migration || lockTypes[name] || predicted[name] || slices.Contains(missed, rw.Relation) {
+				continue
+			}
+			missed = append(missed, rw.Relation)
+		}
+	}
+	if len(missed) == 0 {
+		return nil
+	}
+	f := newFinding("QUAL015", evidence.High, "lock waits sampled from pg_locks compared with the predicted locks",
+		fmt.Sprintf("Sessions waited on %s because of the migration, but no migration statement was predicted to lock it. The fixture schema probably lacks what connects it to the migration (a foreign key, trigger, rule, view or partition), so plan's conflict prediction was incomplete; the measurement itself is unaffected.", strings.Join(missed, ", ")))
+	f.Table = missed[0]
 	return []Finding{f}
 }
