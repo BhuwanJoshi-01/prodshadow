@@ -321,3 +321,12 @@ func TestKeepWarnsInCI(t *testing.T) {
 		t.Fatalf("expected a CI warning for --keep: %+v", r)
 	}
 }
+
+func TestInspectNamesBlockedStatements(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "m.sql"), "CREATE INDEX i ON orders (a);\n")
+	r := run(t, dir, nil, "inspect", "--migration", "m.sql")
+	if !strings.Contains(r.stdout, "blocks: INSERT/UPDATE/DELETE/MERGE") || strings.Contains(r.stdout, "blocks: SELECT,") {
+		t.Fatalf("inspect should name the blocked statements: %s", r.stdout)
+	}
+}

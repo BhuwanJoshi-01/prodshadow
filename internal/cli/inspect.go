@@ -136,6 +136,11 @@ func printInspectText(w io.Writer, stmts []*sqlinspect.Statement, findings []sql
 	fmt.Fprintf(w, "%d statement(s) analysed with the %s grammar\n\n", len(stmts), sqlinspect.ParserGrammar)
 	for _, s := range stmts {
 		fmt.Fprintf(w, "  %-5s %s:%d  %s\n        locks: %s\n", s.ID, s.File, s.StartLine, s.Tag, lockSummary(s))
+		if m := s.StrongestLock(); m != 0 {
+			if blocked := m.BlockedStatements(); len(blocked) > 0 {
+				fmt.Fprintf(w, "        while held or queued, blocks: %s\n", strings.Join(blocked, ", "))
+			}
+		}
 		if s.Txn == sqlinspect.TxnNotInBlock {
 			fmt.Fprintln(w, "        runs outside a transaction block")
 		}
