@@ -26,3 +26,15 @@ func TestPS148InvalidAnnotation(t *testing.T) {
 		t.Errorf("valid annotation should still suppress PS101: %+v", got)
 	}
 }
+
+func TestPS149ExpiredAnnotation(t *testing.T) {
+	stmt := "CREATE INDEX countries_name_idx ON countries (name);\n"
+	// The test helper evaluates at 2026-11-13.
+	expired := "-- prodshadow:ignore PS101, PS114 reason=\"small table\" expires=2026-11-12\n" + stmt
+	got := findings(t, "PS149", Options{}, expired)
+	if len(got) != 1 || !strings.Contains(got[0].Message, "PS101, PS114") || !strings.Contains(got[0].Message, "2026-11-12") {
+		t.Fatalf("expired: %+v", got)
+	}
+	expectCount(t, findings(t, "PS149", Options{}, "-- prodshadow:ignore PS101 reason=\"small table\" expires=2026-11-13\n"+stmt), 0)
+	expectCount(t, findings(t, "PS149", Options{}, "-- prodshadow:ignore PS101 reason=\"small table\"\n"+stmt), 0)
+}

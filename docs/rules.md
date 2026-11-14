@@ -66,6 +66,7 @@ migration, because nothing else uses them yet.
 | [`PS146`](rules/PS146.md) | security-definer-search-path | warning | A `SECURITY DEFINER` function without a fixed `search_path` can be hijacked by its callers. |
 | [`PS147`](rules/PS147.md) | replica-identity-change | warning | `REPLICA IDENTITY NOTHING` breaks writes to published tables; `FULL` multiplies WAL volume. |
 | [`PS148`](rules/PS148.md) | invalid-annotation | warning | A `prodshadow:` comment directive is malformed and is ignored. |
+| [`PS149`](rules/PS149.md) | expired-annotation | info | An inline suppression has passed its expiry date and no longer applies. |
 
 ## Observed rules
 
