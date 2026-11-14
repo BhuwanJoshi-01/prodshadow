@@ -54,3 +54,16 @@ func TestOverridesAndSuppression(t *testing.T) {
 		t.Fatalf("suppression not applied: %+v", got)
 	}
 }
+
+func TestNewRelationsAreNotTraffic(t *testing.T) {
+	// Relations created earlier in the migration have no traffic yet, so
+	// locking them is not flagged, whichever statement created them.
+	for _, create := range []string{
+		"CREATE TABLE totals (id int);",
+		"CREATE TABLE totals AS SELECT 1 AS id;",
+		"CREATE MATERIALIZED VIEW totals AS SELECT 1 AS id;",
+	} {
+		expectCount(t, findings(t, "PS101", Options{}, create+"\nCREATE INDEX totals_id ON totals (id);"), 0)
+	}
+	expectCount(t, findings(t, "PS101", Options{}, "CREATE INDEX totals_id ON totals (id);"), 1)
+}

@@ -58,12 +58,9 @@ func newContext(stmts []*Statement, opts Options) *Context {
 	}
 	for i, s := range stmts {
 		c.position[s] = i
-		if s.Kind == KindCreateTable {
-			if ct := s.node.GetCreateStmt(); ct != nil {
-				name := relName(ct.Relation)
-				if _, dup := c.created[name]; !dup {
-					c.created[name] = i
-				}
+		if name := createdRelation(s); name != "" {
+			if _, dup := c.created[name]; !dup {
+				c.created[name] = i
 			}
 		}
 	}
@@ -73,6 +70,23 @@ func newContext(stmts []*Statement, opts Options) *Context {
 		}
 	}
 	return c
+}
+
+// createdRelation returns the relation a CREATE TABLE, CREATE TABLE AS,
+// CREATE MATERIALIZED VIEW or CREATE SEQUENCE statement creates.
+func createdRelation(s *Statement) string {
+	if s.node == nil {
+		return ""
+	}
+	switch {
+	case s.node.GetCreateStmt() != nil:
+		return relName(s.node.GetCreateStmt().Relation)
+	case s.node.GetCreateTableAsStmt() != nil:
+		return relName(s.node.GetCreateTableAsStmt().GetInto().GetRel())
+	case s.node.GetCreateSeqStmt() != nil:
+		return relName(s.node.GetCreateSeqStmt().Sequence)
+	}
+	return ""
 }
 
 // CreatedEarlier reports whether table was created by a statement that
