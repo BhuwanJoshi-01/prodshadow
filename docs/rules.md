@@ -91,6 +91,7 @@ migration, because nothing else uses them yet.
 | [`OBS013`](rules/OBS013.md) | app-version-incompatible | critical | A deployed application version's compatibility probe worked before the migration and failed after it. |
 | [`OBS014`](rules/OBS014.md) | migration-lock-retried | info | The migration timed out on a lock and only succeeded after retries (`migration.lock_retries`). |
 | [`OBS015`](rules/OBS015.md) | extra-wal-budget | critical | The migration wrote more WAL beyond its paired baseline than `policy.max_extra_wal_mb` (optional). |
+| [`OBS016`](rules/OBS016.md) | temp-file-spill | info | The migration spilled sorts or index builds to temporary files. |
 
 Confidence of observed findings is `high` when every one of at least three
 candidate repeats shows the effect, `medium` for a majority, `low` otherwise,

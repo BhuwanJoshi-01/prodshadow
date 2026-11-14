@@ -176,6 +176,7 @@ func observedFindings(cfg *config.Config, res *experiment.Result, comps []Compar
 
 	out = append(out, migrationFindings(cfg, cands, stmts, blockers)...)
 	out = append(out, walFindings(cfg, res)...)
+	out = append(out, tempFileFindings(res)...)
 	out = append(out, compatibilityFindings(cands)...)
 	out = append(out, regressionFindings(cfg, comps, len(cands))...)
 
@@ -500,5 +501,46 @@ func walFindings(cfg *config.Config, res *experiment.Result) []Finding {
 	f := newFinding("OBS015", conf, reason, fmt.Sprintf("Candidate phases wrote %.1f MiB more WAL than their baselines (median), above the %.1f MiB budget. Replicas, WAL archiving and logical decoding must process all of it, so replication lag grows while the migration runs; on production data the volume scales with the table size.", med, *limit))
 	f.Observed, f.Threshold, f.Unit = ptr(med), ptr(*limit), "MiB"
 	f.Remediation = "Avoid rewrites (see PS103, PS105, PS113), build indexes concurrently in their own step, and batch backfills so replicas can keep up."
+	return []Finding{f}
+}
+
+// TempSpillMB is the extra temporary file volume, beyond the paired
+// baseline, above which OBS016 is reported.
+const TempSpillMB = 1.0
+
+// tempFileFindings reports candidate phases that wrote temporary files the
+// baseline did not: a sort or index build exceeded work_mem or
+// maintenance_work_mem. On production-size tables the spill is larger.
+func tempFileFindings(res *experiment.Result) []Finding {
+	baseline := map[int]int64{}
+	for _, ph := range res.Phases {
+		if ph.Kind == experiment.Baseline {
+			baseline[ph.Repeat] = ph.Counters.TempBytes
+		}
+	}
+	var extra []float64
+	hits := 0
+	for _, ph := range res.Phases {
+		b, ok := baseline[ph.Repeat]
+		if ph.Kind != experiment.Candidate || !ok {
+			continue
+		}
+		mb := float64(ph.Counters.TempBytes-b) / (1 << 20)
+		extra = append(extra, mb)
+		if mb > TempSpillMB {
+			hits++
+		}
+	}
+	if len(extra) == 0 {
+		return nil
+	}
+	med := stats.Median(extra)
+	if med <= TempSpillMB {
+		return nil
+	}
+	conf, reason := consistency(hits, len(extra))
+	f := newFinding("OBS016", conf, reason, fmt.Sprintf("Candidate phases wrote %.1f MiB more temporary files than their baselines (median): a sort or index build in the migration did not fit in memory. It runs slower and does more I/O, and on production-size tables the spill grows with the data.", med))
+	f.Observed, f.Unit = ptr(med), "MiB"
+	f.Remediation = "Raise maintenance_work_mem for the migration session (SET maintenance_work_mem = '1GB') before index builds, within what the server's memory allows."
 	return []Finding{f}
 }

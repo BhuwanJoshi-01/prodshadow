@@ -187,3 +187,19 @@ func TestExtraWALBudget(t *testing.T) {
 		t.Fatal("the budget must be opt-in")
 	}
 }
+
+func TestTempFileSpill(t *testing.T) {
+	res := quietResult()
+	for i := range res.Phases {
+		if res.Phases[i].Kind == experiment.Candidate {
+			res.Phases[i].Counters.TempBytes = 48 << 20
+		}
+	}
+	f := byRule(Evaluate(Input{Config: testConfig(), Result: res}), "OBS016")
+	if f == nil || *f.Observed != 48 || f.Severity != evidence.Info {
+		t.Fatalf("OBS016 = %+v", f)
+	}
+	if byRule(Evaluate(Input{Config: testConfig(), Result: quietResult()}), "OBS016") != nil {
+		t.Fatal("no spill, no finding")
+	}
+}
