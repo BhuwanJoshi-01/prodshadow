@@ -4,7 +4,7 @@
 
 Blocking findings: OBS002, OBS005.
 
-> ProdShadow measures how a migration behaves in a disposable database under a modelled workload. A passing result is not a guarantee that the migration is safe in production.
+> ProdShadow measures how a migration behaves in a disposable database under a modelled workload. A passing result is not a guarantee that the migration is safe in production. [How to read this report](https://github.com/BhuwanJoshi-01/Open-Source-1/blob/main/docs/guides/reading-a-report.md).
 
 | Run | PostgreSQL | Runtime | Fixture | Workload | Duration |
 |---|---|---|---|---|---|

@@ -9,6 +9,9 @@ import (
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/risk"
 )
 
+// GuideURL explains the report section by section.
+const GuideURL = toolURI + "/blob/main/docs/guides/reading-a-report.md"
+
 // Disclaimer is printed at the top of every human-readable report.
 const Disclaimer = "ProdShadow measures how a migration behaves in a disposable database under a modelled workload. A passing result is not a guarantee that the migration is safe in production."
 
@@ -20,7 +23,7 @@ func (r *Report) Markdown() string {
 	w("# ProdShadow report: %s\n\n", esc(r.Project))
 	w("**Decision: %s** · exit code %d · status `%s`\n\n", strings.ToUpper(r.Decision.Outcome), r.Decision.ExitCode, r.Status)
 	w("%s\n\n", r.Decision.Message)
-	w("> %s\n\n", Disclaimer)
+	w("> %s [How to read this report](%s).\n\n", Disclaimer, GuideURL)
 
 	r.mdSummary(w)
 	r.mdErrors(w)

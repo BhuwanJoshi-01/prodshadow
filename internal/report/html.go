@@ -38,7 +38,8 @@ func (r *Report) HTML() (string, error) {
 		Disclaimer    string
 		Chart         template.HTML
 		Compatibility []CompatibilityRow
-	}{r, Disclaimer, r.timelineSVG(), r.CompatibilityRows()}
+		Guide         string
+	}{r, Disclaimer, r.timelineSVG(), r.CompatibilityRows(), GuideURL}
 	if err := parsedHTML.Execute(&buf, data); err != nil {
 		return "", err
 	}

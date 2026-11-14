@@ -28,7 +28,7 @@ ul { padding-left:20px; }
 <h1>ProdShadow report: {{.Project}}</h1>
 <p><span class="decision {{.Decision.Outcome}}">{{upper .Decision.Outcome}}</span> exit code {{.Decision.ExitCode}} · status <code>{{.Status}}</code> · run <code>{{.RunID}}</code></p>
 <p>{{.Decision.Message}}</p>
-<p class="note">{{.Disclaimer}}</p>
+<p class="note">{{.Disclaimer}} <a href="{{.Guide}}">How to read this report</a>.</p>
 
 {{if .Errors}}<h2>Errors</h2><ul>{{range .Errors}}<li>{{.}}</li>{{end}}</ul>{{end}}
 
