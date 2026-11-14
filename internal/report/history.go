@@ -86,26 +86,15 @@ func SortHistory(entries []HistoryEntry) {
 func WriteHistory(w io.Writer, entries []HistoryEntry) error {
 	tw := tabwriter.NewWriter(w, 0, 4, 2, ' ', 0)
 	fmt.Fprintln(tw, "STARTED (UTC)\tPROJECT\tGIT\tDECISION\tMIGRATION\tLOCK WAIT\tBLOCKED\tFINDINGS C/W/I\t")
-	changed := false
-	var prev *HistoryEntry
-	for i := range entries {
-		e := entries[i]
+	marks, changed := comparability(entries)
+	for i, e := range entries {
 		mark := ""
-		if prev != nil && (prev.FixtureHash != e.FixtureHash || prev.WorkloadHash != e.WorkloadHash || prev.PostgresMajor != e.PostgresMajor) {
-			mark, changed = "*", true
-		}
-		prev = &entries[i]
-		git := e.GitSHA
-		if len(git) > 8 {
-			git = git[:8]
-		}
-		findings := fmt.Sprintf("%d/%d/%d", e.Critical, e.Warning, e.Info)
-		if e.Inconclusive > 0 {
-			findings += fmt.Sprintf(" +%d inconclusive", e.Inconclusive)
+		if marks[i] {
+			mark = "*"
 		}
 		fmt.Fprintf(tw, "%s%s\t%s\t%s\t%s\t%s\t%s\t%d\t%s\t\n",
-			e.StartedAt.UTC().Format("2006-01-02 15:04"), mark, e.Project, orDash(git), e.Decision,
-			fmtMS(e.MigrationMS), fmtMS(e.MaxLockWaitMS), e.MaxBlockedSessions, findings)
+			e.StartedAt.UTC().Format("2006-01-02 15:04"), mark, e.Project, orDash(shortSHA(e.GitSHA)), e.Decision,
+			fmtMS(e.MigrationMS), fmtMS(e.MaxLockWaitMS), e.MaxBlockedSessions, e.findingCounts())
 	}
 	if err := tw.Flush(); err != nil {
 		return err
@@ -129,33 +118,52 @@ func orDash(s string) string {
 func WriteHistoryMarkdown(w io.Writer, entries []HistoryEntry) error {
 	var b strings.Builder
 	b.WriteString("| Started (UTC) | Project | Git | Decision | Migration | Lock wait | Blocked | Findings C/W/I |\n|---|---|---|---|---|---|---|---|\n")
-	changed := false
-	var prev *HistoryEntry
-	for i := range entries {
-		e := entries[i]
+	marks, changed := comparability(entries)
+	for i, e := range entries {
 		mark := ""
-		if prev != nil && (prev.FixtureHash != e.FixtureHash || prev.WorkloadHash != e.WorkloadHash || prev.PostgresMajor != e.PostgresMajor) {
-			mark, changed = " \\*", true
+		if marks[i] {
+			mark = " \\*"
 		}
-		prev = &entries[i]
-		git := e.GitSHA
-		if len(git) > 8 {
-			git = git[:8]
-		}
+		git := shortSHA(e.GitSHA)
 		if git != "" {
 			git = "`" + git + "`"
 		}
-		findings := fmt.Sprintf("%d/%d/%d", e.Critical, e.Warning, e.Info)
-		if e.Inconclusive > 0 {
-			findings += fmt.Sprintf(" +%d inconclusive", e.Inconclusive)
-		}
 		fmt.Fprintf(&b, "| %s%s | %s | %s | %s | %s | %s | %d | %s |\n",
 			e.StartedAt.UTC().Format("2006-01-02 15:04"), mark, esc(e.Project), orDash(git), esc(e.Decision),
-			fmtMS(e.MigrationMS), fmtMS(e.MaxLockWaitMS), e.MaxBlockedSessions, findings)
+			fmtMS(e.MigrationMS), fmtMS(e.MaxLockWaitMS), e.MaxBlockedSessions, e.findingCounts())
 	}
 	if changed {
 		b.WriteString("\n\\* the fixture, workload or PostgreSQL version changed since the previous run; compare with care.\n")
 	}
 	_, err := io.WriteString(w, b.String())
 	return err
+}
+
+// comparability marks entries whose fixture, workload or PostgreSQL version
+// differs from the entry before, and reports whether any does.
+func comparability(entries []HistoryEntry) ([]bool, bool) {
+	marks := make([]bool, len(entries))
+	changed := false
+	for i := 1; i < len(entries); i++ {
+		p, e := entries[i-1], entries[i]
+		if p.FixtureHash != e.FixtureHash || p.WorkloadHash != e.WorkloadHash || p.PostgresMajor != e.PostgresMajor {
+			marks[i], changed = true, true
+		}
+	}
+	return marks, changed
+}
+
+func shortSHA(sha string) string {
+	if len(sha) > 8 {
+		return sha[:8]
+	}
+	return sha
+}
+
+func (e HistoryEntry) findingCounts() string {
+	s := fmt.Sprintf("%d/%d/%d", e.Critical, e.Warning, e.Info)
+	if e.Inconclusive > 0 {
+		s += fmt.Sprintf(" +%d inconclusive", e.Inconclusive)
+	}
+	return s
 }
