@@ -109,6 +109,9 @@ type Statement struct {
 	// viewReplaceProblem says why a CREATE OR REPLACE VIEW will be
 	// rejected; set by Catalog.Resolve.
 	viewReplaceProblem string
+	// detachProblem names the DEFAULT partition that makes a DETACH
+	// PARTITION ... CONCURRENTLY fail; set by Catalog.Resolve.
+	detachProblem string
 }
 
 // ExistingLock returns the strongest lock the statement takes on a relation

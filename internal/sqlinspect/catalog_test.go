@@ -355,3 +355,37 @@ CREATE VIEW all_orders AS SELECT * FROM orders;
 	expectCount(t, analyse("CREATE VIEW new_view AS SELECT id FROM orders;"), 0)
 	expectCount(t, analyse("DROP VIEW recent_orders;\nCREATE OR REPLACE VIEW recent_orders AS SELECT id FROM orders;"), 0)
 }
+
+func TestCatalogDefaultPartition(t *testing.T) {
+	schema := parse(t, `
+CREATE TABLE events (id bigint, at timestamptz) PARTITION BY RANGE (at);
+CREATE TABLE events_2026 PARTITION OF events FOR VALUES FROM ('2026-01-01') TO ('2027-01-01');
+CREATE TABLE events_other (id bigint, at timestamptz);
+ALTER TABLE events ATTACH PARTITION events_other DEFAULT;
+CREATE TABLE logs (id bigint, at timestamptz) PARTITION BY RANGE (at);
+`)
+	stmts := parse(t, `
+CREATE TABLE events_2027 PARTITION OF events FOR VALUES FROM ('2027-01-01') TO ('2028-01-01');
+ALTER TABLE events DETACH PARTITION events_2026;
+ALTER TABLE events DETACH PARTITION events_2027 CONCURRENTLY;
+CREATE TABLE logs_2027 PARTITION OF logs FOR VALUES FROM ('2027-01-01') TO ('2028-01-01');
+`)
+	NewCatalog(schema).Resolve(stmts)
+	for _, i := range []int{0, 1} {
+		if l, ok := lockOn(stmts[i], "events_other"); !ok || l.Mode != pglock.AccessExclusive || l.Via != "default partition of events" {
+			t.Errorf("statement %d should lock the default partition: %+v", i, stmts[i].Locks)
+		}
+	}
+	if len(stmts[3].Locks) != 1 {
+		t.Errorf("logs has no default partition: %+v", stmts[3].Locks)
+	}
+	var got []Finding
+	for _, f := range Analyze(stmts, Options{}) {
+		if f.RuleID == "PS161" {
+			got = append(got, f)
+		}
+	}
+	if len(got) != 1 || got[0].StatementID != "1.3" || !strings.Contains(got[0].Message, "DEFAULT partition (events_other)") {
+		t.Fatalf("PS161 = %+v", got)
+	}
+}

@@ -58,7 +58,10 @@ DDL on a partitioned table recurses to every partition, with the same lock:
 `ALTER TABLE events ...`, `CREATE INDEX ... ON events`, `LOCK TABLE events`,
 `TRUNCATE events` and `DROP TABLE events`. `ONLY` stops the recursion.
 `ATTACH PARTITION` and `DETACH PARTITION` lock the parent and only the
-partition they name. `REINDEX TABLE` and `CLUSTER` on a partitioned table
+partition they name, plus the `DEFAULT` partition if there is one: it, and
+`CREATE TABLE ... PARTITION OF`, take `ACCESS EXCLUSIVE` on the default
+partition, whose implicit range changes. With a default partition,
+`DETACH ... CONCURRENTLY` is not allowed at all ([PS161](../rules/PS161.md)). `REINDEX TABLE` and `CLUSTER` on a partitioned table
 process each partition in its own transaction and cannot run inside a
 transaction block. See the
 [partition maintenance example](../../examples/partition-maintenance).

@@ -11,6 +11,14 @@ import (
 
 func init() {
 	register(Rule{
+		ID:       "PS161",
+		Name:     "concurrent-detach-with-default",
+		Summary:  "DETACH PARTITION CONCURRENTLY fails when the partitioned table has a DEFAULT partition",
+		Severity: evidence.Critical,
+		DocsURL:  "https://www.postgresql.org/docs/current/sql-altertable.html#SQL-ALTERTABLE-DETACH-PARTITION",
+		check:    checkConcurrentDetachWithDefault,
+	})
+	register(Rule{
 		ID:       "PS123",
 		Name:     "attach-partition-scans",
 		Summary:  "ATTACH PARTITION scans the partition to validate its bounds unless a matching CHECK constraint exists",
@@ -206,4 +214,18 @@ func (c *Context) partitionedBefore(s *Statement, table string) bool {
 		}
 	}
 	return false
+}
+
+// checkConcurrentDetachWithDefault reports DETACH PARTITION ... CONCURRENTLY
+// on a partitioned table that has a DEFAULT partition, known from the
+// fixture schema (Catalog.Resolve).
+func checkConcurrentDetachWithDefault(c *Context, s *Statement) []Finding {
+	if s.detachProblem == "" {
+		return nil
+	}
+	table := relName(s.node.GetAlterTableStmt().Relation)
+	f := at(s, fmt.Sprintf("DETACH PARTITION ... CONCURRENTLY on %s fails: it has a DEFAULT partition (%s), and PostgreSQL only detaches concurrently from tables without one.", table, s.detachProblem))
+	f.Table = table
+	f.Remediation = "Detach without CONCURRENTLY under a short lock_timeout with retries (it takes ACCESS EXCLUSIVE on the parent, see PS140), or detach the default partition first if it can be emptied."
+	return []Finding{f}
 }

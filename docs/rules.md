@@ -21,7 +21,7 @@ migration, because nothing else uses them yet.
 * **Locks that block traffic:** [PS101](rules/PS101.md), [PS103](rules/PS103.md), [PS105](rules/PS105.md), [PS106](rules/PS106.md), [PS107](rules/PS107.md), [PS108](rules/PS108.md), [PS112](rules/PS112.md), [PS113](rules/PS113.md), [PS118](rules/PS118.md), [PS119](rules/PS119.md), [PS122](rules/PS122.md), [PS123](rules/PS123.md), [PS140](rules/PS140.md), [PS141](rules/PS141.md), [PS156](rules/PS156.md)
 * **Lock timeouts and transaction scope:** [PS102](rules/PS102.md), [PS114](rules/PS114.md), [PS115](rules/PS115.md), [PS120](rules/PS120.md), [PS128](rules/PS128.md), [PS134](rules/PS134.md), [PS135](rules/PS135.md), [PS136](rules/PS136.md), [PS155](rules/PS155.md)
 * **Data loss and running application code:** [PS104](rules/PS104.md), [PS109](rules/PS109.md), [PS110](rules/PS110.md), [PS111](rules/PS111.md), [PS124](rules/PS124.md), [PS125](rules/PS125.md), [PS130](rules/PS130.md), [PS157](rules/PS157.md), [PS159](rules/PS159.md), [PS160](rules/PS160.md)
-* **Indexes and constraints:** [PS121](rules/PS121.md), [PS132](rules/PS132.md), [PS133](rules/PS133.md), [PS137](rules/PS137.md), [PS151](rules/PS151.md), [PS154](rules/PS154.md), [PS158](rules/PS158.md)
+* **Indexes and constraints:** [PS121](rules/PS121.md), [PS132](rules/PS132.md), [PS133](rules/PS133.md), [PS137](rules/PS137.md), [PS151](rules/PS151.md), [PS154](rules/PS154.md), [PS158](rules/PS158.md), [PS161](rules/PS161.md)
 * **Maintenance, storage and replication:** [PS126](rules/PS126.md), [PS127](rules/PS127.md), [PS129](rules/PS129.md), [PS142](rules/PS142.md), [PS143](rules/PS143.md), [PS147](rules/PS147.md)
 * **Security and privileges:** [PS131](rules/PS131.md), [PS138](rules/PS138.md), [PS139](rules/PS139.md), [PS144](rules/PS144.md), [PS145](rules/PS145.md), [PS146](rules/PS146.md)
 * **Schema design for new tables:** [PS152](rules/PS152.md), [PS153](rules/PS153.md)
@@ -91,6 +91,7 @@ migration, because nothing else uses them yet.
 | [`PS158`](rules/PS158.md) | concurrent-refresh-unsupported | critical | REFRESH MATERIALIZED VIEW CONCURRENTLY fails on a view without a plain unique index, or one that is not populated. |
 | [`PS159`](rules/PS159.md) | dependent-view | critical | Dropping or retyping a column, or dropping a table, fails while a view depends on it. |
 | [`PS160`](rules/PS160.md) | view-replace-incompatible | critical | CREATE OR REPLACE VIEW fails when it drops, renames or reorders the view's columns. |
+| [`PS161`](rules/PS161.md) | concurrent-detach-with-default | critical | DETACH PARTITION CONCURRENTLY fails when the partitioned table has a DEFAULT partition. |
 
 ## Observed rules
 

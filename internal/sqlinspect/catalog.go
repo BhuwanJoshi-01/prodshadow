@@ -18,7 +18,9 @@ type Catalog struct {
 	indexTable  map[string]string   // index -> its table
 	partitions  map[string][]string // partitioned table -> direct partitions
 	partitioned map[string]bool     // tables declared with PARTITION BY
-	viewReads   map[string][]string // view or materialized view -> relations its query reads
+	// defaultPartition maps a partitioned table to its DEFAULT partition.
+	defaultPartition map[string]string
+	viewReads        map[string][]string // view or materialized view -> relations its query reads
 	// matviews maps each materialized view to whether it is populated;
 	// plainUnique marks relations with a unique index on plain columns
 	// without WHERE, which REFRESH ... CONCURRENTLY requires.
@@ -49,7 +51,8 @@ type columnSequence struct {
 // typically the parsed fixture schema.
 func NewCatalog(schema []*Statement) *Catalog {
 	c := &Catalog{indexTable: map[string]string{}, partitions: map[string][]string{}, partitioned: map[string]bool{}, viewReads: map[string][]string{},
-		matviews: map[string]bool{}, plainUnique: map[string]bool{}, viewColumns: map[string]map[string][]string{},
+		defaultPartition: map[string]string{},
+		matviews:         map[string]bool{}, plainUnique: map[string]bool{}, viewColumns: map[string]map[string][]string{},
 		viewOutputs: map[string][]string{},
 		columns:     map[string][]string{}, sequences: map[string][]columnSequence{}, primaryKeys: map[string][]string{},
 		primaryKeyName: map[string]string{}, keys: map[string]map[string][]string{}}
@@ -156,6 +159,9 @@ func (c *Catalog) learn(s *Statement) {
 			for _, parent := range x.CreateStmt.InhRelations {
 				p := catalogKey(relName(parent.GetRangeVar()))
 				c.partitions[p] = append(c.partitions[p], table)
+				if x.CreateStmt.Partbound.IsDefault {
+					c.defaultPartition[p] = table
+				}
 			}
 		}
 	case *pg_query.Node_AlterTableStmt:
@@ -185,6 +191,15 @@ func (c *Catalog) learn(s *Statement) {
 			case pg_query.AlterTableType_AT_AttachPartition:
 				if part := relName(at.GetDef().GetPartitionCmd().GetName()); part != "" {
 					c.partitions[catalogKey(table)] = append(c.partitions[catalogKey(table)], part)
+					if at.GetDef().GetPartitionCmd().GetBound().GetIsDefault() {
+						c.defaultPartition[catalogKey(table)] = part
+					}
+				}
+			case pg_query.AlterTableType_AT_DetachPartition:
+				part := catalogKey(relName(at.GetDef().GetPartitionCmd().GetName()))
+				c.partitions[catalogKey(table)] = slices.DeleteFunc(c.partitions[catalogKey(table)], func(p string) bool { return catalogKey(p) == part })
+				if catalogKey(c.defaultPartition[catalogKey(table)]) == part {
+					delete(c.defaultPartition, catalogKey(table))
 				}
 			}
 		}
@@ -431,17 +446,39 @@ func (c *Catalog) resolve(s *Statement) {
 		if x.IndexStmt.Relation.GetInh() {
 			c.propagate(s, relName(x.IndexStmt.Relation))
 		}
-	case *pg_query.Node_AlterTableStmt:
-		if !x.AlterTableStmt.Relation.GetInh() {
-			return
+	case *pg_query.Node_CreateStmt:
+		// A new partition takes rows out of the DEFAULT partition's range:
+		// PostgreSQL locks the default partition and checks it.
+		if b := x.CreateStmt.Partbound; b != nil && !b.IsDefault {
+			for _, parent := range x.CreateStmt.InhRelations {
+				p := relName(parent.GetRangeVar())
+				if def := c.defaultPartition[catalogKey(p)]; def != "" {
+					s.addImpliedLock(def, pglock.AccessExclusive, "default partition of "+p)
+				}
+			}
 		}
+	case *pg_query.Node_AlterTableStmt:
+		table := relName(x.AlterTableStmt.Relation)
 		for _, cmd := range x.AlterTableStmt.Cmds {
-			switch cmd.GetAlterTableCmd().GetSubtype() {
+			at := cmd.GetAlterTableCmd()
+			switch at.GetSubtype() {
 			case pg_query.AlterTableType_AT_AttachPartition, pg_query.AlterTableType_AT_DetachPartition,
 				pg_query.AlterTableType_AT_DetachPartitionFinalize:
-				// These lock the parent and the one partition they name.
+				// These lock the parent and the one partition they name,
+				// and the DEFAULT partition, whose implicit bounds change.
+				def := c.defaultPartition[catalogKey(table)]
+				if def != "" && !at.GetDef().GetPartitionCmd().GetBound().GetIsDefault() &&
+					catalogKey(def) != catalogKey(relName(at.GetDef().GetPartitionCmd().GetName())) {
+					if at.GetDef().GetPartitionCmd().GetConcurrent() {
+						s.detachProblem = def
+					}
+					s.addImpliedLock(def, pglock.AccessExclusive, "default partition of "+table)
+				}
 				return
 			}
+		}
+		if !x.AlterTableStmt.Relation.GetInh() {
+			return
 		}
 		c.propagate(s, relName(x.AlterTableStmt.Relation))
 	}

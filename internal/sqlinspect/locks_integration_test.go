@@ -31,6 +31,7 @@ CREATE TABLE staging (id int, customer_id int, status text, amount int, note tex
 CREATE TABLE events (id bigint, at timestamptz NOT NULL) PARTITION BY RANGE (at);
 CREATE TABLE events_2026 PARTITION OF events FOR VALUES FROM ('2026-01-01') TO ('2027-01-01');
 CREATE INDEX events_at_part_idx ON events (at);
+CREATE TABLE events_default PARTITION OF events DEFAULT;
 CREATE TABLE events_2027 (id bigint, at timestamptz NOT NULL);
 CREATE MATERIALIZED VIEW order_totals AS SELECT customer_id, sum(amount) AS total FROM orders GROUP BY 1;
 CREATE UNIQUE INDEX order_totals_customer ON order_totals (customer_id);
@@ -404,6 +405,8 @@ func TestFailingStatementsOracle(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, c := range []struct{ sql, rule, sqlstate string }{
+		// Runs outside a transaction block (see below).
+		{"ALTER TABLE events DETACH PARTITION events_2026 CONCURRENTLY", "PS161", "55000"},
 		{"DROP TABLE customers", "PS157", "2BP01"},
 		{"TRUNCATE invoices", "PS157", "0A000"},
 		{"REFRESH MATERIALIZED VIEW CONCURRENTLY status_counts", "PS158", "55000"},
@@ -427,15 +430,21 @@ func TestFailingStatementsOracle(t *testing.T) {
 			if !fired {
 				t.Errorf("%s does not report the statement", c.rule)
 			}
-			tx, err := conn.Begin(ctx)
-			if err != nil {
-				t.Fatal(err)
+			var execErr error
+			if stmts[0].Txn == TxnNotInBlock {
+				// It fails before changing anything, so no rollback is needed.
+				_, execErr = conn.Exec(ctx, c.sql)
+			} else {
+				tx, err := conn.Begin(ctx)
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer func() { _ = tx.Rollback(ctx) }()
+				_, execErr = tx.Exec(ctx, c.sql)
 			}
-			defer func() { _ = tx.Rollback(ctx) }()
-			_, err = tx.Exec(ctx, c.sql)
 			var pgErr *pgconn.PgError
-			if !errors.As(err, &pgErr) || pgErr.Code != c.sqlstate {
-				t.Errorf("PostgreSQL: %v, want SQLSTATE %s", err, c.sqlstate)
+			if !errors.As(execErr, &pgErr) || pgErr.Code != c.sqlstate {
+				t.Errorf("PostgreSQL: %v, want SQLSTATE %s", execErr, c.sqlstate)
 			}
 		})
 	}
