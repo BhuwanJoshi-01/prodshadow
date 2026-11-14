@@ -98,6 +98,12 @@ func TestExamples(t *testing.T) {
 					t.Errorf("unexpected finding %s", id)
 				}
 			}
+			// Every example's fixture schema contains what connects its
+			// tables, so every wait the migration causes is predicted;
+			// QUAL015 here means lock prediction regressed.
+			if got["QUAL015"] {
+				t.Errorf("QUAL015: a lock wait was not predicted from the schema")
+			}
 		})
 	}
 }
