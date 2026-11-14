@@ -135,6 +135,20 @@ func (c *Catalog) ddlForeignKeyLocks(s *Statement) {
 						s.addImpliedLock(fk.refTable, pglock.AccessExclusive, "foreign key "+fk.name)
 					}
 				}
+			case pg_query.AlterTableType_AT_AlterColumnType:
+				// PostgreSQL drops and re-creates every foreign key on the
+				// retyped column, on either side, which re-creates its
+				// triggers on the other table.
+				for _, fk := range c.referencedBy(table) {
+					if slices.Contains(fk.columns, at.Name) {
+						s.addImpliedLock(fk.refTable, pglock.AccessExclusive, "foreign key "+fk.name)
+					}
+				}
+				for _, fk := range c.referencing(table) {
+					if slices.Contains(c.keyColumns(fk), at.Name) && catalogKey(fk.table) != catalogKey(table) {
+						s.addImpliedLock(fk.table, pglock.AccessExclusive, "foreign key "+fk.name)
+					}
+				}
 			}
 		}
 	case *pg_query.Node_DropStmt:

@@ -26,6 +26,7 @@ triggers on both tables.
 | the same with `ON DELETE CASCADE` / `SET NULL` / `SET DEFAULT` | `invoices` (changes the referencing rows), and onwards for cascades | `ROW EXCLUSIVE` |
 | `ALTER TABLE invoices VALIDATE CONSTRAINT invoices_customer_fk` | `customers` | `ROW SHARE` |
 | `ALTER TABLE invoices DROP CONSTRAINT invoices_customer_fk`, `DROP COLUMN customer_id`, `DROP TABLE invoices` | `customers` (its triggers are removed) | `ACCESS EXCLUSIVE` |
+| `ALTER TABLE invoices ALTER COLUMN customer_id TYPE ...` or `ALTER TABLE customers ALTER COLUMN id TYPE ...` | the other table (the foreign key is re-created) | `ACCESS EXCLUSIVE` |
 | `ALTER TABLE customers DROP CONSTRAINT customers_pkey CASCADE`, `DROP TABLE customers CASCADE` | `invoices` | `ACCESS EXCLUSIVE` |
 | `TRUNCATE customers CASCADE` | `invoices`, and every table referencing it in turn | `ACCESS EXCLUSIVE` |
 

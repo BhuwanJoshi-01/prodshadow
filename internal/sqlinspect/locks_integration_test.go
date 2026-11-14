@@ -173,6 +173,8 @@ var oracleStatements = []string{
 	"LOCK TABLE recent_orders IN SHARE MODE",
 	"ANALYZE events",
 	"ALTER TABLE customers RENAME COLUMN id TO customer_id",
+	"ALTER TABLE customers ALTER COLUMN id TYPE bigint",
+	"ALTER TABLE invoices ALTER COLUMN customer_id TYPE bigint",
 	"ALTER SEQUENCE invoice_numbers RESTART WITH 1000",
 	"ALTER SEQUENCE invoice_numbers INCREMENT BY 10",
 	"ALTER SEQUENCE invoice_numbers OWNED BY orders.id",

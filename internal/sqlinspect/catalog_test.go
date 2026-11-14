@@ -480,3 +480,21 @@ DROP VIEW open_orders CASCADE;
 		t.Error("dropping a view does not lock its tables")
 	}
 }
+
+func TestCatalogForeignKeyColumnType(t *testing.T) {
+	stmts := parse(t, `
+ALTER TABLE customers ALTER COLUMN id TYPE bigint;
+ALTER TABLE invoices ALTER COLUMN customer_id TYPE bigint;
+ALTER TABLE customers ALTER COLUMN email TYPE varchar(320);
+`)
+	NewCatalog(parse(t, fkSchema)).Resolve(stmts)
+	if l, ok := lockOn(stmts[0], "invoices"); !ok || l.Mode != pglock.AccessExclusive {
+		t.Errorf("retyping the referenced key re-creates the foreign key on invoices: %+v", stmts[0].Locks)
+	}
+	if l, ok := lockOn(stmts[1], "customers"); !ok || l.Mode != pglock.AccessExclusive {
+		t.Errorf("retyping the referencing column re-creates the triggers on customers: %+v", stmts[1].Locks)
+	}
+	if len(stmts[2].Locks) != 1 {
+		t.Errorf("a column outside any foreign key changes nothing else: %+v", stmts[2].Locks)
+	}
+}
