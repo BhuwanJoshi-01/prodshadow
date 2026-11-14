@@ -31,6 +31,7 @@ ProdShadow's exit code.
 |---|---|---|
 | `config` | `prodshadow.yaml` | Configuration, relative to `working-directory`. |
 | `migrations` | — | Newline-separated files overriding `migration.files`. |
+| `changed-since` | — | Only migrations added or changed since this git ref, e.g. `origin/${{ github.base_ref }}`; needs `fetch-depth: 0`. |
 | `args` | — | Extra `prodshadow verify` flags, one flag or value per line, e.g. `--repeats` and `5`. |
 | `working-directory` | `.` | |
 | `report-directory` | `prodshadow-results` | |
@@ -48,18 +49,16 @@ Outputs: `exit-code`, `decision` (`pass`, `block`, `inconclusive`,
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - id: changed
-        run: |
-          {
-            echo 'files<<EOF'
-            git diff --name-only --diff-filter=A "origin/${GITHUB_BASE_REF}...HEAD" -- 'migrations/*.sql'
-            echo EOF
-          } >> "$GITHUB_OUTPUT"
-      - if: steps.changed.outputs.files != ''
-        uses: BhuwanJoshi-01/Open-Source-1@main
+      - uses: BhuwanJoshi-01/Open-Source-1@main
         with:
-          migrations: ${{ steps.changed.outputs.files }}
+          changed-since: origin/${{ github.base_ref }}
 ```
+
+`changed-since` keeps the files of `migration.files` that git reports as
+added, modified or renamed since the merge base with the pull request's
+base branch; when none changed, the step passes without starting a server.
+Outside the action, use `prodshadow verify --changed-since origin/main` (or
+the same flag on `inspect` and `plan`).
 
 Older migrations should already be part of `fixture.schema`, so that the new
 migration runs against the schema it will meet in production.
