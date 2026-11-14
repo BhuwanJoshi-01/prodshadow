@@ -83,6 +83,9 @@ var oracleStatements = []string{
 	"LOCK TABLE orders IN SHARE MODE",
 	"LOCK TABLE orders",
 	"COMMENT ON TABLE orders IS 'customer orders'",
+	"COMMENT ON COLUMN orders.status IS 'lifecycle state'",
+	"COMMENT ON CONSTRAINT orders_amount_check ON orders IS 'no negative amounts'",
+	"COMMENT ON SCHEMA public IS 'application schema'",
 	"CREATE TRIGGER orders_touch BEFORE UPDATE ON orders FOR EACH ROW EXECUTE FUNCTION suppress_redundant_updates_trigger()",
 	"ALTER TABLE orders ENABLE ROW LEVEL SECURITY",
 	"ALTER TABLE orders REPLICA IDENTITY FULL",
@@ -95,9 +98,7 @@ var oracleStatements = []string{
 // keyed by statement and relation. REFRESH MATERIALIZED VIEW reads the
 // tables of the view's stored query, which a migration file does not show.
 var oracleKnownGaps = map[string]map[string]string{
-	"REFRESH MATERIALIZED VIEW order_totals":              {"orders": "ACCESS SHARE"},
-	"CREATE TABLE order_snapshot AS SELECT * FROM orders": {"orders": "ACCESS SHARE"},
-	"COMMENT ON TABLE orders IS 'customer orders'":        {"orders": "SHARE UPDATE EXCLUSIVE"},
+	"REFRESH MATERIALIZED VIEW order_totals": {"orders": "ACCESS SHARE"},
 }
 
 // oracleVersionGaps adds gaps that only some PostgreSQL majors show.

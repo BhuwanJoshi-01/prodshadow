@@ -132,6 +132,11 @@ func classify(s *Statement) {
 		}
 	case *pg_query.Node_CommentStmt:
 		s.Kind, s.Tag = KindComment, "COMMENT"
+		// Commenting on a relation or a column takes SHARE UPDATE
+		// EXCLUSIVE on the relation: it does not block queries, but it
+		// queues behind a pending ACCESS EXCLUSIVE request and conflicts
+		// with VACUUM, ANALYZE and concurrent index builds.
+		s.addLock(commentRelation(x.CommentStmt))
 	case *pg_query.Node_AlterSystemStmt:
 		s.Kind, s.Tag, s.Txn = KindOtherDDL, "ALTER SYSTEM", TxnNotInBlock
 	case *pg_query.Node_CreatedbStmt:
@@ -213,6 +218,30 @@ func classifyDrop(s *Statement, st *pg_query.DropStmt) {
 		s.Kind = KindDropOther
 		s.Tag = "DROP " + strings.TrimPrefix(st.RemoveType.String(), "OBJECT_")
 	}
+}
+
+// commentRelation returns the relation a COMMENT ON statement locks and the
+// lock mode, or "" for objects that are not relations or parts of one.
+func commentRelation(st *pg_query.CommentStmt) (string, pglock.Mode) {
+	items := stringItems(st.GetObject().GetList().GetItems())
+	switch st.Objtype {
+	case pg_query.ObjectType_OBJECT_TABLE, pg_query.ObjectType_OBJECT_VIEW, pg_query.ObjectType_OBJECT_MATVIEW,
+		pg_query.ObjectType_OBJECT_FOREIGN_TABLE, pg_query.ObjectType_OBJECT_SEQUENCE, pg_query.ObjectType_OBJECT_INDEX:
+		return strings.Join(items, "."), pglock.ShareUpdateExclusive
+	case pg_query.ObjectType_OBJECT_COLUMN:
+		// The last name is the column; the rest name its relation.
+		if len(items) > 1 {
+			return strings.Join(items[:len(items)-1], "."), pglock.ShareUpdateExclusive
+		}
+	case pg_query.ObjectType_OBJECT_TABCONSTRAINT, pg_query.ObjectType_OBJECT_TRIGGER,
+		pg_query.ObjectType_OBJECT_RULE, pg_query.ObjectType_OBJECT_POLICY:
+		// The lock is taken on the constraint, trigger, rule or policy
+		// itself; its relation (all but the last name) is only read.
+		if len(items) > 1 {
+			return strings.Join(items[:len(items)-1], "."), pglock.AccessShare
+		}
+	}
+	return "", pglock.None
 }
 
 // dropObjectNames renders DropStmt objects, which are lists of String nodes.
