@@ -68,6 +68,7 @@ migration, because nothing else uses them yet.
 | [`PS148`](rules/PS148.md) | invalid-annotation | warning | A `prodshadow:` comment directive is malformed and is ignored. |
 | [`PS149`](rules/PS149.md) | expired-annotation | info | An inline suppression has passed its expiry date and no longer applies. |
 | [`PS150`](rules/PS150.md) | unused-annotation | info | An inline suppression names a static rule that reports nothing for its statement. |
+| [`PS151`](rules/PS151.md) | non-immutable-check | warning | A `CHECK` constraint depends on the time, randomness or the session, which PostgreSQL does not re-evaluate. |
 
 ## Observed rules
 
