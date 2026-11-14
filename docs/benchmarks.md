@@ -24,6 +24,11 @@ are **not** limits or guarantees.
 | blocking-index, `CONCURRENTLY` | 800,000 | pass | 128 s | 1274, 992, 1173 ms | 0 | 40 ms | 1.5 % |
 | backfill-heavy | 400,000 | block (OBS001) | 126 s | 1671, 1544, 1619 ms | 8 | 1656 ms | 10 % |
 | rolling-deploy | 20,000 | block (OBS007, OBS005) | 125 s | 3, 3, 6 ms | 0 | 8 ms | 4.5 % |
+| partition-maintenance | 200,000 | block (OBS002) | 119 s | 2002, 2001, 2001 ms (lock timeout) | 8 | 2003 ms | 7.7 % |
+| partition-maintenance, `ATTACH PARTITION` | 200,000 | pass | 119 s | 8, 35, 8 ms | 0 | 7 ms | 7.2 % |
+| matview-refresh | 1,500,000 | block (OBS001) | 127 s | 6419, 1551, 1257 ms | 8 | 6397 ms | 7.2 % |
+| matview-refresh, `CONCURRENTLY` (run 1) | 1,500,000 | block (OBS001, low confidence) | 127 s | 6512, 5790, 5540 ms | 0 | 290 ms | 5.5 % |
+| matview-refresh, `CONCURRENTLY` (run 2) | 1,500,000 | pass | 127 s | 5695, 5883, 5911 ms | 0 | 30 ms | 6.2 % |
 
 Observations:
 
@@ -41,6 +46,10 @@ Observations:
   test `TestEqualPhasesStayWithinNoise`).
 * **Telemetry kept up.** The largest gap between lock samples was 130 ms
   for a 100 ms interval.
+* **Contention is not locking.** The concurrent matview refresh queued
+  nobody in either run, but on the 2-CPU server one repeat of one run saw a
+  290 ms insert stall with no lock wait, just over the 250 ms budget. Such
+  stalls vary from run to run; `OBS017` points them out.
 * **Error storms are visible.** In `rolling-deploy`, failing old-version
   queries raised the new version's p95 by about 1.7×.
 
@@ -68,7 +77,7 @@ the database (0.1–1 ms in these examples).
 
 ```bash
 make build
-for e in safe-add-column long-running-transaction blocking-index backfill-heavy rolling-deploy; do
+for e in safe-add-column long-running-transaction blocking-index backfill-heavy rolling-deploy partition-maintenance matview-refresh; do
   ./bin/prodshadow verify --config examples/$e/prodshadow.yaml --output /tmp/ps-$e
 done
 ```

@@ -32,6 +32,11 @@ var expectations = []expectation{
 	{example: "rolling-deploy", exit: cli.ExitBlock, mustHave: []string{"OBS007", "OBS013", "PS109"}},
 	{example: "partition-maintenance", exit: cli.ExitBlock, mustHave: []string{"OBS002", "PS141"}},
 	{example: "partition-maintenance", migration: "alternatives/0031_events_2027.sql", mustNot: []string{"OBS002", "PS141", "PS123"}, exit: cli.ExitOK},
+	{example: "matview-refresh", exit: cli.ExitBlock, mustHave: []string{"OBS001", "OBS011", "PS113"}},
+	// The concurrent refresh blocks no reader, but competes for CPU; an
+	// occasional contention stall can still exceed the budget, so only the
+	// absence of lock queueing is asserted.
+	{example: "matview-refresh", migration: "alternatives/0044_refresh_daily_revenue.sql", mustNot: []string{"OBS011", "PS113"}, exit: -1},
 }
 
 type reportFile struct {

@@ -1,0 +1,18 @@
+version: 1
+name: revenue-dashboard
+scenarios:
+  # The dashboard reads one customer's recent revenue from the view.
+  - id: customer_revenue
+    weight: 70
+    mode: read
+    sql: "SELECT day, revenue, orders FROM daily_revenue WHERE customer_id = $1 ORDER BY day DESC LIMIT 30"
+    parameters:
+      - {generator: zipf, min: 1, max: 5000, s: 1.1}
+  # New orders keep arriving; the view does not block them.
+  - id: record_order
+    weight: 30
+    mode: write
+    sql: "INSERT INTO orders (id, customer_id, amount, created_at) VALUES ($1, $2, 25, now()) ON CONFLICT (id) DO NOTHING"
+    parameters:
+      - {generator: int_range, min: 2000000, max: 1000000000000}
+      - {generator: int_range, min: 1, max: 5000}

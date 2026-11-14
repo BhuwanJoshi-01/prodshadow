@@ -109,6 +109,7 @@ JUnit XML on request) and exits with:
 | [backfill-heavy](examples/backfill-heavy) | Unbatched `UPDATE` holds row locks | block (OBS001) |
 | [rolling-deploy](examples/rolling-deploy) | Dropping a column the old app version still reads | block (OBS007, OBS013) |
 | [partition-maintenance](examples/partition-maintenance) | `PARTITION OF` locks the whole partitioned table | block (OBS002) |
+| [matview-refresh](examples/matview-refresh) | A plain refresh blocks every reader of the view | block (OBS001) |
 
 ## In CI
 

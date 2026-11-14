@@ -1,0 +1,31 @@
+# Refreshing a materialized view without CONCURRENTLY locks it for the whole
+# refresh, so every dashboard query waits. Expected decision: block (OBS001);
+# the CONCURRENTLY alternative passes.
+version: 1
+project: matview-refresh
+postgres:
+  version: "17"
+  # Pinned by digest for reproducible runs (PostgreSQL 17.12).
+  image: postgres:17-alpine@sha256:d3244e8ce3f165ee3c93d9c4a4b1d0fe48b3a89e2287b717fdcbbde92d405065
+  isolation:
+    memory_mb: 2048
+    cpus: 2
+fixture:
+  schema: ./fixtures/schema.sql
+  seed_sql: ./fixtures/seed.sql
+workload:
+  file: ./workloads/workload.yaml
+  warmup_seconds: 3
+  measurement_seconds: 15
+  concurrency: 8
+  repeats: 3
+migration:
+  files: [./migrations/0044_refresh_daily_revenue.sql]
+  lock_timeout_ms: 2000
+  start_after_seconds: 4
+policy:
+  fail_on: [critical]
+  # Dashboard queries may stall for at most 250 ms.
+  max_lock_wait_ms: 250
+report:
+  formats: [json, markdown, html]
