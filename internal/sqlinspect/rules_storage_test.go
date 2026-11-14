@@ -34,3 +34,18 @@ func TestPS143UnloggedTable(t *testing.T) {
 		}
 	}
 }
+
+func TestPS147ReplicaIdentityChange(t *testing.T) {
+	cases := map[string]int{
+		"ALTER TABLE orders REPLICA IDENTITY NOTHING;":                    1,
+		"ALTER TABLE orders REPLICA IDENTITY FULL;":                       1,
+		"ALTER TABLE orders REPLICA IDENTITY DEFAULT;":                    0,
+		"ALTER TABLE orders REPLICA IDENTITY USING INDEX orders_ref_key;": 0,
+		"CREATE TABLE t (id int);\nALTER TABLE t REPLICA IDENTITY FULL;":  0,
+	}
+	for sql, want := range cases {
+		if got := findings(t, "PS147", Options{}, sql); len(got) != want {
+			t.Errorf("%s: expected %d findings, got %d", sql, want, len(got))
+		}
+	}
+}

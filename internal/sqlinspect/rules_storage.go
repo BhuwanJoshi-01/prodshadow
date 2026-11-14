@@ -101,3 +101,43 @@ func checkUnloggedTable(c *Context, s *Statement) []Finding {
 	f.Remediation = "Keep tables that hold data you need logged; use UNLOGGED only for scratch data that can be rebuilt, and drop it after use."
 	return []Finding{f}
 }
+
+func init() {
+	register(Rule{
+		ID:       "PS147",
+		Name:     "replica-identity-change",
+		Summary:  "REPLICA IDENTITY NOTHING breaks updates and deletes on published tables; FULL multiplies WAL volume",
+		Severity: evidence.Warning,
+		DocsURL:  "https://www.postgresql.org/docs/current/sql-altertable.html#SQL-ALTERTABLE-REPLICA-IDENTITY",
+		check:    checkReplicaIdentity,
+	})
+}
+
+func checkReplicaIdentity(c *Context, s *Statement) []Finding {
+	table, cmds := alterCmds(c, s)
+	var out []Finding
+	for _, cmd := range cmds {
+		if cmd.Subtype != pg_query.AlterTableType_AT_ReplicaIdentity {
+			continue
+		}
+		ri := cmd.Def.GetReplicaIdentityStmt()
+		if ri == nil {
+			continue
+		}
+		var msg string
+		switch ri.IdentityType {
+		case "n":
+			msg = fmt.Sprintf("REPLICA IDENTITY NOTHING on %s: if the table is in a publication that publishes updates or deletes, every UPDATE and DELETE on it fails until the identity is restored.", table)
+		case "f":
+			msg = fmt.Sprintf("REPLICA IDENTITY FULL on %s: every UPDATE and DELETE writes the whole old row to the WAL, which can multiply WAL volume and replication lag for a busy table.", table)
+		default:
+			continue
+		}
+		f := at(s, msg)
+		f.Table = table
+		f.Evidence, f.Confidence = evidence.Heuristic, evidence.Medium
+		f.Remediation = "Keep REPLICA IDENTITY DEFAULT with a primary key, or USING INDEX on a unique, non-null index; check pg_publication_tables before changing it."
+		out = append(out, f)
+	}
+	return out
+}
