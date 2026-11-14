@@ -88,15 +88,29 @@ func walkStatementsOf(n *pg_query.Node, fn func(*pg_query.Node)) {
 // plpgsqlQueries returns the static SQL statements of a PL/pgSQL function
 // (CREATE FUNCTION text): the queries of plain statements and PERFORM.
 func plpgsqlQueries(createFunction string) []string {
+	q, _ := plpgsqlStatements(createFunction)
+	return q.static
+}
+
+// plpgsqlBody is the SQL a PL/pgSQL body runs.
+type plpgsqlBody struct {
+	static  []string
+	dynamic bool // uses EXECUTE
+}
+
+// plpgsqlStatements parses a CREATE FUNCTION text with a PL/pgSQL body;
+// ok is false when the body does not parse.
+func plpgsqlStatements(createFunction string) (plpgsqlBody, bool) {
 	raw, err := pg_query.ParsePlPgSqlToJSON(createFunction)
 	if err != nil {
-		return nil
+		return plpgsqlBody{}, false
 	}
 	var tree any
 	if json.Unmarshal([]byte(raw), &tree) != nil {
-		return nil
+		return plpgsqlBody{}, false
 	}
 	var out []string
+	dynamic := strings.Contains(raw, "PLpgSQL_stmt_dynexecute") || strings.Contains(raw, "PLpgSQL_stmt_dynfors")
 	var visit func(v any, statement bool)
 	visit = func(v any, statement bool) {
 		switch x := v.(type) {
@@ -112,10 +126,19 @@ func plpgsqlQueries(createFunction string) []string {
 						}
 					}
 				case "PLpgSQL_expr":
-					if statement {
-						if q := exprQuery(map[string]any{"PLpgSQL_expr": child}); q != "" {
-							out = append(out, q)
+					q := exprQuery(map[string]any{"PLpgSQL_expr": child})
+					switch {
+					case q == "":
+					case statement:
+						out = append(out, q)
+					default:
+						// Conditions, assignments and RETURN values are
+						// evaluated as SELECT <expression>, which locks the
+						// tables their subqueries read.
+						if _, rhs, ok := strings.Cut(q, ":="); ok {
+							q = rhs
 						}
+						out = append(out, "SELECT "+q)
 					}
 				default:
 					visit(child, statement && k == "sqlstmt")
@@ -128,7 +151,7 @@ func plpgsqlQueries(createFunction string) []string {
 		}
 	}
 	visit(tree, false)
-	return out
+	return plpgsqlBody{static: out, dynamic: dynamic}, true
 }
 
 func exprQuery(v any) string {
@@ -207,4 +230,46 @@ func (c *Catalog) fireTriggers(s *Statement, table string, events int32) {
 func (c *Catalog) forgetTrigger(table, name string) {
 	key := catalogKey(table)
 	c.triggers[key] = slices.DeleteFunc(c.triggers[key], func(t catalogTrigger) bool { return t.name == name })
+}
+
+// classifyDo predicts the locks of a PL/pgSQL DO block from the static SQL
+// in its body: the statements it runs directly, including inside IF
+// branches and loops, and PERFORM. Dynamic SQL (EXECUTE) cannot be seen;
+// the statement records whether it uses any.
+func classifyDo(s *Statement, st *pg_query.DoStmt) {
+	var body, language string
+	for _, a := range st.Args {
+		d := a.GetDefElem()
+		switch d.GetDefname() {
+		case "as":
+			body = d.GetArg().GetString_().GetSval()
+		case "language":
+			language = strings.ToLower(d.GetArg().GetString_().GetSval())
+		}
+	}
+	if body == "" || (language != "" && language != "plpgsql") {
+		return
+	}
+	tag := "$prodshadow_do$"
+	for strings.Contains(body, tag) {
+		tag = strings.TrimSuffix(tag, "$") + "_$"
+	}
+	fn := "CREATE FUNCTION prodshadow_do() RETURNS void LANGUAGE plpgsql AS " + tag + body + tag
+	queries, ok := plpgsqlStatements(fn)
+	if !ok {
+		return
+	}
+	s.bodyAnalysed = true
+	s.dynamicSQL = queries.dynamic
+	for _, q := range queries.static {
+		inner, err := ParseSources([]Source{{Path: "do", Content: q}})
+		if err != nil {
+			continue
+		}
+		for _, is := range inner {
+			for _, l := range is.Locks {
+				s.addLock(l.Table, l.Mode)
+			}
+		}
+	}
 }

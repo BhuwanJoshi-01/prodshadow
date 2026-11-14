@@ -27,7 +27,10 @@ func TestPS116Unparsed(t *testing.T) {
 }
 
 func TestPS117Procedural(t *testing.T) {
-	expectCount(t, findings(t, "PS117", Options{}, "DO $$ BEGIN PERFORM 1; END $$;"), 1)
+	// A DO block with static SQL only is analysed.
+	expectCount(t, findings(t, "PS117", Options{}, "DO $$ BEGIN PERFORM 1; END $$;"), 0)
+	expectCount(t, findings(t, "PS117", Options{}, "DO $$ BEGIN EXECUTE 'ALTER TABLE t ADD COLUMN c int'; END $$;"), 1)
+	expectCount(t, findings(t, "PS117", Options{}, "DO LANGUAGE plperl $$ 1; $$;"), 1)
 	expectCount(t, findings(t, "PS117", Options{}, "CALL refresh_stats();"), 1)
 }
 

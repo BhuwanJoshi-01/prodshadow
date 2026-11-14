@@ -116,6 +116,7 @@ func classify(s *Statement) {
 		}
 	case *pg_query.Node_DoStmt:
 		s.Kind, s.Tag = KindProcedural, "DO"
+		classifyDo(s, x.DoStmt)
 	case *pg_query.Node_CallStmt:
 		s.Kind, s.Tag = KindProcedural, "CALL"
 	case *pg_query.Node_CreateExtensionStmt:

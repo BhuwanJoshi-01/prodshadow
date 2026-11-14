@@ -34,10 +34,14 @@ func checkUnparsed(c *Context, s *Statement) []Finding {
 }
 
 func checkProcedural(c *Context, s *Statement) []Finding {
-	if s.Kind != KindProcedural {
+	if s.Kind != KindProcedural || (s.bodyAnalysed && !s.dynamicSQL) {
 		return nil
 	}
-	f := at(s, fmt.Sprintf("%s runs procedural code whose locks cannot be predicted statically; only the observed experiment shows its effect.", s.Tag))
+	msg := fmt.Sprintf("%s runs procedural code whose locks cannot be predicted statically; only the observed experiment shows its effect.", s.Tag)
+	if s.dynamicSQL {
+		msg = "DO runs dynamic SQL (EXECUTE) whose locks cannot be predicted statically; the locks of its static statements are listed, but only the observed experiment shows the rest."
+	}
+	f := at(s, msg)
 	f.Evidence = evidence.Quality
 	return []Finding{f}
 }

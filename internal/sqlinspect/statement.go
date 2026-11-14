@@ -112,6 +112,10 @@ type Statement struct {
 	// detachProblem names the DEFAULT partition that makes a DETACH
 	// PARTITION ... CONCURRENTLY fail; set by Catalog.Resolve.
 	detachProblem string
+	// bodyAnalysed marks a DO block whose PL/pgSQL body was parsed;
+	// dynamicSQL marks one that also runs dynamic SQL (EXECUTE).
+	bodyAnalysed bool
+	dynamicSQL   bool
 }
 
 // ExistingLock returns the strongest lock the statement takes on a relation

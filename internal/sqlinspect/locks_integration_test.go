@@ -186,6 +186,8 @@ var oracleStatements = []string{
 	"INSERT INTO events VALUES (1, '2026-03-01')",
 	"UPDATE events SET id = 2 WHERE at = '2026-03-01'",
 	"DELETE FROM events WHERE id = 1",
+	"DO $$ BEGIN ALTER TABLE orders ADD COLUMN memo2 text; UPDATE customers SET email = email WHERE id = 1; END $$",
+	"DO $$ BEGIN IF EXISTS (SELECT 1 FROM tags) OR EXISTS (SELECT 1 FROM customers) THEN PERFORM 1 FROM staging FOR UPDATE; END IF; END $$",
 	"ALTER SEQUENCE invoice_numbers RESTART WITH 1000",
 	"ALTER SEQUENCE invoice_numbers INCREMENT BY 10",
 	"ALTER SEQUENCE invoice_numbers OWNED BY orders.id",

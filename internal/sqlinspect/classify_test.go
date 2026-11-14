@@ -62,6 +62,8 @@ func TestClassifyLocks(t *testing.T) {
 		{"CREATE TABLE archived_orders (archived_at timestamptz) INHERITS (orders)", KindCreateTable, "orders", pglock.ShareUpdateExclusive, TxnAny},
 		{"UPDATE orders SET status = 'x' WHERE id = 1", KindUpdate, "orders", pglock.RowExclusive, TxnAny},
 		{"DELETE FROM orders", KindDelete, "orders", pglock.RowExclusive, TxnAny},
+		{"DO $$ BEGIN IF true THEN ALTER TABLE orders ADD COLUMN memo text; END IF; END $$", KindProcedural, "orders", pglock.AccessExclusive, TxnAny},
+		{"DO $body$ BEGIN PERFORM 1 FROM customers FOR UPDATE; END $body$", KindProcedural, "customers", pglock.RowShare, TxnAny},
 		{"ALTER SEQUENCE invoice_numbers RESTART WITH 1000", KindOtherDDL, "invoice_numbers", pglock.ShareRowExclusive, TxnAny},
 		{"ALTER SEQUENCE invoice_numbers OWNED BY orders.id", KindOtherDDL, "orders", pglock.AccessShare, TxnAny},
 		{"SELECT nextval('invoice_numbers')", KindSelect, "invoice_numbers", pglock.RowExclusive, TxnAny},

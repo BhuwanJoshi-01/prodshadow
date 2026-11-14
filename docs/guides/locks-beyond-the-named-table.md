@@ -109,8 +109,9 @@ take.
 
 ## What is not modelled
 
-* Dynamic SQL (`EXECUTE`) in functions, triggers fired by a trigger's own
-  statements, functions in other languages, and `DO` blocks.
+* Dynamic SQL (`EXECUTE`) in functions and `DO` blocks, triggers fired by
+  a trigger's own statements, and functions or `DO` blocks in other
+  languages. The static SQL of PL/pgSQL `DO` blocks is analysed.
 * Which partition an `INSERT` or a pruned query reaches at run time.
 * Objects the fixture schema does not contain. Keep it close to
   production; `validate` warns about tables the workload or the migration
