@@ -5,3 +5,4 @@ produce the two SQL inputs ProdShadow needs: the schema before the
 migration (for the fixture) and the migration itself.
 
 * [Alembic](alembic.md)
+* [Django](django.md)

@@ -33,10 +33,10 @@ Add a background session to the workload with a `transaction` and a
 [examples/long-running-transaction](../examples/long-running-transaction).
 
 **Can I use it with Rails, Django, Prisma or Alembic?**
-Yes, after rendering migrations to SQL (for example `rails db:migrate` with
-SQL schema dumps, `manage.py sqlmigrate`, `prisma migrate diff --script`,
-`alembic upgrade --sql`). Put previously applied migrations into the fixture
-schema and pass the new one with `--migration`.
+Yes, after rendering migrations to SQL (for example `manage.py sqlmigrate`,
+`prisma migrate diff --script`, `alembic upgrade --sql`). Put previously
+applied migrations into the fixture schema and pass the new one with
+`--migration`. The [guides](guides/README.md) show the steps per tool.
 
 **How long does a run take?**
 Roughly start-up + seeding + `repeats × 2 × (warmup + measurement + ~3 s)`.
