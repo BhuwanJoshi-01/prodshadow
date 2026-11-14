@@ -91,7 +91,7 @@ func (r *Report) mdFindings(w writer) {
 			case f.AppVersion != "":
 				where = "version `" + f.AppVersion + "`"
 			}
-			w("| %s | %s %s | %s | %s | %s | %s |\n", severityLabel(f.Severity), f.RuleID, f.Rule, esc(conf), f.Evidence, esc(where), esc(f.Message))
+			w("| %s | [%s](%s) %s | %s | %s | %s | %s |\n", severityLabel(f.Severity), f.RuleID, RulePageURL(f.RuleID), f.Rule, esc(conf), f.Evidence, esc(where), esc(f.Message))
 		}
 		w("\n")
 		var remediations []risk.Finding

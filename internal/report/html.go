@@ -23,6 +23,8 @@ var htmlFuncs = template.FuncMap{
 	"upper": strings.ToUpper,
 	"join":  strings.Join,
 	"inc":   func(i int) int { return i + 1 },
+	// rulePage links a rule ID to its documentation page.
+	"rulePage": RulePageURL,
 }
 
 var parsedHTML = template.Must(template.New("report").Funcs(htmlFuncs).Parse(htmlTemplate))

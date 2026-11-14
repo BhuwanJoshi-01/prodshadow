@@ -37,7 +37,7 @@ ul { padding-left:20px; }
 <tr><th>Severity</th><th>Rule</th><th>Confidence</th><th>Evidence</th><th>Where</th><th>Finding</th></tr>
 {{range .Findings}}<tr{{if .Suppressed}} style="opacity:.55"{{end}}>
 <td class="sev-{{.Severity}}">{{.Severity}}{{if .Suppressed}} (suppressed){{end}}</td>
-<td><code>{{.RuleID}}</code> {{.Rule}}</td>
+<td><a href="{{rulePage .RuleID}}"><code>{{.RuleID}}</code></a> {{.Rule}}</td>
 <td>{{.Confidence}}{{if .ConfidenceReason}}<br><small>{{.ConfidenceReason}}</small>{{end}}</td>
 <td>{{.Evidence}}</td>
 <td>{{if .Scenario}}scenario <code>{{.Scenario}}</code>{{else if .AppVersion}}version <code>{{.AppVersion}}</code>{{else}}{{loc .File .Line}}{{end}}</td>

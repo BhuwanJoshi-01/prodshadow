@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/evidence"
+	"github.com/BhuwanJoshi-01/Open-Source-1/internal/report"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/risk"
 )
 
@@ -38,7 +39,7 @@ func writeAnnotations(w io.Writer, findings []risk.Finding) {
 				props = append(props, fmt.Sprintf("line=%d", f.Line))
 			}
 		}
-		fmt.Fprintf(w, "::%s %s::%s\n", cmd, strings.Join(props, ","), escapeData(f.Message))
+		fmt.Fprintf(w, "::%s %s::%s\n", cmd, strings.Join(props, ","), escapeData(f.Message+" See "+report.RulePageURL(f.RuleID)))
 	}
 }
 
