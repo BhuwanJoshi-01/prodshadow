@@ -36,6 +36,21 @@ type Options struct {
 	// Reference is the time offsets are measured from, normally the start
 	// of the measurement window.
 	Reference time.Time
+	// LockRetries retries a transaction group (or an autocommitted
+	// statement) up to this many times when it fails with lock_timeout,
+	// like a deploy tool that retries on lock_not_available.
+	LockRetries int
+	// RetryBackoff is multiplied by the attempt number to get the pause
+	// before each retry.
+	RetryBackoff time.Duration
+}
+
+// Retry records an attempt that hit lock_timeout and was retried.
+type Retry struct {
+	StatementID string  `json:"statement_id"`
+	Attempt     int     `json:"attempt"`
+	OffsetMS    float64 `json:"offset_ms"`
+	WaitedMS    float64 `json:"waited_ms"`
 }
 
 // StatementOutcome records one statement's execution.
@@ -62,6 +77,8 @@ type Outcome struct {
 	SQLState        string             `json:"sqlstate,omitempty"`
 	Error           string             `json:"error,omitempty"`
 	Statements      []StatementOutcome `json:"statements"`
+	// Retries lists attempts that timed out on a lock and were retried.
+	Retries []Retry `json:"retries,omitempty"`
 }
 
 // LockTimedOut reports whether the migration failed to acquire a lock
@@ -96,7 +113,7 @@ func Execute(ctx context.Context, conn *pgx.Conn, stmts []*sqlinspect.Statement,
 			}
 			continue
 		}
-		if !runGroup(ctx, conn, g, opts, out) {
+		if !runWithRetries(ctx, conn, g, opts, out) {
 			failed = true
 		}
 	}
@@ -106,6 +123,36 @@ func Execute(ctx context.Context, conn *pgx.Conn, stmts []*sqlinspect.Statement,
 		out.Status = Failed
 	}
 	return out, nil
+}
+
+// runWithRetries runs a group and, while it fails on lock_timeout and
+// retries remain, discards the attempt's statement outcomes, waits and runs
+// it again. A failed group has been rolled back (or was a single
+// autocommitted statement), so running it again is safe.
+func runWithRetries(ctx context.Context, conn *pgx.Conn, g sqlinspect.Group, opts Options, out *Outcome) bool {
+	for attempt := 1; ; attempt++ {
+		mark := len(out.Statements)
+		if runGroup(ctx, conn, g, opts, out) {
+			return true
+		}
+		if !out.LockTimedOut() || attempt > opts.LockRetries || ctx.Err() != nil {
+			return false
+		}
+		r := Retry{StatementID: out.FailedStatement, Attempt: attempt}
+		for _, so := range out.Statements[mark:] {
+			if so.Status == Failed {
+				r.OffsetMS, r.WaitedMS = so.OffsetMS, so.DurationMS
+			}
+		}
+		out.Retries = append(out.Retries, r)
+		out.Statements = out.Statements[:mark]
+		out.FailedStatement, out.SQLState, out.Error = "", "", ""
+		select {
+		case <-ctx.Done():
+			return false
+		case <-time.After(opts.RetryBackoff * time.Duration(attempt)):
+		}
+	}
 }
 
 // runGroup executes one group and returns false if it failed.

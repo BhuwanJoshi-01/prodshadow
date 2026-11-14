@@ -114,3 +114,58 @@ func TestExecuteReportsLockTimeout(t *testing.T) {
 		t.Fatalf("expected lock timeout after ~500ms, got %+v", out)
 	}
 }
+
+func TestExecuteRetriesOnLockTimeout(t *testing.T) {
+	_, connect := server(t)
+	ctx := context.Background()
+	holder := connect("holder")
+	tx, _ := holder.Begin(ctx)
+	if _, err := tx.Exec(ctx, "SELECT count(*) FROM orders"); err != nil {
+		t.Fatal(err)
+	}
+	// The blocker commits after ~1.2s: the first two 500ms attempts time
+	// out, a later one succeeds.
+	go func() {
+		time.Sleep(1200 * time.Millisecond)
+		_ = tx.Rollback(context.Background())
+	}()
+	o := opts()
+	o.LockRetries, o.RetryBackoff = 5, 100*time.Millisecond
+	out, err := Execute(ctx, connect(AppName), statements(t, "ALTER TABLE orders ADD COLUMN z int; UPDATE orders SET z = 1 WHERE id < 5;"), o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.Status != Succeeded || len(out.Retries) < 1 || len(out.Statements) != 2 {
+		t.Fatalf("expected success after retries, got %+v", out)
+	}
+	for i, r := range out.Retries {
+		if r.StatementID != "1.1" || r.Attempt != i+1 || r.WaitedMS < 450 {
+			t.Errorf("retry %d: %+v", i, r)
+		}
+	}
+	for _, s := range out.Statements {
+		if s.Status != Succeeded {
+			t.Errorf("only the successful attempt's outcomes are kept: %+v", out.Statements)
+		}
+	}
+}
+
+func TestExecuteStopsRetryingWhenExhausted(t *testing.T) {
+	_, connect := server(t)
+	ctx := context.Background()
+	holder := connect("holder")
+	tx, _ := holder.Begin(ctx)
+	defer tx.Rollback(ctx)
+	if _, err := tx.Exec(ctx, "SELECT count(*) FROM orders"); err != nil {
+		t.Fatal(err)
+	}
+	o := opts()
+	o.LockRetries, o.RetryBackoff = 2, 50*time.Millisecond
+	out, err := Execute(ctx, connect(AppName), statements(t, "ALTER TABLE orders ADD COLUMN z int;"), o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !out.LockTimedOut() || out.Status != Failed || len(out.Retries) != 2 {
+		t.Fatalf("expected failure after 2 retries, got %+v", out)
+	}
+}
