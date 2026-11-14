@@ -163,6 +163,10 @@ func checkSetNotNull(c *Context, s *Statement) []Finding {
 		if cmd.Subtype != pg_query.AlterTableType_AT_SetNotNull {
 			continue
 		}
+		if c.notNullCheckValidated(s, table, cmd.Name) {
+			// PostgreSQL uses the validated CHECK and skips the scan.
+			continue
+		}
 		f := at(s, fmt.Sprintf("SET NOT NULL on %s.%s scans every row while holding ACCESS EXCLUSIVE, unless a validated CHECK (%s IS NOT NULL) constraint already exists.", table, cmd.Name, cmd.Name))
 		f.Table, f.Lock = table, pglock.AccessExclusive
 		f.Confidence = evidence.Medium
@@ -170,4 +174,57 @@ func checkSetNotNull(c *Context, s *Statement) []Finding {
 		out = append(out, f)
 	}
 	return out
+}
+
+// notNullCheckValidated reports whether an earlier transaction of the
+// migration left table with a validated CHECK (column IS NOT NULL): either
+// added without NOT VALID, or added NOT VALID and validated, in a group
+// that committed before s runs.
+func (c *Context) notNullCheckValidated(s *Statement, table, column string) bool {
+	group := c.groupOf[s]
+	checks := map[string]bool{} // constraint name -> validated
+	for _, o := range c.Statements[:c.position[s]] {
+		if c.groupOf[o] == group || o.Kind != KindAlterTable || o.node == nil || o.node.GetAlterTableStmt() == nil {
+			continue
+		}
+		st := o.node.GetAlterTableStmt()
+		if relName(st.Relation) != table {
+			continue
+		}
+		for _, n := range st.Cmds {
+			cmd := n.GetAlterTableCmd()
+			if cmd == nil {
+				continue
+			}
+			switch cmd.Subtype {
+			case pg_query.AlterTableType_AT_AddConstraint:
+				if con := cmd.Def.GetConstraint(); con != nil && isNotNullCheck(con, column) {
+					checks[con.Conname] = !con.SkipValidation
+				}
+			case pg_query.AlterTableType_AT_ValidateConstraint:
+				if _, ok := checks[cmd.Name]; ok {
+					checks[cmd.Name] = true
+				}
+			}
+		}
+	}
+	for _, validated := range checks {
+		if validated {
+			return true
+		}
+	}
+	return false
+}
+
+// isNotNullCheck reports whether con is CHECK (column IS NOT NULL).
+func isNotNullCheck(con *pg_query.Constraint, column string) bool {
+	if con.Contype != pg_query.ConstrType_CONSTR_CHECK {
+		return false
+	}
+	nt := con.RawExpr.GetNullTest()
+	if nt == nil || nt.Nulltesttype != pg_query.NullTestType_IS_NOT_NULL {
+		return false
+	}
+	ref := nt.Arg.GetColumnRef()
+	return ref != nil && lastName(qualifiedName(ref.Fields)) == column
 }
