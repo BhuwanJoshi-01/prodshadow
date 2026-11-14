@@ -136,6 +136,7 @@ and is lowered when only client-side evidence exists.
 | [`QUAL011`](rules/QUAL011.md) | table-not-exercised | warning | The migration blocks traffic on a table that no workload scenario or background session uses. |
 | [`QUAL012`](rules/QUAL012.md) | compatibility-not-checked | info | The migration drops or renames something running code may use, but no compatibility probes check the previous release. |
 | [`QUAL013`](rules/QUAL013.md) | scenario-always-fails | inconclusive | A workload scenario fails almost every operation before any migration runs. |
+| [`QUAL014`](rules/QUAL014.md) | sessions-saturated | info | Every closed-loop session waited behind the migration at once, so predicted conflicts of other scenarios could not show. |
 
 ## Suppressions
 

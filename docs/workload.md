@@ -134,6 +134,12 @@ was not checked. At most 200 probes are allowed.
   arrival time. Arrivals that find every session busy are recorded as
   `dropped` errors.
 
+In closed loop, a migration that blocks one table can soon hold every
+session: each session eventually issues a query against that table and
+waits. Scenarios on other tables the migration locks then issue nothing
+and show no stall (`QUAL014`). Open-loop arrivals, or more sessions than
+the blocked scenarios can absorb, keep the other conflicts visible.
+
 Scenario choice and parameters come from deterministic streams derived from
 `workload.seed`, the repeat number and the session. The baseline and the
 candidate of a repeat therefore issue the same parameter sequences.

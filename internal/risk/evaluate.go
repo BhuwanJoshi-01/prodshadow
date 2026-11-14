@@ -98,6 +98,7 @@ func Evaluate(in Input) Assessment {
 	}
 	if in.Result != nil && in.Workload != nil {
 		findings = append(findings, unexplainedStalls(cfg, a.Comparisons, a.PredictedConflicts)...)
+		findings = append(findings, saturatedSessions(cfg, in.Result, a.Comparisons, a.PredictedConflicts)...)
 	}
 	if in.NoExperiment == "" && in.Workload != nil {
 		findings = append(findings, writeBlockingUnexercised(in.Workload, in.Statements)...)
@@ -465,4 +466,47 @@ func unexplainedStalls(cfg *config.Config, comps []Comparison, predicted []workl
 		out = append(out, f)
 	}
 	return out
+}
+
+// saturatedSessions reports closed-loop runs in which every workload
+// session was queued behind the migration at once, while a scenario that
+// conflicts with it showed no stall (QUAL014). Closed-loop sessions issue
+// their next query only when the previous one returns: once all of them
+// wait on one table, no session is left to show the conflict on another,
+// although production clients would keep arriving and queue there too.
+func saturatedSessions(cfg *config.Config, res *experiment.Result, comps []Comparison, predicted []workload.Conflict) []Finding {
+	if cfg.Workload.ArrivalRate > 0 {
+		return nil
+	}
+	saturated := false
+	for _, ph := range candidates(res) {
+		if ph.Locks.MaxBlockedByMigration >= cfg.Workload.Concurrency {
+			saturated = true
+		}
+	}
+	if !saturated {
+		return nil
+	}
+	limit := float64(unexplainedStallMS)
+	if b := cfg.Policy.MaxLockWaitMS; b != nil {
+		limit = *b
+	}
+	stalled := map[string]bool{}
+	for _, c := range comps {
+		if !c.Background && c.StallMS > limit/10 {
+			stalled[c.Scenario] = true
+		}
+	}
+	var hidden []string
+	for _, c := range predicted {
+		if !c.Background && !stalled[c.Session] && !slices.Contains(hidden, c.Session) {
+			hidden = append(hidden, c.Session)
+		}
+	}
+	if len(hidden) == 0 {
+		return nil
+	}
+	f := newFinding("QUAL014", evidence.High, "all closed-loop sessions were queued behind the migration at once",
+		fmt.Sprintf("All %d workload sessions were waiting behind the migration at the same time, so scenario(s) %s, which conflict with it, issued no queries while it waited and show no stall. Production clients keep arriving and would queue there too. Set workload.arrival_rate to model open-loop arrivals, or raise workload.concurrency.", cfg.Workload.Concurrency, strings.Join(hidden, ", ")))
+	return []Finding{f}
 }

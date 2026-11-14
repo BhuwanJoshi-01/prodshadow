@@ -310,3 +310,35 @@ func TestUnexplainedStalls(t *testing.T) {
 		t.Fatalf("below the 500 ms default nothing needs explaining: %+v", got)
 	}
 }
+
+func TestSaturatedSessions(t *testing.T) {
+	cfg := testConfig()
+	cfg.Workload.Concurrency = 8
+	budget := 2500.0
+	cfg.Policy.MaxLockWaitMS = &budget
+	res := quietResult()
+	for i := range res.Phases {
+		if res.Phases[i].Kind == experiment.Candidate {
+			res.Phases[i].Locks.MaxBlockedByMigration = 8
+		}
+	}
+	comps := []Comparison{{Scenario: "customer_invoices", StallMS: 2000}, {Scenario: "customer_profile", StallMS: 18}, {Scenario: "health", StallMS: 1}}
+	predicted := []workload.Conflict{
+		{Session: "customer_invoices", StatementID: "1.1", Table: "invoices"},
+		{Session: "customer_profile", StatementID: "1.1", Table: "customers"},
+		{Session: "customer_export", Background: true, StatementID: "1.1", Table: "customers"},
+	}
+	got := saturatedSessions(cfg, res, comps, predicted)
+	if len(got) != 1 || got[0].RuleID != "QUAL014" || !strings.Contains(got[0].Message, "scenario(s) customer_profile, which") {
+		t.Fatalf("QUAL014 = %+v", got)
+	}
+	cfg.Workload.ArrivalRate = 200
+	if got := saturatedSessions(cfg, res, comps, predicted); len(got) != 0 {
+		t.Fatalf("open-loop arrivals keep coming: %+v", got)
+	}
+	cfg.Workload.ArrivalRate = 0
+	cfg.Workload.Concurrency = 16
+	if got := saturatedSessions(cfg, res, comps, predicted); len(got) != 0 {
+		t.Fatalf("not every session was queued: %+v", got)
+	}
+}
