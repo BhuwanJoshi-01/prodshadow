@@ -25,6 +25,9 @@ migration (for the fixture) and the migration itself.
 
 * [Safe migration patterns](safe-migration-patterns.md): recipes for common
   schema changes, with the rules that report the risky version
+* [Locks beyond the named table](locks-beyond-the-named-table.md): foreign
+  keys, indexes, partitions, views and sequences that make a statement lock
+  tables it does not name
 
 ## Modelling
 
