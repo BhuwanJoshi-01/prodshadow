@@ -148,6 +148,15 @@ versioning; the report schema (`schema_version`) is versioned separately.
 - `inspect --schema FILE`; `plan --markdown`; `diff` compares predicted
   conflicts; the terminal summary lists each scenario's stall next to its
   predicted conflict.
+- PL/pgSQL `DO` blocks are analysed (their static statements, `PERFORM`
+  and the queries in conditions); calls to functions and procedures from
+  the schema, rewrite rules, renames, dropped objects, dropped columns and
+  `SET SCHEMA` are followed by the schema catalog.
+- Quality rule QUAL015 (lock waits the static prediction missed, report
+  schema 1.9.0 marks relation waits involving the migration);
+  `prodshadow rules` marks rules that need the schema; the GitHub Action
+  appends `plan --markdown` to the job summary (`plan-summary`); ADRs 0011
+  and 0012.
 - Example `foreign-key-drop`; the backfill example now shows OBS017;
   a unit test pins every example's predicted conflicts; the catalog is
   fuzzed nightly.
@@ -178,6 +187,10 @@ versioning; the report schema (`schema_version`) is versioned separately.
   `COMMENT ON`, `DROP TRIGGER/POLICY/RULE`, `CREATE/ALTER POLICY`,
   `CREATE RULE`, `CREATE STATISTICS`, `MERGE` and data-modifying `WITH`
   clauses, all found by the lock oracle.
+- A `CREATE FUNCTION ... LANGUAGE plpgsql` without a body no longer aborts
+  the process (found by fuzzing); PS109 and PS112 no longer report tables
+  a statement only locks implicitly; PS157 no longer reports a table whose
+  referencing tables the migration dropped first.
 - Partitioned tables no longer count their partitions' rows a second time
   in the fixture size (report schema 1.5.0 marks them).
 - Compatibility probe results are paired by version and probe ID, so a
