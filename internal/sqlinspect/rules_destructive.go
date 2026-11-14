@@ -14,7 +14,7 @@ func init() {
 	register(Rule{
 		ID:       "PS109",
 		Name:     "destructive-change",
-		Summary:  "DROP TABLE, DROP COLUMN and TRUNCATE remove data and need explicit review",
+		Summary:  "DROP TABLE, DROP COLUMN, TRUNCATE and dropping views, functions, types, sequences or schemas need explicit review",
 		Severity: evidence.Warning,
 		DocsURL:  docDropTable,
 		check:    checkDestructive,
@@ -46,6 +46,24 @@ func checkDestructive(c *Context, s *Statement) []Finding {
 			f.Remediation = "Confirm no deployed version reads the table, keep a backup or rename-and-wait period, and drop it in a later release."
 			out = append(out, f)
 		}
+	case KindDropOther:
+		st := s.node.GetDropStmt()
+		if st == nil {
+			break
+		}
+		kind, ok := droppedObjectKinds[st.RemoveType]
+		if !ok {
+			break
+		}
+		for _, o := range st.Objects {
+			name := dropTargetName(o)
+			if c.CreatedEarlier(s, name) {
+				continue
+			}
+			f := at(s, fmt.Sprintf("Dropping %s %s removes it for every application version; code that still uses it fails, and its definition is lost.", kind, name))
+			f.Remediation = "Confirm no deployed version or scheduled job uses it, keep its definition in version control, and drop it in a release after the last user is gone."
+			out = append(out, f)
+		}
 	case KindAlterTable:
 		table, cmds := alterCmds(c, s)
 		for _, cmd := range cmds {
@@ -59,6 +77,19 @@ func checkDestructive(c *Context, s *Statement) []Finding {
 		}
 	}
 	return out
+}
+
+// droppedObjectKinds are the non-table objects whose removal PS109 reports.
+// Indexes are left to PS122: dropping one loses no data.
+var droppedObjectKinds = map[pg_query.ObjectType]string{
+	pg_query.ObjectType_OBJECT_VIEW:      "view",
+	pg_query.ObjectType_OBJECT_MATVIEW:   "materialized view",
+	pg_query.ObjectType_OBJECT_SEQUENCE:  "sequence",
+	pg_query.ObjectType_OBJECT_FUNCTION:  "function",
+	pg_query.ObjectType_OBJECT_PROCEDURE: "procedure",
+	pg_query.ObjectType_OBJECT_TYPE:      "type",
+	pg_query.ObjectType_OBJECT_DOMAIN:    "domain",
+	pg_query.ObjectType_OBJECT_SCHEMA:    "schema",
 }
 
 func checkRename(c *Context, s *Statement) []Finding {

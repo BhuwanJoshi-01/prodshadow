@@ -26,7 +26,7 @@ migration, because nothing else uses them yet.
 | [`PS106`](rules/PS106.md) | set-not-null-scans-table | warning | `SET NOT NULL` scans every row under `ACCESS EXCLUSIVE` unless a validated `CHECK (col IS NOT NULL)` exists. |
 | [`PS107`](rules/PS107.md) | constraint-validated-in-place | warning | Foreign key or `CHECK` added without `NOT VALID` — including an inline `ADD COLUMN … REFERENCES`, which cannot be `NOT VALID` — validates all rows while holding a lock. |
 | [`PS108`](rules/PS108.md) | unique-constraint-builds-index | warning | `UNIQUE`, `PRIMARY KEY` or `EXCLUDE` constraint without `USING INDEX` builds its index under `ACCESS EXCLUSIVE`. |
-| [`PS109`](rules/PS109.md) | destructive-change | warning | `DROP TABLE`, `DROP COLUMN`, `TRUNCATE`: data loss and application compatibility need explicit review. |
+| [`PS109`](rules/PS109.md) | destructive-change | warning | `DROP TABLE`, `DROP COLUMN`, `TRUNCATE`, and dropping views, functions, types, sequences or schemas: data loss and application compatibility need explicit review. |
 | [`PS110`](rules/PS110.md) | rename-breaks-running-code | warning | Renaming a table or column breaks instances still using the old name. |
 | [`PS111`](rules/PS111.md) | unbounded-dml | warning | `UPDATE`/`DELETE` without `WHERE` locks every row in one transaction. |
 | [`PS112`](rules/PS112.md) | explicit-table-lock | warning | `LOCK TABLE` in a mode that blocks writes or reads. |
