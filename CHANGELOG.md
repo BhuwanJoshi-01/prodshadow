@@ -54,7 +54,10 @@ versioning; the report schema (`schema_version`) is versioned separately.
   PARTITION`), PS141 (`PARTITION OF` locks the parent), PS142 (autovacuum
   disabled), PS143 (unlogged tables), PS144 (row-level security disabled),
   PS145 (grants to `PUBLIC`), PS146 (`SECURITY DEFINER` without
-  `search_path`) and PS147 (replica identity changes). PS109 and PS110 also
+  `search_path`), PS147 (replica identity changes), PS148 to PS150
+  (malformed, expired and unused inline suppressions), PS151 (`CHECK`
+  constraints that are not immutable), PS152 (32-bit primary keys) and
+  PS153 (tables without a primary key). PS109 and PS110 also
   cover views, functions, types, schemas, extensions and enum values; PS111
   covers unbounded `SELECT ... FOR UPDATE`; PS106 recognises a validated
   `CHECK (col IS NOT NULL)`; PS105 uses `USING` clauses and type limits for
@@ -75,6 +78,11 @@ versioning; the report schema (`schema_version`) is versioned separately.
   limited to an application version; rule IDs link to their pages in
   Markdown, HTML and GitHub annotations; compatibility probes appear in the
   HTML report and in `plan`.
+- `prodshadow draft-workload` drafts a workload file from a
+  `pg_stat_statements` CSV export; `history --html` renders a page with
+  charts; `inspect --format markdown` links rule pages.
+- Rules can reason about other rules' findings (`checkFindings`), and
+  PS114 follows the scope of `SET LOCAL`, `RESET` and zero timeouts.
 - Per-scenario `think_time_ms`; JSON Schema for suppression files
   (`prodshadow schema suppressions`); GitHub Action input `args`.
 - Built-in redaction of SQL `PASSWORD '...'` clauses and Stripe and Google
@@ -95,6 +103,8 @@ versioning; the report schema (`schema_version`) is versioned separately.
 - `SELECT` statements, and the tables read by `INSERT ... SELECT`,
   `UPDATE ... FROM` and `DELETE ... USING`, now record their locks.
 - `on` and `off` in storage parameters are read correctly.
+- Compatibility probe results are paired by version and probe ID, so a
+  missing result is never reported as a broken probe.
 - The disposable server is stopped gracefully before removal, and socket
   files owned by the container are cleaned up on non-root CI runners.
 
