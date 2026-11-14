@@ -56,6 +56,7 @@ migration, because nothing else uses them yet.
 | [`PS136`](rules/PS136.md) | validated-in-same-transaction | warning | `VALIDATE CONSTRAINT` in the transaction that added the constraint `NOT VALID` scans under the stronger lock. |
 | [`PS137`](rules/PS137.md) | constraint-left-not-valid | info | A constraint added `NOT VALID` is not validated later in the migration. |
 | [`PS138`](rules/PS138.md) | privileges-revoked | warning | `REVOKE`, `DROP OWNED` or `DROP ROLE` removes access running code may depend on. |
+| [`PS139`](rules/PS139.md) | plaintext-password | warning | A role or user mapping password is written in the migration in plain text. |
 
 ## Observed rules
 
