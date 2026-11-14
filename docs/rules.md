@@ -71,6 +71,7 @@ migration, because nothing else uses them yet.
 | [`PS151`](rules/PS151.md) | non-immutable-check | warning | A `CHECK` constraint depends on the time, randomness or the session, which PostgreSQL does not re-evaluate. |
 | [`PS152`](rules/PS152.md) | int-primary-key | info | A new table's primary key is a 32-bit integer, which can run out of values. |
 | [`PS153`](rules/PS153.md) | table-without-primary-key | info | A new table has no primary key, which logical replication and many tools need. |
+| [`PS154`](rules/PS154.md) | concurrent-index-on-partitioned-table | critical | `CREATE INDEX CONCURRENTLY` on a partitioned table is not supported and fails. |
 
 ## Observed rules
 

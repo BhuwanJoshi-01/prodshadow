@@ -28,3 +28,20 @@ func TestPS141CreatePartition(t *testing.T) {
 	expectCount(t, findings(t, "PS141", Options{}, "CREATE TABLE events_2027 (LIKE events INCLUDING ALL);"), 0)
 	expectCount(t, findings(t, "PS141", Options{}, "CREATE TABLE events (at date) PARTITION BY RANGE (at);\nCREATE TABLE events_2027 PARTITION OF events FOR VALUES FROM ('2027-01-01') TO ('2028-01-01');"), 0)
 }
+
+func TestPS154ConcurrentIndexOnPartitionedTable(t *testing.T) {
+	idx := "CREATE INDEX CONCURRENTLY events_at_idx ON events (at);\n"
+	cases := map[string]int{
+		"CREATE TABLE events (at date) PARTITION BY RANGE (at);\n" + idx:                                            1,
+		"CREATE TABLE events_2027 PARTITION OF events FOR VALUES FROM ('2027-01-01') TO ('2028-01-01');\n" + idx:    1,
+		"ALTER TABLE events ATTACH PARTITION events_2027 FOR VALUES FROM ('2027-01-01') TO ('2028-01-01');\n" + idx: 1,
+		"CREATE TABLE events (at date) PARTITION BY RANGE (at);\nCREATE INDEX events_at_idx ON ONLY events (at);\n": 0,
+		"CREATE TABLE events (at date);\n" + idx:                                                                    0,
+		idx:                                                                                                         0,
+	}
+	for sql, want := range cases {
+		if got := findings(t, "PS154", Options{Transaction: TxnModePerFile}, sql); len(got) != want {
+			t.Errorf("%q: expected %d findings, got %d", sql, want, len(got))
+		}
+	}
+}

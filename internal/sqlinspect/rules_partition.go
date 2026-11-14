@@ -141,3 +141,66 @@ func checkCreatePartition(c *Context, s *Statement) []Finding {
 	}
 	return out
 }
+
+func init() {
+	register(Rule{
+		ID:       "PS154",
+		Name:     "concurrent-index-on-partitioned-table",
+		Summary:  "CREATE INDEX CONCURRENTLY is not supported on a partitioned table",
+		Severity: evidence.Critical,
+		DocsURL:  "https://www.postgresql.org/docs/current/ddl-partitioning.html#DDL-PARTITIONING-DECLARATIVE-MAINTENANCE",
+		check:    checkConcurrentPartitionedIndex,
+	})
+}
+
+// checkConcurrentPartitionedIndex flags CREATE INDEX CONCURRENTLY on a table
+// the migration shows to be partitioned: created with PARTITION BY, or named
+// as the parent of PARTITION OF / ATTACH PARTITION. PostgreSQL rejects it.
+func checkConcurrentPartitionedIndex(c *Context, s *Statement) []Finding {
+	if s.node == nil || s.node.GetIndexStmt() == nil || !s.node.GetIndexStmt().Concurrent {
+		return nil
+	}
+	st := s.node.GetIndexStmt()
+	if !st.Relation.GetInh() {
+		return nil // ON ONLY
+	}
+	table := relName(st.Relation)
+	if !c.partitionedBefore(s, table) {
+		return nil
+	}
+	f := at(s, fmt.Sprintf("%s is partitioned, and PostgreSQL cannot build an index on a partitioned table CONCURRENTLY; the statement fails.", table))
+	f.Table = table
+	f.Evidence, f.Confidence = evidence.Static, evidence.High
+	f.Remediation = "Create the index ON ONLY the partitioned table (it starts invalid), build each partition's index with CREATE INDEX CONCURRENTLY, and ALTER INDEX ... ATTACH PARTITION each one; the parent index becomes valid when all are attached."
+	return []Finding{f}
+}
+
+// partitionedBefore reports whether a statement before s shows table to be
+// partitioned.
+func (c *Context) partitionedBefore(s *Statement, table string) bool {
+	for _, o := range c.Statements[:c.position[s]] {
+		if o.node == nil {
+			continue
+		}
+		if ct := o.node.GetCreateStmt(); ct != nil {
+			if ct.Partspec != nil && relName(ct.Relation) == table {
+				return true
+			}
+			if ct.Partbound != nil {
+				for _, p := range ct.InhRelations {
+					if relName(p.GetRangeVar()) == table {
+						return true
+					}
+				}
+			}
+		}
+		if alter := o.node.GetAlterTableStmt(); alter != nil && relName(alter.Relation) == table {
+			for _, n := range alter.Cmds {
+				if cmd := n.GetAlterTableCmd(); cmd != nil && cmd.Subtype == pg_query.AlterTableType_AT_AttachPartition {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
