@@ -297,3 +297,26 @@ func TestReportRecordsSchemaSummary(t *testing.T) {
 		t.Fatalf("schema summary missing: %+v", r.Fixture)
 	}
 }
+
+func TestMarkdownShowsWaitsByRelation(t *testing.T) {
+	r := Build(sampleInput(t))
+	for i := range r.Phases {
+		if r.Phases[i].Kind == "candidate" {
+			r.Phases[i].Locks.Relations = []telemetry.RelationWait{
+				{Relation: "orders", Mode: "AccessShareLock", MaxWaiters: 4, MaxWaitMS: 1450, Migration: true},
+				{Relation: "customers", Mode: "RowShareLock", MaxWaiters: 1, MaxWaitMS: 900, Migration: true},
+				{Relation: "transactionid", Mode: "ShareLock", MaxWaiters: 2, MaxWaitMS: 300},
+			}
+		}
+	}
+	md := r.Markdown()
+	for _, want := range []string{
+		"| orders | AccessShareLock | 4 | 1450 ms | yes | yes |",
+		"| customers | RowShareLock | 1 | 900 ms | yes | no |",
+		"| transactionid | ShareLock | 2 | 300 ms | no | – (row or other lock) |",
+	} {
+		if !strings.Contains(md, want) {
+			t.Errorf("markdown lacks %q:\n%s", want, md)
+		}
+	}
+}

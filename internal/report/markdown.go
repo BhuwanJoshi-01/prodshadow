@@ -288,6 +288,72 @@ func (r *Report) mdLocks(w writer) {
 			p.Locks.MaxBlockedByMigration, fmtMS(p.Locks.MaxLockWaitMS), logged, esc(longest), p.Locks.Samples)
 	}
 	w("\n")
+	if waits := r.relationWaits(); len(waits) > 0 {
+		w("Waits by relation, across candidate phases. *Predicted* says whether a migration statement was predicted to lock the relation (from its text and the fixture schema); a wait the migration caused on an unpredicted relation is reported as QUAL015.\n\n")
+		w("| Relation | Mode waited for | Most waiters | Longest wait | Migration involved | Predicted |\n|---|---|---|---|---|---|\n")
+		for _, rw := range waits {
+			involved := "no"
+			if rw.migration {
+				involved = "yes"
+			}
+			w("| %s | %s | %d | %s | %s | %s |\n", esc(rw.relation), rw.mode, rw.waiters, fmtMS(rw.waitMS), involved, rw.predicted)
+		}
+		w("\n")
+	}
+}
+
+type relationWait struct {
+	relation, mode, predicted string
+	waiters                   int
+	waitMS                    float64
+	migration                 bool
+}
+
+// nonRelationLocks are pg_locks lock types the telemetry reports under
+// their own name instead of a relation.
+var nonRelationLocks = map[string]bool{"extend": true, "frozenid": true, "page": true, "tuple": true, "transactionid": true,
+	"virtualxid": true, "spectoken": true, "object": true, "userlock": true, "advisory": true, "applytransaction": true}
+
+// relationWaits merges the per-phase relation waits of the candidate
+// phases and says whether each relation was predicted.
+func (r *Report) relationWaits() []relationWait {
+	norm := func(s string) string { return strings.ToLower(strings.TrimPrefix(s, "public.")) }
+	predicted := map[string]bool{}
+	for _, s := range r.Migration.Statements {
+		for _, l := range s.Locks {
+			predicted[norm(l.Table)] = true
+		}
+	}
+	merged := map[[2]string]*relationWait{}
+	var order [][2]string
+	for _, p := range r.Phases {
+		if p.Kind != "candidate" {
+			continue
+		}
+		for _, x := range p.Locks.Relations {
+			key := [2]string{x.Relation, x.Mode}
+			rw := merged[key]
+			if rw == nil {
+				rw = &relationWait{relation: x.Relation, mode: x.Mode, predicted: "no"}
+				switch {
+				case nonRelationLocks[norm(x.Relation)]:
+					rw.predicted = "– (row or other lock)"
+				case predicted[norm(x.Relation)]:
+					rw.predicted = "yes"
+				}
+				merged[key] = rw
+				order = append(order, key)
+			}
+			rw.waiters = max(rw.waiters, x.MaxWaiters)
+			rw.waitMS = max(rw.waitMS, x.MaxWaitMS)
+			rw.migration = rw.migration || x.Migration
+		}
+	}
+	out := make([]relationWait, 0, len(order))
+	for _, k := range order {
+		out = append(out, *merged[k])
+	}
+	return out
 }
 
 // mdCompatibility shows each compatibility probe once with how many
