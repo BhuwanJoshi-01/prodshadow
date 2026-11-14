@@ -26,10 +26,16 @@ ALTER TABLE events ATTACH PARTITION events_2027 FOR VALUES FROM ('2027-01-01') T
 	if by := c.By(stmts[3], "events"); by != nil {
 		t.Fatal("events existed before the migration")
 	}
-	if got := c.ExistingLock(stmts[3]); got.Table != "events" || got.Mode != pglock.ShareUpdateExclusive {
+	if got := stmts[3].ExistingLock(); got.Table != "events" || got.Mode != pglock.ShareUpdateExclusive {
 		t.Fatalf("ExistingLock = %+v, want SHARE UPDATE EXCLUSIVE on events", got)
 	}
-	if got := c.ExistingLock(stmts[2]); got.Mode != pglock.None {
+	if got := stmts[2].ExistingLock(); got.Mode != pglock.None {
 		t.Fatalf("locks only on new relations should not count, got %+v", got)
+	}
+	if got := stmts[2].Locks[0].CreatedBy; got != "1.2" {
+		t.Fatalf("parsing should record the creating statement, got %q", got)
+	}
+	if got := stmts[0].Locks[0].CreatedBy; got != "" {
+		t.Fatalf("a lock before the CREATE is on an existing relation, got %q", got)
 	}
 }

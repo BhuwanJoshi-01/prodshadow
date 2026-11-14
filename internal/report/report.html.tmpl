@@ -55,7 +55,7 @@ ul { padding-left:20px; }
 <h2>Migration</h2>
 <p><code>lock_timeout = {{.Migration.LockTimeoutMS}} ms</code>, <code>statement_timeout = {{.Migration.StatementTimeoutMS}} ms</code>, transaction mode <code>{{.Migration.Transaction}}</code>, run as <code>{{.Migration.RunAs}}</code>.</p>
 <div class="scroll"><table><tr><th>ID</th><th>Location</th><th>Statement</th><th>Predicted locks</th></tr>
-{{range .Migration.Statements}}<tr><td>{{.ID}}</td><td>{{loc .File .StartLine}}</td><td>{{.Tag}}</td><td>{{if .Parsed}}{{range .Locks}}{{.Mode}} on <code>{{.Table}}</code><br>{{else}}–{{end}}{{else}}not analysed{{end}}</td></tr>{{end}}
+{{range .Migration.Statements}}<tr><td>{{.ID}}</td><td>{{loc .File .StartLine}}</td><td>{{.Tag}}</td><td>{{if .Parsed}}{{range .Locks}}{{.Mode}} on <code>{{.Table}}</code>{{if .CreatedBy}} <small>(created by {{.CreatedBy}})</small>{{end}}<br>{{else}}–{{end}}{{else}}not analysed{{end}}</td></tr>{{end}}
 </table></div>
 
 {{if .Compatibility}}<h2>Application compatibility</h2><p class="note">Each probe ran before and after the migration in every candidate phase, as the application role, in a transaction that was rolled back.</p><div class="scroll"><table>

@@ -27,6 +27,7 @@
 
 | Version | Change |
 |---|---|
+| 1.6.0 | `migration.statements[].locks[].created_by`: the statement that created the locked relation earlier in the migration. |
 | 1.5.0 | `fixture.tables[].partitioned`: marks partitioned tables, whose row estimate repeats their partitions'. Totals no longer count those rows twice. |
 | 1.4.0 | `phases[].scenarios[].sample_error`: the first (redacted) error message of a scenario that failed. |
 | 1.3.0 | `phases[].migration.retries`: attempts that hit `lock_timeout` and were retried. |

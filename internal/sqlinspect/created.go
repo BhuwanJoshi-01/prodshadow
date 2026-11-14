@@ -46,16 +46,17 @@ func (c *Created) By(s *Statement, table string) *Statement {
 	return c.stmts[i]
 }
 
-// ExistingLock returns the strongest lock s takes on relations that existed
-// before the migration: the lock that can make application sessions wait.
-func (c *Created) ExistingLock(s *Statement) TableLock {
-	var best TableLock
-	for _, l := range s.Locks {
-		if c.By(s, l.Table) == nil && l.Mode > best.Mode {
-			best = l
+// markCreated records on every lock which earlier statement created its
+// relation, if any.
+func markCreated(stmts []*Statement) {
+	c := NewCreated(stmts)
+	for _, s := range stmts {
+		for i, l := range s.Locks {
+			if by := c.By(s, l.Table); by != nil {
+				s.Locks[i].CreatedBy = by.ID
+			}
 		}
 	}
-	return best
 }
 
 // createdRelation returns the relation a CREATE TABLE, CREATE TABLE AS,

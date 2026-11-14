@@ -246,3 +246,24 @@ func TestMarkdownShowsLockRetries(t *testing.T) {
 		t.Fatalf("markdown lacks the retries line:\n%s", md)
 	}
 }
+
+func TestLocksOnNewTablesAreMarked(t *testing.T) {
+	in := sampleInput(t)
+	stmts, err := sqlinspect.ParseSources([]sqlinspect.Source{{Path: "m.sql",
+		Content: "CREATE TABLE audit (id bigint);\nALTER TABLE audit ADD PRIMARY KEY (id);\n"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	in.Statements = stmts
+	r := Build(in)
+	if got := r.Migration.Statements[1].Locks[0].CreatedBy; got != "1.1" {
+		t.Fatalf("created_by = %q, want 1.1", got)
+	}
+	if md := r.Markdown(); !strings.Contains(md, "ACCESS EXCLUSIVE on audit (created by 1.1)") {
+		t.Fatalf("markdown does not mark the lock:\n%s", md)
+	}
+	page, err := r.HTML()
+	if err != nil || !strings.Contains(page, "(created by 1.1)") {
+		t.Fatalf("HTML does not mark the lock (err %v)", err)
+	}
+}

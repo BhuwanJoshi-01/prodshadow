@@ -191,6 +191,10 @@ func (r *Report) mdMigration(w writer) {
 	for _, s := range r.Migration.Statements {
 		var locks []string
 		for _, l := range s.Locks {
+			if l.CreatedBy != "" {
+				locks = append(locks, fmt.Sprintf("%s on %s (created by %s)", l.Mode, l.Table, l.CreatedBy))
+				continue
+			}
 			locks = append(locks, fmt.Sprintf("%s on %s", l.Mode, l.Table))
 		}
 		if !s.Parsed {

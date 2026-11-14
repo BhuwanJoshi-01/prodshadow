@@ -10,9 +10,9 @@ import (
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/config"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/experiment"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/migrate"
-	"github.com/BhuwanJoshi-01/Open-Source-1/internal/pglock"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/postgres"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/risk"
+	"github.com/BhuwanJoshi-01/Open-Source-1/internal/sqlinspect"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/telemetry"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/version"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/workload"
@@ -20,7 +20,7 @@ import (
 
 // SchemaVersion follows semantic versioning: additive fields bump the
 // minor version, removals or meaning changes bump the major version.
-const SchemaVersion = "1.5.0"
+const SchemaVersion = "1.6.0"
 
 // Run statuses.
 const (
@@ -149,10 +149,13 @@ type TableLock struct {
 	Table  string `json:"table"`
 	Mode   string `json:"mode"`
 	Impact string `json:"impact"`
+	// CreatedBy is the ID of the statement that created Table earlier in
+	// the migration; such a lock cannot block the application.
+	CreatedBy string `json:"created_by,omitempty"`
 }
 
-func lockOf(table string, m pglock.Mode) TableLock {
-	return TableLock{Table: table, Mode: m.String(), Impact: string(m.Impact())}
+func lockOf(l sqlinspect.TableLock) TableLock {
+	return TableLock{Table: l.Table, Mode: l.Mode.String(), Impact: string(l.Mode.Impact()), CreatedBy: l.CreatedBy}
 }
 
 // Phase is one baseline or candidate phase.

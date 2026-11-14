@@ -97,6 +97,7 @@ func ParseSources(sources []Source) ([]*Statement, error) {
 			out = append(out, st)
 		}
 	}
+	markCreated(out)
 	return out, nil
 }
 

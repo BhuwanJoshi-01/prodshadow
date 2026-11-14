@@ -121,7 +121,7 @@ func Build(in Input) *Report {
 		st := Statement{ID: s.ID, File: s.File, StartLine: s.StartLine, EndLine: s.EndLine, Kind: string(s.Kind), Tag: s.Tag,
 			Transaction: string(s.Txn), Parsed: s.Parsed, ParseError: red.String(s.ParseError), Fingerprint: s.Fingerprint}
 		for _, l := range s.Locks {
-			st.Locks = append(st.Locks, lockOf(l.Table, l.Mode))
+			st.Locks = append(st.Locks, lockOf(l))
 		}
 		if rawSQL {
 			st.SQL = red.String(s.SQL)

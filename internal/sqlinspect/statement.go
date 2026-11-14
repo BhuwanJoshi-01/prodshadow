@@ -64,6 +64,10 @@ const (
 type TableLock struct {
 	Table string      `json:"table"`
 	Mode  pglock.Mode `json:"mode"`
+	// CreatedBy is the ID of the earlier statement of the migration that
+	// created Table. Such a lock cannot block the application: nothing
+	// uses the relation yet.
+	CreatedBy string `json:"created_by,omitempty"`
 }
 
 // Statement is one analysed migration statement.
@@ -89,6 +93,19 @@ type Statement struct {
 	Annotations []Annotation `json:"annotations,omitempty"`
 
 	node *pg_query.Node
+}
+
+// ExistingLock returns the strongest lock the statement takes on a relation
+// that existed before the migration: the lock that can make application
+// sessions wait.
+func (s *Statement) ExistingLock() TableLock {
+	var best TableLock
+	for _, l := range s.Locks {
+		if l.CreatedBy == "" && l.Mode > best.Mode {
+			best = l
+		}
+	}
+	return best
 }
 
 // StrongestLock returns the strongest lock mode the statement acquires.
