@@ -1,6 +1,8 @@
 package risk
 
 import (
+	"fmt"
+
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/evidence"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/sqlinspect"
 )
@@ -87,4 +89,19 @@ var ObservedRules = []ObservedRule{
 	{"QUAL007", "no-experiment", "No workload or fixture; only static analysis was performed", evidence.Inconclusive},
 	{"QUAL009", "compatibility-probe-invalid", "A compatibility probe failed before the migration, so that version was not checked", evidence.Inconclusive},
 	{"QUAL008", "no-blocker-modelled", "No session holds a transaction open while the migration runs, so lock queues behind long transactions are not exercised", evidence.Info},
+}
+
+// Where describes what a finding is about for one-line displays: the
+// scenario for measured findings, else file:line, else placeholder.
+func (f Finding) Where(placeholder string) string {
+	switch {
+	case f.Scenario != "":
+		return "scenario " + f.Scenario
+	case f.File != "" && f.Line > 0:
+		return fmt.Sprintf("%s:%d", f.File, f.Line)
+	case f.File != "":
+		return f.File
+	default:
+		return placeholder
+	}
 }

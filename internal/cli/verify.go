@@ -334,23 +334,9 @@ func printSummary(env *Env, rep *report.Report, written []string) {
 		if f.Suppressed || f.Severity == evidence.Info {
 			continue
 		}
-		where := location(f.File, f.Line)
-		if f.Scenario != "" {
-			where = "scenario " + f.Scenario
-		}
-		fmt.Fprintf(w, "  %-12s %s %-34s %s\n    %s\n", f.Severity, f.RuleID, f.Rule, where, f.Message)
+		fmt.Fprintf(w, "  %-12s %s %-34s %s\n    %s\n", f.Severity, f.RuleID, f.Rule, f.Where("-"), f.Message)
 	}
 	if len(written) > 0 {
 		fmt.Fprintf(w, "Reports: %s\n", strings.Join(written, ", "))
 	}
-}
-
-func location(file string, line int) string {
-	if file == "" {
-		return "-"
-	}
-	if line > 0 {
-		return fmt.Sprintf("%s:%d", file, line)
-	}
-	return file
 }

@@ -69,13 +69,9 @@ func (r *Report) JUnit() ([]byte, error) {
 	suite.Cases = append(suite.Cases, decision)
 
 	for _, f := range r.Findings {
-		where := location(f.File, f.Line)
-		if f.Scenario != "" {
-			where = "scenario " + f.Scenario
-		}
 		c := junitCase{
 			ClassName: "prodshadow." + string(f.Evidence),
-			Name:      fmt.Sprintf("%s %s (%s)", f.RuleID, f.Rule, where),
+			Name:      fmt.Sprintf("%s %s (%s)", f.RuleID, f.Rule, f.Where("–")),
 		}
 		detail := f.Message
 		if f.Remediation != "" {

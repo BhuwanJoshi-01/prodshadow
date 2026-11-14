@@ -202,3 +202,20 @@ func TestNoBlockerModelled(t *testing.T) {
 		t.Fatal("a held foreground transaction should satisfy the check")
 	}
 }
+
+func TestFindingWhere(t *testing.T) {
+	cases := []struct {
+		f    Finding
+		want string
+	}{
+		{Finding{Scenario: "read", File: "m.sql", Line: 3}, "scenario read"},
+		{Finding{File: "m.sql", Line: 3}, "m.sql:3"},
+		{Finding{File: "m.sql"}, "m.sql"},
+		{Finding{}, "-"},
+	}
+	for _, tc := range cases {
+		if got := tc.f.Where("-"); got != tc.want {
+			t.Errorf("%+v: Where = %q, want %q", tc.f, got, tc.want)
+		}
+	}
+}

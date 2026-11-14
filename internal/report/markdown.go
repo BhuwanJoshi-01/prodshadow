@@ -84,7 +84,7 @@ func (r *Report) mdFindings(w writer) {
 			if f.ConfidenceReason != "" {
 				conf += " (" + f.ConfidenceReason + ")"
 			}
-			where := location(f.File, f.Line)
+			where := f.Where("–")
 			if f.Scenario != "" {
 				where = "scenario `" + f.Scenario + "`"
 			}

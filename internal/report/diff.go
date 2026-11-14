@@ -53,11 +53,7 @@ func findingKey(f risk.Finding) string {
 }
 
 func diffFinding(f risk.Finding) DiffFinding {
-	where := location(f.File, f.Line)
-	if f.Scenario != "" {
-		where = "scenario " + f.Scenario
-	}
-	return DiffFinding{RuleID: f.RuleID, Rule: f.Rule, Severity: string(f.Severity), Where: where}
+	return DiffFinding{RuleID: f.RuleID, Rule: f.Rule, Severity: string(f.Severity), Where: f.Where("–")}
 }
 
 // Compare builds the difference between base and head.
