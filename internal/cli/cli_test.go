@@ -327,7 +327,7 @@ func TestPlanPredictsConflicts(t *testing.T) {
 	writeFile(t, filepath.Join(dir, "m.sql"), "ALTER TABLE customers ADD COLUMN tier text;\n")
 	r = run(t, dir, nil, "plan", "--json", "--migration", "m.sql")
 	var out struct {
-		Conflicts []planConflict `json:"conflicts"`
+		Conflicts []workload.Conflict `json:"conflicts"`
 	}
 	if err := json.Unmarshal([]byte(r.stdout), &out); err != nil {
 		t.Fatalf("plan json: %v\n%s", err, r.stdout)

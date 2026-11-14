@@ -48,8 +48,8 @@ ul { padding-left:20px; }
 {{if .Chart}}<h2>Candidate timeline</h2><p class="note">Bars: operations per second. Line: longest operation per second (log scale). Shaded: migration running.</p>{{.Chart}}{{end}}
 
 {{if .Comparisons}}<h2>Scenario comparison</h2><div class="scroll"><table>
-<tr><th>Scenario</th><th>Mode</th><th>p95 baseline</th><th>p95 candidate</th><th>Ratio</th><th>Max during migration</th><th>Error Δ (pp)</th><th>Throughput Δ</th><th>Noise</th></tr>
-{{range .Comparisons}}<tr><td><code>{{.Scenario}}</code></td><td>{{.Mode}}</td><td>{{ms .Baseline.P95MS}}</td><td>{{ms .Candidate.P95MS}}</td><td>{{ratio .P95Ratio}}</td><td>{{if .During}}{{ms .During.MaxObservedMS}}{{else}}–{{end}}</td><td>{{printf "%+.2f" .ErrorRateDeltaPP}}</td><td>{{pct .ThroughputChangePct}}</td><td>{{cv .BaselineNoiseCV}}</td></tr>{{end}}
+<tr><th>Scenario</th><th>Mode</th><th>Predicted conflict</th><th>p95 baseline</th><th>p95 candidate</th><th>Ratio</th><th>Max during migration</th><th>Error Δ (pp)</th><th>Throughput Δ</th><th>Noise</th></tr>
+{{range .Comparisons}}<tr><td><code>{{.Scenario}}</code></td><td>{{.Mode}}</td><td>{{$.PredictedFor .}}</td><td>{{ms .Baseline.P95MS}}</td><td>{{ms .Candidate.P95MS}}</td><td>{{ratio .P95Ratio}}</td><td>{{if .During}}{{ms .During.MaxObservedMS}}{{else}}–{{end}}</td><td>{{printf "%+.2f" .ErrorRateDeltaPP}}</td><td>{{pct .ThroughputChangePct}}</td><td>{{cv .BaselineNoiseCV}}</td></tr>{{end}}
 </table></div>{{end}}
 
 <h2>Migration</h2>

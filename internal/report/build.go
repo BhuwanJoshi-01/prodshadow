@@ -36,6 +36,9 @@ type Input struct {
 	Errors []error
 	// Lookup reads environment variables; os.LookupEnv when nil.
 	Lookup func(string) (string, bool)
+	// Catalog describes the fixture schema, for predicting the workload's
+	// lock conflicts; nil without a schema.
+	Catalog *sqlinspect.Catalog
 }
 
 // Build assembles a report, applying privacy settings and redaction.
@@ -90,6 +93,9 @@ func Build(in Input) *Report {
 	}
 	if cfg.Workload.ArrivalRate > 0 {
 		r.Workload.Mode = "open-loop"
+	}
+	if in.Workload != nil {
+		r.PredictedConflicts, _ = workload.PredictConflicts(in.Workload, in.Statements, in.Catalog)
 	}
 	if r.Comparisons == nil {
 		r.Comparisons = []risk.Comparison{}

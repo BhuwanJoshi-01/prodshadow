@@ -20,7 +20,7 @@ import (
 
 // SchemaVersion follows semantic versioning: additive fields bump the
 // minor version, removals or meaning changes bump the major version.
-const SchemaVersion = "1.7.0"
+const SchemaVersion = "1.8.0"
 
 // Run statuses.
 const (
@@ -50,10 +50,14 @@ type Report struct {
 	Migration          Migration          `json:"migration"`
 
 	Comparisons []risk.Comparison `json:"comparisons"`
-	Phases      []Phase           `json:"phases"`
-	Quality     risk.Quality      `json:"quality"`
-	Findings    []risk.Finding    `json:"findings"`
-	Decision    risk.Decision     `json:"decision"`
+	// PredictedConflicts are the lock conflicts expected from the lock
+	// modes alone, per scenario and background session, for comparison
+	// with what was measured.
+	PredictedConflicts []workload.Conflict `json:"predicted_conflicts,omitempty"`
+	Phases             []Phase             `json:"phases"`
+	Quality            risk.Quality        `json:"quality"`
+	Findings           []risk.Finding      `json:"findings"`
+	Decision           risk.Decision       `json:"decision"`
 
 	Environment Environment `json:"environment"`
 	// EffectiveConfig is the configuration after defaults and environment

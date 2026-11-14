@@ -27,6 +27,7 @@
 
 | Version | Change |
 |---|---|
+| 1.8.0 | `predicted_conflicts`: the lock conflicts expected per scenario and background session from the lock modes alone. |
 | 1.7.0 | `migration.statements[].locks[].via`: the index, partitioned table or materialized view that implies a lock on a relation the statement does not name. |
 | 1.6.0 | `migration.statements[].locks[].created_by`: the statement that created the locked relation earlier in the migration. |
 | 1.5.0 | `fixture.tables[].partitioned`: marks partitioned tables, whose row estimate repeats their partitions'. Totals no longer count those rows twice. |

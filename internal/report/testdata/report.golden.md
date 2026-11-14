@@ -28,9 +28,11 @@ Blocking findings: OBS002, OBS005.
 
 Medians across 3 repeat(s). *During migration* covers only the time the migration ran.
 
-| Scenario | Mode | p95 baseline → candidate | p95 ratio | Max during migration | Error rate Δ | Throughput Δ | Baseline noise | Ops (B / C) |
-|---|---|---|---|---|---|---|---|---|
-| read_order | read | 1.0 ms → 3.0 ms | 3.00× | 1500 ms | +0.00 pp | +0.0% | 0% | 3,000 / 3,000 |
+*Predicted conflict* lists the migration statements whose locks conflict with the scenario's, from the lock modes alone; *max during migration* shows what that meant.
+
+| Scenario | Mode | Predicted conflict | p95 baseline → candidate | p95 ratio | Max during migration | Error rate Δ | Throughput Δ | Baseline noise | Ops (B / C) |
+|---|---|---|---|---|---|---|---|---|---|
+| read_order | read | 1.1 ACCESS EXCLUSIVE on orders | 1.0 ms → 3.0 ms | 3.00× | 1500 ms | +0.00 pp | +0.0% | 0% | 3,000 / 3,000 |
 
 ## Migration
 
@@ -80,7 +82,7 @@ M    1        4       0  1400 ms   1500 ms
 | Item | Value |
 |---|---|
 | Tool | prodshadow v0.1.0-test (commit test, go1.26, linux/amd64) |
-| Report schema | 1.7.0 |
+| Report schema | 1.8.0 |
 | Git commit | `0123abcd` |
 | Image | `postgres:17-alpine` |
 | Server | PostgreSQL 17.12 on x86_64 |

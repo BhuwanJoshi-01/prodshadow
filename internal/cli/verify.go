@@ -164,7 +164,7 @@ func runVerify(ctx context.Context, env *Env, args []string) int {
 		Config: cfg, RunID: runID, Started: started, Finished: time.Now(), Statements: stmts,
 		Workload: inputs.workload, WorkloadHash: inputs.workloadHash, FixtureHash: inputs.fixtureHash,
 		Result: res, Assessment: assessment, Redactor: redactor, EnvOverrides: p.envApplied,
-		Errors: runErrs, Lookup: env.Getenv,
+		Errors: runErrs, Lookup: env.Getenv, Catalog: catalog,
 	})
 	written, err := writeReports(env, cfg, rep)
 	if err != nil {

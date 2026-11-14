@@ -151,14 +151,15 @@ func (r *Report) mdComparisons(w writer) {
 	}
 	w("## Scenario comparison\n\n")
 	w("Medians across %d repeat(s). *During migration* covers only the time the migration ran.\n\n", r.Workload.Repeats)
-	w("| Scenario | Mode | p95 baseline → candidate | p95 ratio | Max during migration | Error rate Δ | Throughput Δ | Baseline noise | Ops (B / C) |\n|---|---|---|---|---|---|---|---|---|\n")
+	w("*Predicted conflict* lists the migration statements whose locks conflict with the scenario's, from the lock modes alone; *max during migration* shows what that meant.\n\n")
+	w("| Scenario | Mode | Predicted conflict | p95 baseline → candidate | p95 ratio | Max during migration | Error rate Δ | Throughput Δ | Baseline noise | Ops (B / C) |\n|---|---|---|---|---|---|---|---|---|---|\n")
 	for _, c := range r.Comparisons {
 		during := "–"
 		if c.During != nil {
 			during = fmtMS(c.During.MaxObservedMS)
 		}
-		w("| %s | %s | %s → %s | %s | %s | %+.2f pp | %s | %s | %s / %s |\n",
-			esc(c.Scenario), c.Mode, fmtMS(c.Baseline.P95MS), fmtMS(c.Candidate.P95MS), fmtRatio(c.P95Ratio), during,
+		w("| %s | %s | %s | %s → %s | %s | %s | %+.2f pp | %s | %s | %s / %s |\n",
+			esc(c.Scenario), c.Mode, esc(r.PredictedFor(c)), fmtMS(c.Baseline.P95MS), fmtMS(c.Candidate.P95MS), fmtRatio(c.P95Ratio), during,
 			c.ErrorRateDeltaPP, fmtPct(c.ThroughputChangePct), fmtCV(c.BaselineNoiseCV), fmtInt(int64(c.Baseline.Ops)), fmtInt(int64(c.Candidate.Ops)))
 	}
 	w("\n")
@@ -388,4 +389,19 @@ func (r *Report) mdReproduction(w writer) {
 	}
 	w("| Workload seed | %d |\n", r.Workload.Seed)
 	w("| Parser | %s |\n\n", r.Engine.ParserGrammar)
+}
+
+// PredictedFor summarises the predicted conflicts of a compared scenario,
+// e.g. "1.1 SHARE on orders", or "none".
+func (r *Report) PredictedFor(c risk.Comparison) string {
+	var parts []string
+	for _, p := range r.PredictedConflicts {
+		if p.Session == c.Scenario && p.Background == c.Background {
+			parts = append(parts, p.StatementID+" "+p.MigrationLock+" on "+p.Table)
+		}
+	}
+	if len(parts) == 0 {
+		return "none"
+	}
+	return strings.Join(parts, "; ")
 }
