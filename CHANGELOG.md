@@ -56,8 +56,10 @@ versioning; the report schema (`schema_version`) is versioned separately.
   PS145 (grants to `PUBLIC`), PS146 (`SECURITY DEFINER` without
   `search_path`), PS147 (replica identity changes), PS148 to PS150
   (malformed, expired and unused inline suppressions), PS151 (`CHECK`
-  constraints that are not immutable), PS152 (32-bit primary keys) and
-  PS153 (tables without a primary key). PS109 and PS110 also
+  constraints that are not immutable), PS152 (32-bit primary keys),
+  PS153 (tables without a primary key) and PS154 (`CREATE INDEX
+  CONCURRENTLY` on a partitioned table). PS107 and PS108 also report
+  inline `CHECK`, `UNIQUE` and `PRIMARY KEY` on `ADD COLUMN`. PS109 and PS110 also
   cover views, functions, types, schemas, extensions and enum values; PS111
   covers unbounded `SELECT ... FOR UPDATE`; PS106 recognises a validated
   `CHECK (col IS NOT NULL)`; PS105 uses `USING` clauses and type limits for
@@ -79,7 +81,9 @@ versioning; the report schema (`schema_version`) is versioned separately.
   Markdown, HTML and GitHub annotations; compatibility probes appear in the
   HTML report and in `plan`.
 - `prodshadow draft-workload` drafts a workload file from a
-  `pg_stat_statements` CSV export; `history --html` renders a page with
+  `pg_stat_statements` CSV export, and `prodshadow draft-fixture` a
+  generator file from the fixture schema and optional `pg_class` row
+  counts; `history --html` renders a page with
   charts; `inspect --format markdown` links rule pages.
 - Rules can reason about other rules' findings (`checkFindings`), and
   PS114 follows the scope of `SET LOCAL`, `RESET` and zero timeouts.
@@ -98,8 +102,8 @@ versioning; the report schema (`schema_version`) is versioned separately.
   API keys.
 - Every rule has a documentation page under `docs/rules/`, linked from
   SARIF results.
-- Guides for Alembic, Django, Prisma, Flyway/Liquibase and
-  golang-migrate/goose; troubleshooting guide, glossary and architecture
+- Guides for Alembic, Atlas, Django, Prisma, Flyway/Liquibase,
+  golang-migrate/goose and sqitch/dbmate; troubleshooting guide, glossary and architecture
   decision records.
 
 ### Fixed
