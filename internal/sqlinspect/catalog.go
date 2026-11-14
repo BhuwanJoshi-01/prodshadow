@@ -24,6 +24,8 @@ type Catalog struct {
 	// without WHERE, which REFRESH ... CONCURRENTLY requires.
 	matviews    map[string]bool
 	plainUnique map[string]bool
+	// viewColumns maps table -> column -> views that read the column.
+	viewColumns map[string]map[string][]string
 	columns     map[string][]string // table -> column names in order
 	sequences   map[string][]columnSequence
 	foreignKeys []catalogFK
@@ -45,7 +47,7 @@ type columnSequence struct {
 // typically the parsed fixture schema.
 func NewCatalog(schema []*Statement) *Catalog {
 	c := &Catalog{indexTable: map[string]string{}, partitions: map[string][]string{}, partitioned: map[string]bool{}, viewReads: map[string][]string{},
-		matviews: map[string]bool{}, plainUnique: map[string]bool{},
+		matviews: map[string]bool{}, plainUnique: map[string]bool{}, viewColumns: map[string]map[string][]string{},
 		columns: map[string][]string{}, sequences: map[string][]columnSequence{}, primaryKeys: map[string][]string{},
 		primaryKeyName: map[string]string{}, keys: map[string]map[string][]string{}}
 	for _, s := range schema {
@@ -183,11 +185,19 @@ func (c *Catalog) learn(s *Statement) {
 				}
 			}
 		}
+	case *pg_query.Node_DropStmt:
+		switch x.DropStmt.RemoveType {
+		case pg_query.ObjectType_OBJECT_VIEW, pg_query.ObjectType_OBJECT_MATVIEW:
+			for _, v := range dropObjectNames(x.DropStmt.Objects) {
+				c.forgetView(v)
+			}
+		}
 	case *pg_query.Node_CreateTableAsStmt:
 		if x.CreateTableAsStmt.Objtype == pg_query.ObjectType_OBJECT_MATVIEW {
 			view := catalogKey(relName(x.CreateTableAsStmt.GetInto().GetRel()))
 			c.viewReads[view] = lockedTables(s)
 			c.matviews[view] = !x.CreateTableAsStmt.GetInto().GetSkipData()
+			c.learnViewColumns(relName(x.CreateTableAsStmt.GetInto().GetRel()), x.CreateTableAsStmt.Query)
 		}
 	case *pg_query.Node_ViewStmt:
 		view := relName(x.ViewStmt.View)
@@ -198,6 +208,7 @@ func (c *Catalog) learn(s *Statement) {
 			}
 		}
 		c.viewReads[catalogKey(view)] = reads
+		c.learnViewColumns(view, x.ViewStmt.Query)
 	}
 }
 
@@ -345,6 +356,7 @@ func (c *Catalog) Resolve(stmts []*Statement) {
 		if s.node != nil {
 			// Before learning: a dropped foreign key is forgotten here.
 			c.ddlForeignKeyLocks(s)
+			c.viewDependencies(s)
 		}
 		c.learn(s)
 	}

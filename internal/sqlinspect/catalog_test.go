@@ -292,3 +292,36 @@ CREATE UNIQUE INDEX empty_counts_status ON empty_counts (status);
 	expectCount(t, analyse("REFRESH MATERIALIZED VIEW CONCURRENTLY unknown_view;"), 0)
 	expectCount(t, analyse("REFRESH MATERIALIZED VIEW status_counts;"), 0)
 }
+
+func TestPS159DependentView(t *testing.T) {
+	schema := parse(t, `
+CREATE TABLE orders (id int, status text, amount int, note text);
+CREATE TABLE customers (id int, name text);
+CREATE VIEW recent_orders AS SELECT o.id, o.status FROM orders o;
+CREATE MATERIALIZED VIEW totals AS SELECT status, sum(amount) FROM orders GROUP BY status;
+CREATE VIEW everything AS SELECT * FROM customers;
+`)
+	analyse := func(migration string) []Finding {
+		stmts := parse(t, migration)
+		NewCatalog(schema).Resolve(stmts)
+		var out []Finding
+		for _, f := range Analyze(stmts, Options{}) {
+			if f.RuleID == "PS159" {
+				out = append(out, f)
+			}
+		}
+		return out
+	}
+	if got := analyse("ALTER TABLE orders DROP COLUMN status;"); len(got) != 1 || !strings.Contains(got[0].Message, "view recent_orders, totals reads it") {
+		t.Fatalf("drop column: %+v", got)
+	}
+	if got := analyse("ALTER TABLE orders ALTER COLUMN amount TYPE bigint;"); len(got) != 1 || !strings.Contains(got[0].Message, "Changing the type of column amount of orders fails: view totals") {
+		t.Fatalf("alter type: %+v", got)
+	}
+	expectCount(t, analyse("ALTER TABLE orders DROP COLUMN note;"), 0)
+	expectCount(t, analyse("ALTER TABLE orders DROP COLUMN status CASCADE;"), 0)
+	expectCount(t, analyse("ALTER TABLE customers DROP COLUMN name;"), 1)
+	expectCount(t, analyse("DROP TABLE customers;"), 1)
+	expectCount(t, analyse("DROP VIEW recent_orders;\nDROP MATERIALIZED VIEW totals;\nALTER TABLE orders DROP COLUMN status;"), 0)
+	expectCount(t, analyse("ALTER TABLE orders RENAME COLUMN status TO state;"), 0)
+}

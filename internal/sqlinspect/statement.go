@@ -103,6 +103,9 @@ type Statement struct {
 	// refreshProblem says why a REFRESH MATERIALIZED VIEW CONCURRENTLY
 	// will be rejected; set by Catalog.Resolve.
 	refreshProblem string
+	// dependentViews are views that make a DROP COLUMN, ALTER COLUMN TYPE
+	// or DROP TABLE fail; set by Catalog.Resolve.
+	dependentViews []viewDependency
 }
 
 // ExistingLock returns the strongest lock the statement takes on a relation

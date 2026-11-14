@@ -408,6 +408,9 @@ func TestFailingStatementsOracle(t *testing.T) {
 		{"TRUNCATE invoices", "PS157", "0A000"},
 		{"REFRESH MATERIALIZED VIEW CONCURRENTLY status_counts", "PS158", "55000"},
 		{"REFRESH MATERIALIZED VIEW CONCURRENTLY empty_counts", "PS158", "0A000"},
+		{"ALTER TABLE orders DROP COLUMN status", "PS159", "2BP01"},
+		{"ALTER TABLE orders ALTER COLUMN amount TYPE bigint", "PS159", "0A000"},
+		{"DROP TABLE orders", "PS159", "2BP01"},
 	} {
 		t.Run(c.sql, func(t *testing.T) {
 			stmts, err := ParseSources([]Source{{Path: "oracle.sql", Content: c.sql + ";"}})

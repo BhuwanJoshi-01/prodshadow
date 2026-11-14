@@ -2,6 +2,7 @@ package sqlinspect
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/evidence"
@@ -10,6 +11,14 @@ import (
 )
 
 func init() {
+	register(Rule{
+		ID:       "PS159",
+		Name:     "dependent-view",
+		Summary:  "Dropping or retyping a column, or dropping a table, fails while a view depends on it",
+		Severity: evidence.Critical,
+		DocsURL:  "https://www.postgresql.org/docs/current/ddl-depend.html",
+		check:    checkDependentView,
+	})
 	register(Rule{
 		ID:       "PS157",
 		Name:     "referenced-table-removed",
@@ -121,5 +130,35 @@ func checkReferencedTableRemoved(c *Context, s *Statement) []Finding {
 		verb, strings.Join(s.referencedBy, ", "), refers, strings.ToLower(verb)))
 	f.Table = firstTable(s)
 	f.Remediation = "Drop or change the referencing foreign keys first, in this or an earlier migration. CASCADE removes them silently (see PS124), which is rarely what the referencing code expects."
+	return []Finding{f}
+}
+
+// checkDependentView reports DROP COLUMN, ALTER COLUMN TYPE and DROP TABLE
+// statements that views known from the fixture schema make fail.
+func checkDependentView(c *Context, s *Statement) []Finding {
+	if len(s.dependentViews) == 0 {
+		return nil
+	}
+	table := firstTable(s)
+	var views []string
+	for _, d := range s.dependentViews {
+		if !slices.Contains(views, d.view) {
+			views = append(views, d.view)
+		}
+	}
+	list := strings.Join(views, ", ")
+	d := s.dependentViews[0]
+	var msg string
+	switch d.change {
+	case "drop":
+		msg = fmt.Sprintf("Dropping column %s of %s fails: view %s reads it. PostgreSQL refuses to drop a column a view depends on (SQLSTATE 2BP01).", d.column, table, list)
+	case "type":
+		msg = fmt.Sprintf("Changing the type of column %s of %s fails: view %s reads it. PostgreSQL cannot alter the type of a column a view or rule uses (SQLSTATE 0A000).", d.column, table, list)
+	default:
+		msg = fmt.Sprintf("DROP TABLE %s fails: view %s depends on it (SQLSTATE 2BP01).", table, list)
+	}
+	f := at(s, msg)
+	f.Table = table
+	f.Remediation = "Drop the view first and recreate it after the change, in the same transaction; CASCADE drops it silently (see PS124), and the application then fails on the missing view."
 	return []Finding{f}
 }
