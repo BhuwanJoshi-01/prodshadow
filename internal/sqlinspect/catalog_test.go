@@ -1,6 +1,7 @@
 package sqlinspect
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/pglock"
@@ -254,4 +255,40 @@ DROP TABLE invoices;
 	if _, ok := lockOn(stmts[6], "customers"); ok {
 		t.Error("the foreign key to customers was dropped by an earlier statement")
 	}
+}
+
+func TestPS158ConcurrentRefresh(t *testing.T) {
+	schema := parse(t, `
+CREATE TABLE orders (id int, status text);
+CREATE MATERIALIZED VIEW status_counts AS SELECT status, count(*) AS n FROM orders GROUP BY 1;
+CREATE MATERIALIZED VIEW keyed_counts AS SELECT status, count(*) AS n FROM orders GROUP BY 1;
+CREATE UNIQUE INDEX keyed_counts_status ON keyed_counts (status);
+CREATE MATERIALIZED VIEW partial_counts AS SELECT status, count(*) AS n FROM orders GROUP BY 1;
+CREATE UNIQUE INDEX partial_counts_status ON partial_counts (lower(status));
+CREATE MATERIALIZED VIEW empty_counts AS SELECT status, count(*) AS n FROM orders GROUP BY 1 WITH NO DATA;
+CREATE UNIQUE INDEX empty_counts_status ON empty_counts (status);
+`)
+	analyse := func(migration string) []Finding {
+		stmts := parse(t, migration)
+		NewCatalog(schema).Resolve(stmts)
+		var out []Finding
+		for _, f := range Analyze(stmts, Options{}) {
+			if f.RuleID == "PS158" {
+				out = append(out, f)
+			}
+		}
+		return out
+	}
+	if got := analyse("REFRESH MATERIALIZED VIEW CONCURRENTLY status_counts;"); len(got) != 1 || !strings.Contains(got[0].Message, "no unique index") {
+		t.Fatalf("no unique index: %+v", got)
+	}
+	expectCount(t, analyse("REFRESH MATERIALIZED VIEW CONCURRENTLY keyed_counts;"), 0)
+	expectCount(t, analyse("REFRESH MATERIALIZED VIEW CONCURRENTLY partial_counts;"), 1)
+	if got := analyse("REFRESH MATERIALIZED VIEW CONCURRENTLY empty_counts;"); len(got) != 1 || !strings.Contains(got[0].Message, "not populated") {
+		t.Fatalf("unpopulated: %+v", got)
+	}
+	expectCount(t, analyse("REFRESH MATERIALIZED VIEW empty_counts;\nREFRESH MATERIALIZED VIEW CONCURRENTLY empty_counts;"), 0)
+	expectCount(t, analyse("CREATE UNIQUE INDEX CONCURRENTLY status_counts_status ON status_counts (status);\nREFRESH MATERIALIZED VIEW CONCURRENTLY status_counts;"), 0)
+	expectCount(t, analyse("REFRESH MATERIALIZED VIEW CONCURRENTLY unknown_view;"), 0)
+	expectCount(t, analyse("REFRESH MATERIALIZED VIEW status_counts;"), 0)
 }

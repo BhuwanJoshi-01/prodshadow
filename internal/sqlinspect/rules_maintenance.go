@@ -9,6 +9,14 @@ import (
 
 func init() {
 	register(Rule{
+		ID:       "PS158",
+		Name:     "concurrent-refresh-unsupported",
+		Summary:  "REFRESH MATERIALIZED VIEW CONCURRENTLY fails on a view without a plain unique index, or one that is not populated",
+		Severity: evidence.Critical,
+		DocsURL:  "https://www.postgresql.org/docs/current/sql-refreshmaterializedview.html",
+		check:    checkConcurrentRefresh,
+	})
+	register(Rule{
 		ID:       "PS126",
 		Name:     "database-wide-maintenance",
 		Summary:  "VACUUM, ANALYZE, CLUSTER or REINDEX without a table name processes every table in the database or schema",
@@ -46,5 +54,19 @@ func checkWideMaintenance(_ *Context, s *Statement) []Finding {
 	case KindCluster:
 		f.DocsURL = docCluster
 	}
+	return []Finding{f}
+}
+
+// checkConcurrentRefresh reports REFRESH MATERIALIZED VIEW CONCURRENTLY
+// that PostgreSQL will reject, as determined from the fixture schema and
+// the migration so far (Catalog.Resolve).
+func checkConcurrentRefresh(c *Context, s *Statement) []Finding {
+	if s.refreshProblem == "" {
+		return nil
+	}
+	view := firstTable(s)
+	f := at(s, fmt.Sprintf("REFRESH MATERIALIZED VIEW CONCURRENTLY %s fails: %s.", view, s.refreshProblem))
+	f.Table = view
+	f.Remediation = "Create a unique index on one or more plain columns of the view, without a WHERE clause (CREATE UNIQUE INDEX CONCURRENTLY works on a view too), and populate the view once with a plain REFRESH before refreshing it concurrently."
 	return []Finding{f}
 }

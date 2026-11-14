@@ -34,6 +34,9 @@ CREATE INDEX events_at_part_idx ON events (at);
 CREATE TABLE events_2027 (id bigint, at timestamptz NOT NULL);
 CREATE MATERIALIZED VIEW order_totals AS SELECT customer_id, sum(amount) AS total FROM orders GROUP BY 1;
 CREATE UNIQUE INDEX order_totals_customer ON order_totals (customer_id);
+CREATE MATERIALIZED VIEW status_counts AS SELECT status, count(*) AS n FROM orders GROUP BY 1;
+CREATE MATERIALIZED VIEW empty_counts AS SELECT status, count(*) AS n FROM orders GROUP BY 1 WITH NO DATA;
+CREATE UNIQUE INDEX empty_counts_status ON empty_counts (status);
 CREATE TABLE legacy (id int);
 CREATE SEQUENCE invoice_numbers;
 CREATE TABLE tickets (id bigserial PRIMARY KEY, title text);
@@ -381,4 +384,54 @@ func compareLocks(predicted, observed map[string]pglock.Mode) string {
 	}
 	sort.Strings(diffs)
 	return strings.Join(diffs, "\n")
+}
+
+// TestFailingStatementsOracle checks that statements the rules say
+// PostgreSQL rejects are rejected, with the expected SQLSTATE.
+func TestFailingStatementsOracle(t *testing.T) {
+	ctx := context.Background()
+	_, srv := pgtest.Start(t)
+	conn, err := srv.Connect(ctx, srv.Admin(), isolation.ConnOptions{ApplicationName: "lock-oracle"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = conn.Close(context.Background()) })
+	if _, err := conn.Exec(ctx, oracleSchema); err != nil {
+		t.Fatal(err)
+	}
+	schema, err := ParseSources([]Source{{Path: "schema.sql", Content: oracleSchema}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct{ sql, rule, sqlstate string }{
+		{"DROP TABLE customers", "PS157", "2BP01"},
+		{"TRUNCATE invoices", "PS157", "0A000"},
+		{"REFRESH MATERIALIZED VIEW CONCURRENTLY status_counts", "PS158", "55000"},
+		{"REFRESH MATERIALIZED VIEW CONCURRENTLY empty_counts", "PS158", "0A000"},
+	} {
+		t.Run(c.sql, func(t *testing.T) {
+			stmts, err := ParseSources([]Source{{Path: "oracle.sql", Content: c.sql + ";"}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			NewCatalog(schema).Resolve(stmts)
+			fired := false
+			for _, f := range Analyze(stmts, Options{}) {
+				fired = fired || f.RuleID == c.rule
+			}
+			if !fired {
+				t.Errorf("%s does not report the statement", c.rule)
+			}
+			tx, err := conn.Begin(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer func() { _ = tx.Rollback(ctx) }()
+			_, err = tx.Exec(ctx, c.sql)
+			var pgErr *pgconn.PgError
+			if !errors.As(err, &pgErr) || pgErr.Code != c.sqlstate {
+				t.Errorf("PostgreSQL: %v, want SQLSTATE %s", err, c.sqlstate)
+			}
+		})
+	}
 }

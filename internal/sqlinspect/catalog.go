@@ -19,6 +19,11 @@ type Catalog struct {
 	partitions  map[string][]string // partitioned table -> direct partitions
 	partitioned map[string]bool     // tables declared with PARTITION BY
 	viewReads   map[string][]string // view or materialized view -> relations its query reads
+	// matviews maps each materialized view to whether it is populated;
+	// plainUnique marks relations with a unique index on plain columns
+	// without WHERE, which REFRESH ... CONCURRENTLY requires.
+	matviews    map[string]bool
+	plainUnique map[string]bool
 	columns     map[string][]string // table -> column names in order
 	sequences   map[string][]columnSequence
 	foreignKeys []catalogFK
@@ -40,6 +45,7 @@ type columnSequence struct {
 // typically the parsed fixture schema.
 func NewCatalog(schema []*Statement) *Catalog {
 	c := &Catalog{indexTable: map[string]string{}, partitions: map[string][]string{}, partitioned: map[string]bool{}, viewReads: map[string][]string{},
+		matviews: map[string]bool{}, plainUnique: map[string]bool{},
 		columns: map[string][]string{}, sequences: map[string][]columnSequence{}, primaryKeys: map[string][]string{},
 		primaryKeyName: map[string]string{}, keys: map[string]map[string][]string{}}
 	for _, s := range schema {
@@ -117,6 +123,13 @@ func (c *Catalog) learn(s *Statement) {
 		if x.IndexStmt.Idxname != "" {
 			c.indexTable[catalogKey(x.IndexStmt.Idxname)] = relName(x.IndexStmt.Relation)
 		}
+		if plainUniqueIndex(x.IndexStmt) {
+			c.plainUnique[catalogKey(relName(x.IndexStmt.Relation))] = true
+		}
+	case *pg_query.Node_RefreshMatViewStmt:
+		if !x.RefreshMatViewStmt.SkipData {
+			c.matviews[catalogKey(relName(x.RefreshMatViewStmt.Relation))] = true
+		}
 	case *pg_query.Node_CreateStmt:
 		table := relName(x.CreateStmt.Relation)
 		c.learnTableConstraints(x.CreateStmt)
@@ -172,7 +185,9 @@ func (c *Catalog) learn(s *Statement) {
 		}
 	case *pg_query.Node_CreateTableAsStmt:
 		if x.CreateTableAsStmt.Objtype == pg_query.ObjectType_OBJECT_MATVIEW {
-			c.viewReads[catalogKey(relName(x.CreateTableAsStmt.GetInto().GetRel()))] = lockedTables(s)
+			view := catalogKey(relName(x.CreateTableAsStmt.GetInto().GetRel()))
+			c.viewReads[view] = lockedTables(s)
+			c.matviews[view] = !x.CreateTableAsStmt.GetInto().GetSkipData()
 		}
 	case *pg_query.Node_ViewStmt:
 		view := relName(x.ViewStmt.View)
@@ -385,6 +400,14 @@ func (c *Catalog) resolve(s *Statement) {
 		for _, t := range c.viewReads[catalogKey(view)] {
 			s.addImpliedLock(t, pglock.AccessShare, "materialized view "+view)
 		}
+		if populated, known := c.matviews[catalogKey(view)]; known && x.RefreshMatViewStmt.Concurrent {
+			switch {
+			case !populated:
+				s.refreshProblem = "it is not populated (created WITH NO DATA and not refreshed since)"
+			case !c.plainUnique[catalogKey(view)]:
+				s.refreshProblem = "it has no unique index on plain columns without a WHERE clause"
+			}
+		}
 	case *pg_query.Node_IndexStmt:
 		if x.IndexStmt.Relation.GetInh() {
 			c.propagate(s, relName(x.IndexStmt.Relation))
@@ -463,4 +486,19 @@ func namedRelations(n *pg_query.Node) []*pg_query.RangeVar {
 		}
 	}
 	return out
+}
+
+// plainUniqueIndex reports whether an index is unique, has no WHERE clause
+// and indexes only plain columns: the kind REFRESH MATERIALIZED VIEW
+// CONCURRENTLY needs to match old and new rows.
+func plainUniqueIndex(st *pg_query.IndexStmt) bool {
+	if !st.Unique || st.WhereClause != nil || len(st.IndexParams) == 0 {
+		return false
+	}
+	for _, p := range st.IndexParams {
+		if e := p.GetIndexElem(); e == nil || e.Name == "" || e.Expr != nil {
+			return false
+		}
+	}
+	return true
 }

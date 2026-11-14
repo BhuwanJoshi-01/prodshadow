@@ -100,6 +100,9 @@ type Statement struct {
 	// referencedBy lists the foreign keys ("table.constraint") that make a
 	// DROP TABLE or TRUNCATE without CASCADE fail; set by Catalog.Resolve.
 	referencedBy []string
+	// refreshProblem says why a REFRESH MATERIALIZED VIEW CONCURRENTLY
+	// will be rejected; set by Catalog.Resolve.
+	refreshProblem string
 }
 
 // ExistingLock returns the strongest lock the statement takes on a relation
