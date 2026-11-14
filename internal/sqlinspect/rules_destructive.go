@@ -90,6 +90,8 @@ var droppedObjectKinds = map[pg_query.ObjectType]string{
 	pg_query.ObjectType_OBJECT_TYPE:      "type",
 	pg_query.ObjectType_OBJECT_DOMAIN:    "domain",
 	pg_query.ObjectType_OBJECT_SCHEMA:    "schema",
+	// Dropping an extension drops its functions, types and operators.
+	pg_query.ObjectType_OBJECT_EXTENSION: "extension",
 }
 
 // renamedObjectKinds are the renames, besides tables and columns, that

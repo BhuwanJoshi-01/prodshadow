@@ -17,6 +17,7 @@ func TestPS109Destructive(t *testing.T) {
 		"DROP FUNCTION order_total(bigint);",
 		"DROP TYPE mood;",
 		"DROP SCHEMA reporting;",
+		"DROP EXTENSION pg_trgm;",
 	} {
 		expectCount(t, findings(t, "PS109", Options{}, sql), 1)
 	}
