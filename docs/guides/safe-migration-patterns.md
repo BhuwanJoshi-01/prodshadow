@@ -57,6 +57,20 @@ ALTER TABLE refunds VALIDATE CONSTRAINT refunds_order_fk;
 Reported otherwise: [PS107](../rules/PS107.md), [PS133](../rules/PS133.md),
 [PS136](../rules/PS136.md), [PS137](../rules/PS137.md).
 
+## Drop a foreign key
+
+```sql
+SET lock_timeout = '1s';
+ALTER TABLE invoices DROP CONSTRAINT invoices_customer_fk;  -- retried on lock_not_available
+```
+
+There is no lock-free way: dropping the constraint takes `ACCESS EXCLUSIVE`
+on **both** tables, so it waits for long transactions on the referenced
+table too. Keep the timeout short and retry, at a quiet time. Changing the
+type of a column on either side of a foreign key re-creates the constraint
+and locks both tables the same way. See the
+[foreign-key-drop example](../../examples/foreign-key-drop).
+
 ## Add a unique constraint or primary key
 
 ```sql
@@ -79,6 +93,26 @@ rewrite the table. Anything else does ([PS105](../rules/PS105.md)):
 2. write to both (trigger or application);
 3. backfill in batches;
 4. switch reads, then drop the old column in a later release.
+
+## Change a view
+
+`CREATE OR REPLACE VIEW` may only append columns
+([PS160](../rules/PS160.md)), and columns or tables a view reads cannot be
+dropped or retyped ([PS159](../rules/PS159.md)). Drop the view, change the
+table and recreate the view in one transaction, after checking that no
+deployed code uses the view in between.
+
+## Refresh a materialized view
+
+```sql
+CREATE UNIQUE INDEX CONCURRENTLY daily_revenue_key ON daily_revenue (day, customer_id);  -- once
+REFRESH MATERIALIZED VIEW CONCURRENTLY daily_revenue;
+```
+
+A plain refresh blocks every reader for its whole duration
+([PS113](../rules/PS113.md)); the concurrent one needs a plain unique
+index and a populated view ([PS158](../rules/PS158.md)) and takes longer.
+See the [matview-refresh example](../../examples/matview-refresh).
 
 ## Rename a column or table
 
@@ -114,7 +148,19 @@ Use `CONCURRENTLY` outside a transaction block
 Create partitions with `LIKE` and attach them with a matching `CHECK`
 constraint; detach with `CONCURRENTLY`
 ([PS123](../rules/PS123.md), [PS140](../rules/PS140.md),
-[PS141](../rules/PS141.md)).
+[PS141](../rules/PS141.md)). A `DEFAULT` partition makes every attach,
+detach and new partition lock it with `ACCESS EXCLUSIVE`, and rules out
+`DETACH ... CONCURRENTLY` altogether ([PS161](../rules/PS161.md)); avoid
+one on tables that need online maintenance. See the
+[partition-maintenance example](../../examples/partition-maintenance).
+
+## Sequences
+
+`ALTER SEQUENCE` waits for every transaction that inserted a row using the
+sequence and blocks new inserts while it waits
+([PS156](../rules/PS156.md)); run it with a short `lock_timeout`. Restarting
+a sequence below existing ids causes duplicate keys
+([PS130](../rules/PS130.md)).
 
 ## Enum values
 
