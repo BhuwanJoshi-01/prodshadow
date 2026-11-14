@@ -6,6 +6,7 @@ import (
 
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/evidence"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/experiment"
+	"github.com/BhuwanJoshi-01/Open-Source-1/internal/migrate"
 )
 
 func failingWith(state, msg string) *experiment.Result {
@@ -131,5 +132,33 @@ func TestCompatibilityFindings(t *testing.T) {
 	}
 	if byRule(Evaluate(Input{Config: testConfig(), Result: quietResult()}), "OBS013") != nil {
 		t.Fatal("no probes, no finding")
+	}
+}
+
+func TestLockRetries(t *testing.T) {
+	res := quietResult()
+	for i := range res.Phases {
+		if m := res.Phases[i].Migration; m != nil {
+			m.Retries = []migrate.Retry{{StatementID: "1.1", Attempt: 1, WaitedMS: 1500}, {StatementID: "1.1", Attempt: 2, WaitedMS: 1500}}
+		}
+	}
+	a := Evaluate(Input{Config: testConfig(), Result: res, Statements: migration(t)})
+	f := byRule(a, "OBS014")
+	if f == nil || *f.Observed != 2 || f.Severity != evidence.Info || f.Line != 1 || f.Confidence != evidence.High {
+		t.Fatalf("OBS014 = %+v", f)
+	}
+	// Retries that ran out are part of OBS002.
+	res = failingWith("55P03", "canceling statement due to lock timeout")
+	for i := range res.Phases {
+		if m := res.Phases[i].Migration; m != nil {
+			m.Retries = []migrate.Retry{{StatementID: "1.1", Attempt: 1}}
+		}
+	}
+	a = Evaluate(Input{Config: testConfig(), Result: res, Statements: migration(t)})
+	if f := byRule(a, "OBS002"); f == nil || !strings.Contains(f.Message, "retried 1 time(s)") {
+		t.Fatalf("OBS002 = %+v", f)
+	}
+	if byRule(a, "OBS014") != nil {
+		t.Fatal("a migration that never succeeded is not OBS014")
 	}
 }

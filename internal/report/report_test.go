@@ -234,3 +234,15 @@ func TestMarkdownCompatibilitySection(t *testing.T) {
 		}
 	}
 }
+
+func TestMarkdownShowsLockRetries(t *testing.T) {
+	r := Build(sampleInput(t))
+	for i := range r.Phases {
+		if m := r.Phases[i].Migration; m != nil && r.Phases[i].Repeat == 0 {
+			m.Retries = []migrate.Retry{{StatementID: "1.1", Attempt: 1, WaitedMS: 1500}, {StatementID: "1.1", Attempt: 2, WaitedMS: 1500}}
+		}
+	}
+	if md := r.Markdown(); !strings.Contains(md, "Retried on lock_timeout (`migration.lock_retries`): repeat 1: 2 retries, 3000 ms waiting for locks.") {
+		t.Fatalf("markdown lacks the retries line:\n%s", md)
+	}
+}

@@ -260,7 +260,11 @@ func migrationFindings(cfg *config.Config, cands []experiment.PhaseResult, stmts
 			if len(blockers) > 0 {
 				msg += " because " + strings.Join(blockers, ", ") + " held a conflicting lock"
 			}
-			msg += ". In production, without a lock_timeout, it would have waited — and every query queued behind it."
+			msg += "."
+			if n := len(first.Retries); n > 0 {
+				msg += fmt.Sprintf(" It was retried %d time(s), as migration.lock_retries allows, and timed out every time.", n)
+			}
+			msg += " In production, without a lock_timeout, it would have waited — and every query queued behind it."
 			f = newFinding("OBS002", conf, reason, msg)
 			f.Remediation = "Run the statement with a short lock_timeout and retry with backoff, and avoid deploying while long transactions are open."
 			f.DocsURL = docLockTimeout
@@ -273,6 +277,7 @@ func migrationFindings(cfg *config.Config, cands []experiment.PhaseResult, stmts
 		locate(&f, stmts, first.FailedStatement)
 		out = append(out, f)
 	}
+	out = append(out, retryFindings(cfg, cands, stmts)...)
 	if p := cfg.Policy.MaxMigrationSeconds; p != nil && len(durations) > 0 {
 		med := stats.Median(durations) / 1000
 		if med > *p {
@@ -425,4 +430,31 @@ func probeFailure(state, msg string) string {
 		return msg
 	}
 	return state + ": " + msg
+}
+
+// retryFindings reports migrations that only succeeded after retrying on
+// lock_timeout (OBS014). Each failed attempt made the workload queue behind
+// the migration for up to lock_timeout, so retries are not free.
+func retryFindings(cfg *config.Config, cands []experiment.PhaseResult, stmts []*sqlinspect.Statement) []Finding {
+	hits, most := 0, 0
+	var first *migrate.Outcome
+	for _, ph := range cands {
+		m := ph.Migration
+		if m == nil || m.Status != migrate.Succeeded || len(m.Retries) == 0 {
+			continue
+		}
+		hits++
+		if len(m.Retries) > most {
+			most, first = len(m.Retries), m
+		}
+	}
+	if hits == 0 {
+		return nil
+	}
+	conf, reason := consistency(hits, len(cands))
+	f := newFinding("OBS014", conf, reason, fmt.Sprintf("The migration hit lock_timeout (%d ms) and succeeded on a later attempt, after up to %d retries. Each failed attempt made workload sessions queue behind it for up to the lock timeout, so the stall happens once per attempt.", cfg.Migration.LockTimeoutMS, most))
+	f.Observed, f.Unit = ptr(float64(most)), "retries"
+	locate(&f, stmts, first.Retries[0].StatementID)
+	f.Remediation = "Keep lock_timeout short so each attempt's stall stays small, and schedule the migration away from long-running jobs so it succeeds on the first attempt."
+	return []Finding{f}
 }

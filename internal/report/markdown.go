@@ -215,6 +215,20 @@ func (r *Report) mdMigration(w writer) {
 		w("| %s | %s | %s | %s | %s | %s |\n", s.ID, esc(loc), esc(s.Tag), esc(lockText), esc(out), dur)
 	}
 	w("\n")
+	var retried []string
+	for _, p := range r.Phases {
+		if p.Migration == nil || len(p.Migration.Retries) == 0 {
+			continue
+		}
+		waited := 0.0
+		for _, rt := range p.Migration.Retries {
+			waited += rt.WaitedMS
+		}
+		retried = append(retried, fmt.Sprintf("repeat %d: %d retr%s, %s waiting for locks", p.Repeat+1, len(p.Migration.Retries), map[bool]string{true: "y", false: "ies"}[len(p.Migration.Retries) == 1], fmtMS(waited)))
+	}
+	if len(retried) > 0 {
+		w("Retried on lock_timeout (`migration.lock_retries`): %s.\n\n", strings.Join(retried, "; "))
+	}
 }
 
 // summarizeOutcomes collapses ["succeeded", "succeeded", "failed 55P03"]
