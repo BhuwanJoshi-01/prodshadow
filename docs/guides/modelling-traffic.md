@@ -23,6 +23,11 @@ ORDER BY calls DESC
 LIMIT 20;
 ```
 
+`prodshadow draft-workload` does the mechanical part of this step: export
+the query and call columns with `\copy (...) TO 'stats.csv' CSV HEADER` and
+run `prodshadow draft-workload --stats stats.csv --table orders`; see the
+[CLI reference](../cli.md#prodshadow-draft-workload). By hand:
+
 Each frequent statement becomes a scenario. Use `calls` as the `weight`:
 only the ratios matter. Mark `SELECT`s as `mode: read` and everything else
 as `mode: write`. Replace the `$1` placeholders with generators: `int_range`

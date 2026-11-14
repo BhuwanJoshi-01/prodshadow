@@ -12,6 +12,7 @@ import (
 
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/isolation"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/report"
+	"github.com/BhuwanJoshi-01/Open-Source-1/internal/workload"
 )
 
 type result struct {
@@ -562,5 +563,32 @@ func TestInspectQuiet(t *testing.T) {
 	r := run(t, dir, nil, "inspect", "--migration", "m.sql", "--quiet")
 	if r.code != ExitOK || strings.Contains(r.stdout, "statement(s) analysed") || strings.Contains(r.stdout, "locks:") || !strings.HasPrefix(r.stdout, "WARNING PS101") {
 		t.Fatalf("inspect --quiet: %+v", r)
+	}
+}
+
+func TestDraftWorkload(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "stats.csv"), "calls,mean_exec_time,query\n5400,0.2,\"SELECT id, status FROM orders WHERE id = $1\"\n800,0.9,\"UPDATE orders SET status = $1\n WHERE id = $2\"\n3,1.0,VACUUM orders\n")
+	r := run(t, dir, nil, "draft-workload", "--stats", "stats.csv", "--name", "orders")
+	if r.code != ExitOK {
+		t.Fatalf("draft-workload: %+v", r)
+	}
+	writeFile(t, filepath.Join(dir, "workload.yaml"), r.stdout)
+	if _, err := workload.Load(filepath.Join(dir, "workload.yaml")); err != nil {
+		t.Fatalf("draft does not load: %v\n%s", err, r.stdout)
+	}
+	if !strings.Contains(r.stdout, "id: update_orders") || !strings.Contains(r.stdout, "VACUUM orders") {
+		t.Errorf("draft:\n%s", r.stdout)
+	}
+	writeFile(t, filepath.Join(dir, "bad.csv"), "query,count\nSELECT 1,3\n")
+	if r := run(t, dir, nil, "draft-workload", "--stats", "bad.csv"); r.code != ExitInvalid || !strings.Contains(r.stderr, "calls column") {
+		t.Fatalf("missing calls column: %+v", r)
+	}
+	writeFile(t, filepath.Join(dir, "ddl.csv"), "query,calls\nCREATE INDEX i ON t (a),1\n")
+	if r := run(t, dir, nil, "draft-workload", "--stats", "ddl.csv"); r.code != ExitInvalid {
+		t.Fatalf("no usable statements: %+v", r)
+	}
+	if r := run(t, dir, nil, "draft-workload"); r.code != ExitInvalid {
+		t.Fatalf("--stats is required: %+v", r)
 	}
 }

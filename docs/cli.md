@@ -138,6 +138,31 @@ prodshadow history reports/ --project shop --last 20
 | `--json` | `false` | Machine-readable output. |
 | `--markdown` | `false` | A Markdown table, e.g. for `$GITHUB_STEP_SUMMARY` or a pull request comment. |
 
+## `prodshadow draft-workload`
+
+Turns a CSV export of `pg_stat_statements` into a draft workload file on
+standard output. ProdShadow does not connect anywhere for this; you export
+the statistics yourself, for example on a replica:
+
+```bash
+psql "$REPLICA_URL" -c "\\copy (SELECT query, calls FROM pg_stat_statements ORDER BY calls DESC LIMIT 200) TO 'stats.csv' CSV HEADER"
+prodshadow draft-workload --stats stats.csv --table orders --top 10 > workloads/orders.yaml
+```
+
+Each statement becomes a scenario weighted by `calls`, with `read` or
+`write` mode from the statement type and a placeholder generator for every
+`$n`, marked `TODO`. Statements a workload cannot run (DDL, utility
+commands, transaction control) are listed as skipped comments. Review the
+draft before using it: query text can contain literals, and the generators
+need ranges that match your data.
+
+| Flag | Default | |
+|---|---|---|
+| `--stats` | — | CSV with a header row containing `query` and `calls` columns (any order; other columns ignored). |
+| `--table` | — | Only statements that mention this table. |
+| `--top` | `20` | Keep the N most frequent statements (0 keeps all). |
+| `--name` | — | Workload name. |
+
 ## `prodshadow doctor`
 
 Checks the platform, the configuration (if present), the container engine,

@@ -48,6 +48,7 @@ func commands() []command {
 		{"report", "Re-render a JSON report as Markdown, HTML, JSON, SARIF or JUnit", runReport},
 		{"diff", "Compare two reports, e.g. a migration and its rewrite", runDiff},
 		{"history", "Summarise stored reports over time", runHistory},
+		{"draft-workload", "Draft a workload file from a pg_stat_statements export", runDraftWorkload},
 		{"doctor", "Check that this machine can run experiments", runDoctor},
 		{"cleanup", "Remove disposable servers left behind by interrupted runs", runCleanup},
 		{"rules", "List static and observed rules", runRules},
@@ -87,7 +88,7 @@ func usage(w io.Writer) {
 	fmt.Fprintln(w, "ProdShadow rehearses PostgreSQL migrations under concurrent load in disposable databases.")
 	fmt.Fprintln(w, "\nUsage:\n  prodshadow <command> [flags]\n\nCommands:")
 	for _, c := range commands() {
-		fmt.Fprintf(w, "  %-10s %s\n", c.name, c.summary)
+		fmt.Fprintf(w, "  %-14s %s\n", c.name, c.summary)
 	}
 	fmt.Fprintln(w, "\nRun 'prodshadow <command> -h' for command flags.")
 	fmt.Fprintln(w, "\nExit codes: 0 pass, 2 blocking findings, 3 invalid input, 4 infrastructure failure, 5 inconclusive.")
