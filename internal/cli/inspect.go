@@ -22,6 +22,7 @@ func runInspect(_ context.Context, env *Env, args []string) int {
 	txn := fs.String("transaction", "", "transaction mode: auto, per-file or none (default from config, else auto)")
 	format := fs.String("format", "text", "output format: text, json, markdown, sarif or junit")
 	failOn := fs.String("fail-on", "", "exit 2 if an unsuppressed finding has at least this severity (info, warning, critical)")
+	quiet := fs.Bool("quiet", false, "text format: print only findings, not the analysed statements")
 	if code := parseFlags(fs, args); code >= 0 {
 		return code
 	}
@@ -80,7 +81,11 @@ func runInspect(_ context.Context, env *Env, args []string) int {
 
 	switch *format {
 	case "text":
-		printInspectText(env.Stdout, stmts, findings)
+		if *quiet {
+			printFindingsText(env.Stdout, findings)
+		} else {
+			printInspectText(env.Stdout, stmts, findings)
+		}
 	case "markdown":
 		printInspectMarkdown(env.Stdout, stmts, findings)
 	case "sarif":
@@ -175,6 +180,10 @@ func printInspectText(w io.Writer, stmts []*sqlinspect.Statement, findings []sql
 		}
 	}
 	fmt.Fprintln(w)
+	printFindingsText(w, findings)
+}
+
+func printFindingsText(w io.Writer, findings []sqlinspect.Finding) {
 	if len(findings) == 0 {
 		fmt.Fprintln(w, "No static findings. Static analysis cannot see lock queues; run 'prodshadow verify' to measure them.")
 		return

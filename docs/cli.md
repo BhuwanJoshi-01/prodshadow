@@ -52,6 +52,7 @@ Static analysis only; needs no database or container engine.
 | `--config` | — | Use rule overrides, transaction mode and `migration.files` from a configuration. |
 | `--transaction` | `auto` | `auto`, `per-file` or `none`. |
 | `--format` | `text` | `text`, `json`, `markdown`, `sarif` or `junit`. With `junit`, findings at or above `--fail-on` are failing test cases; without `--fail-on` every finding passes and carries its message. |
+| `--quiet` | `false` | Text format only: print the findings without the list of analysed statements. |
 | `--fail-on` | — | Exit 2 if an unsuppressed finding is at least this severe (`info`, `warning`, `critical`; inconclusive findings count as more severe than critical). |
 
 ## `prodshadow plan`

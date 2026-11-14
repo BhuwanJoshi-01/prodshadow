@@ -448,7 +448,7 @@ func TestCompletionScripts(t *testing.T) {
 	}
 	r := run(t, "", nil, "completion", "bash")
 	if r.code != ExitOK || !strings.Contains(r.stdout, "complete -o bashdefault -o default -F _prodshadow prodshadow") ||
-		!strings.Contains(r.stdout, `inspect) opts="--config --fail-on --format --migration --transaction"`) {
+		!strings.Contains(r.stdout, `inspect) opts="--config --fail-on --format --migration --quiet --transaction"`) {
 		t.Fatalf("bash completion: %+v", r)
 	}
 	r = run(t, "", nil, "completion", "zsh")
@@ -553,5 +553,14 @@ func TestDoctorResourceCheck(t *testing.T) {
 		if c.ok != tc.ok || c.warn != tc.warn {
 			t.Errorf("%+v: got ok=%v warn=%v (%s)", tc, c.ok, c.warn, c.detail)
 		}
+	}
+}
+
+func TestInspectQuiet(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "m.sql"), "CREATE INDEX orders_note_idx ON orders (note);\n")
+	r := run(t, dir, nil, "inspect", "--migration", "m.sql", "--quiet")
+	if r.code != ExitOK || strings.Contains(r.stdout, "statement(s) analysed") || strings.Contains(r.stdout, "locks:") || !strings.HasPrefix(r.stdout, "WARNING PS101") {
+		t.Fatalf("inspect --quiet: %+v", r)
 	}
 }
