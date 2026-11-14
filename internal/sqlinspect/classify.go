@@ -91,6 +91,17 @@ func classify(s *Statement) {
 	case *pg_query.Node_CreateTrigStmt:
 		s.Kind, s.Tag = KindCreateTrigger, "CREATE TRIGGER"
 		s.addLock(relName(x.CreateTrigStmt.Relation), pglock.ShareRowExclusive)
+	case *pg_query.Node_CreatePolicyStmt:
+		// Policies and rules change how every query on the table is
+		// planned, so PostgreSQL takes ACCESS EXCLUSIVE.
+		s.Kind, s.Tag = KindOtherDDL, "CREATE POLICY"
+		s.addLock(relName(x.CreatePolicyStmt.Table), pglock.AccessExclusive)
+	case *pg_query.Node_AlterPolicyStmt:
+		s.Kind, s.Tag = KindOtherDDL, "ALTER POLICY"
+		s.addLock(relName(x.AlterPolicyStmt.Table), pglock.AccessExclusive)
+	case *pg_query.Node_RuleStmt:
+		s.Kind, s.Tag = KindOtherDDL, "CREATE RULE"
+		s.addLock(relName(x.RuleStmt.Relation), pglock.AccessExclusive)
 	case *pg_query.Node_TransactionStmt:
 		s.Kind, s.Txn = KindTransaction, TxnControl
 		s.Tag = transactionTag(x.TransactionStmt.Kind)

@@ -120,6 +120,7 @@ var oracleStatements = []string{
 	"ALTER TRIGGER orders_audit ON orders RENAME TO orders_audit_v2",
 	"DROP TRIGGER orders_audit ON orders",
 	"DROP POLICY tags_visible ON tags",
+	"ALTER POLICY tags_visible ON tags USING (id > 0)",
 	"DROP RULE tags_keep ON tags",
 	"CREATE POLICY orders_owner ON orders USING (customer_id = 1)",
 	"CREATE RULE orders_no_delete AS ON DELETE TO orders DO INSTEAD NOTHING",
@@ -147,8 +148,6 @@ var oracleKnownGaps = map[string]map[string]string{
 	"DROP INDEX orders_status_idx":                        {"orders": "ACCESS EXCLUSIVE"},
 	"CREATE INDEX events_id_idx ON events (id)":           {"events_2026": "SHARE"},
 	// Not yet classified.
-	"CREATE POLICY orders_owner ON orders USING (customer_id = 1)":                                      {"orders": "ACCESS EXCLUSIVE"},
-	"CREATE RULE orders_no_delete AS ON DELETE TO orders DO INSTEAD NOTHING":                            {"orders": "ACCESS EXCLUSIVE"},
 	"CREATE STATISTICS orders_stats ON customer_id, status FROM orders":                                 {"orders": "SHARE UPDATE EXCLUSIVE"},
 	"MERGE INTO orders o USING staging s ON s.id = o.id WHEN MATCHED THEN UPDATE SET status = s.status": {"orders": "ROW EXCLUSIVE", "staging": "ACCESS SHARE"},
 }
