@@ -435,3 +435,41 @@ INSERT INTO orders VALUES (2, 'new', 1);
 		t.Error("the dropped trigger no longer fires")
 	}
 }
+
+func TestCatalogViewBaseLocks(t *testing.T) {
+	schema := parse(t, `
+CREATE TABLE orders (id int, status text, customer_id int);
+CREATE TABLE customers (id int, name text);
+CREATE VIEW open_orders AS SELECT id, status FROM orders WHERE status <> 'closed';
+CREATE VIEW urgent_orders AS SELECT id FROM open_orders WHERE status = 'urgent';
+CREATE VIEW order_names AS SELECT o.id, c.name FROM orders o JOIN customers c ON c.id = o.customer_id;
+`)
+	stmts := parse(t, `
+SELECT * FROM urgent_orders;
+UPDATE open_orders SET status = 'x' WHERE id = 1;
+SELECT * FROM order_names;
+LOCK TABLE order_names IN SHARE MODE;
+DROP VIEW open_orders CASCADE;
+`)
+	NewCatalog(schema).Resolve(stmts)
+	cases := []struct {
+		stmt  int
+		table string
+		mode  pglock.Mode
+		via   string
+	}{
+		{0, "open_orders", pglock.AccessShare, "view urgent_orders"},
+		{0, "orders", pglock.AccessShare, "view open_orders"},
+		{1, "orders", pglock.RowExclusive, "view open_orders"},
+		{2, "customers", pglock.AccessShare, "view order_names"},
+		{3, "customers", pglock.Share, "view order_names"},
+	}
+	for _, c := range cases {
+		if l, ok := lockOn(stmts[c.stmt], c.table); !ok || l.Mode != c.mode || l.Via != c.via {
+			t.Errorf("statement %d: lock on %s = %+v (found %v), want %s via %q", c.stmt, c.table, l, ok, c.mode, c.via)
+		}
+	}
+	if _, ok := lockOn(stmts[4], "orders"); ok {
+		t.Error("dropping a view does not lock its tables")
+	}
+}

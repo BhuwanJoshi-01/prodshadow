@@ -392,6 +392,7 @@ func (c *Catalog) Resolve(stmts []*Statement) {
 			c.ddlForeignKeyLocks(s)
 			c.viewDependencies(s)
 			c.triggerLocks(s)
+			c.viewBaseLocks(s)
 			if v := s.node.GetViewStmt(); v != nil {
 				s.viewReplaceProblem = c.viewReplaceProblem(v)
 			}

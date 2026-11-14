@@ -74,6 +74,13 @@ them. Without `CONCURRENTLY` it holds `ACCESS EXCLUSIVE` on the view itself
 for the whole refresh, blocking every reader ([PS113](../rules/PS113.md)).
 `CREATE OR REPLACE VIEW` takes `ACCESS EXCLUSIVE` on the view it replaces.
 
+Queries on a view are rewritten into queries on its tables, so they lock
+those: `SELECT` from a view takes `ACCESS SHARE` on every table behind it,
+an `UPDATE` through a simple view takes `ROW EXCLUSIVE` on its table, and
+`LOCK TABLE` on a view locks its tables in the requested mode. A workload
+that reads through views therefore conflicts with a migration on the
+tables underneath, and `plan` predicts it.
+
 ## Sequences
 
 `nextval()` takes `ROW EXCLUSIVE` on the sequence and holds it until the

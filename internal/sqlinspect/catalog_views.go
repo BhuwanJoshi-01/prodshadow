@@ -5,6 +5,8 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/BhuwanJoshi-01/Open-Source-1/internal/pglock"
+
 	pg_query "github.com/pganalyze/pg_query_go/v6"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
@@ -226,4 +228,50 @@ type viewDependency struct {
 	view   string
 	column string
 	change string // drop, type or table
+}
+
+// isView reports whether name is a (non-materialized) view.
+func (c *Catalog) isView(name string) bool {
+	key := catalogKey(name)
+	_, known := c.viewReads[key]
+	_, mat := c.matviews[key]
+	return known && !mat
+}
+
+// viewBaseLocks adds the locks a statement takes on the relations behind
+// the views it uses: PostgreSQL rewrites a query on a view into a query on
+// its base tables, and LOCK TABLE on a view locks them too. A simple view
+// over one table passes the statement's lock through (an UPDATE through
+// it takes ROW EXCLUSIVE on the table); the tables of a view that joins
+// several are read (ACCESS SHARE), except for LOCK TABLE, which locks
+// them all in the requested mode. Views on views are followed.
+func (c *Catalog) viewBaseLocks(s *Statement) {
+	switch s.Kind {
+	case KindSelect, KindInsert, KindUpdate, KindDelete, KindMerge, KindLockTable:
+	default:
+		return // DDL on a view (DROP, RENAME, ...) does not touch its tables
+	}
+	lock := s.Kind == KindLockTable
+	var visit func(view string, mode pglock.Mode, depth int)
+	visit = func(view string, mode pglock.Mode, depth int) {
+		if depth > 8 {
+			return
+		}
+		reads := c.viewReads[catalogKey(view)]
+		for _, t := range reads {
+			m := mode
+			if len(reads) > 1 && !lock {
+				m = pglock.AccessShare
+			}
+			s.addImpliedLock(t, m, "view "+view)
+			if c.isView(t) {
+				visit(t, m, depth+1)
+			}
+		}
+	}
+	for _, l := range slices.Clone(s.Locks) {
+		if l.Via == "" && l.CreatedBy == "" && c.isView(l.Table) {
+			visit(l.Table, l.Mode, 0)
+		}
+	}
 }
