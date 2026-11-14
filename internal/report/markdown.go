@@ -85,8 +85,11 @@ func (r *Report) mdFindings(w writer) {
 				conf += " (" + f.ConfidenceReason + ")"
 			}
 			where := f.Where("–")
-			if f.Scenario != "" {
+			switch {
+			case f.Scenario != "":
 				where = "scenario `" + f.Scenario + "`"
+			case f.AppVersion != "":
+				where = "version `" + f.AppVersion + "`"
 			}
 			w("| %s | %s %s | %s | %s | %s | %s |\n", severityLabel(f.Severity), f.RuleID, f.Rule, esc(conf), f.Evidence, esc(where), esc(f.Message))
 		}

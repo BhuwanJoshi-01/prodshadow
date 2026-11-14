@@ -49,7 +49,7 @@ type DiffScenario struct {
 // key identifies a finding independently of message wording. Statement
 // locations are excluded because alternatives usually change line numbers.
 func findingKey(f risk.Finding) string {
-	return f.RuleID + "|" + f.Scenario + "|" + f.Table
+	return f.RuleID + "|" + f.Scenario + "|" + f.AppVersion + "|" + f.Table
 }
 
 func diffFinding(f risk.Finding) DiffFinding {

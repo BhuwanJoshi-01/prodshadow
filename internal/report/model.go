@@ -20,7 +20,7 @@ import (
 
 // SchemaVersion follows semantic versioning: additive fields bump the
 // minor version, removals or meaning changes bump the major version.
-const SchemaVersion = "1.1.0"
+const SchemaVersion = "1.2.0"
 
 // Run statuses.
 const (

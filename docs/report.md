@@ -27,6 +27,7 @@
 
 | Version | Change |
 |---|---|
+| 1.2.0 | `findings[].app_version`: the application version of `OBS013` and `QUAL009` findings. |
 | 1.1.0 | `phases[].compatibility`: compatibility probe outcomes. |
 | 1.0.0 | First release. |
 

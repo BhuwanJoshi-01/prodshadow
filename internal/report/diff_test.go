@@ -48,3 +48,22 @@ func TestCompareFlagsDifferentInputs(t *testing.T) {
 		t.Fatalf("different fixtures must be flagged: %+v", d)
 	}
 }
+
+func TestDiffKeepsApplicationVersionsApart(t *testing.T) {
+	base := Build(sampleInput(t))
+	head := Build(sampleInput(t))
+	base.Findings = append(base.Findings, risk.Finding{RuleID: "OBS013", Rule: "app-version-incompatible", Severity: "critical", AppVersion: "v1"})
+	head.Findings = append(head.Findings, risk.Finding{RuleID: "OBS013", Rule: "app-version-incompatible", Severity: "critical", AppVersion: "v2"})
+	d := Compare(base, head)
+	resolved := make([]string, 0, len(d.Resolved))
+	introduced := make([]string, 0, len(d.Introduced))
+	for _, f := range d.Resolved {
+		resolved = append(resolved, f.Where)
+	}
+	for _, f := range d.Introduced {
+		introduced = append(introduced, f.Where)
+	}
+	if len(resolved) != 1 || resolved[0] != "version v1" || len(introduced) != 1 || introduced[0] != "version v2" {
+		t.Fatalf("resolved %v, introduced %v", resolved, introduced)
+	}
+}

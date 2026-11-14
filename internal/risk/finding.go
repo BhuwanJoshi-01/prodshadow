@@ -19,10 +19,13 @@ type Finding struct {
 	Evidence         evidence.Kind `json:"evidence_kind"`
 	Message          string        `json:"message"`
 
-	Scenario  string   `json:"scenario,omitempty"`
-	Observed  *float64 `json:"observed,omitempty"`
-	Threshold *float64 `json:"threshold,omitempty"`
-	Unit      string   `json:"unit,omitempty"`
+	Scenario string `json:"scenario,omitempty"`
+	// AppVersion is the application version a compatibility finding is
+	// about (since report schema 1.2.0).
+	AppVersion string   `json:"app_version,omitempty"`
+	Observed   *float64 `json:"observed,omitempty"`
+	Threshold  *float64 `json:"threshold,omitempty"`
+	Unit       string   `json:"unit,omitempty"`
 
 	StatementID string `json:"statement_id,omitempty"`
 	File        string `json:"file,omitempty"`
@@ -92,11 +95,14 @@ var ObservedRules = []ObservedRule{
 }
 
 // Where describes what a finding is about for one-line displays: the
-// scenario for measured findings, else file:line, else placeholder.
+// scenario or application version for measured findings, else file:line,
+// else placeholder.
 func (f Finding) Where(placeholder string) string {
 	switch {
 	case f.Scenario != "":
 		return "scenario " + f.Scenario
+	case f.AppVersion != "":
+		return "version " + f.AppVersion
 	case f.File != "" && f.Line > 0:
 		return fmt.Sprintf("%s:%d", f.File, f.Line)
 	case f.File != "":

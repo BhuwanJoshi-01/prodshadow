@@ -114,6 +114,7 @@ version: 1
 suppressions:
   - rule: OBS005
     scenario: monthly_export        # optional: limit to a scenario
+    app_version: "2026.10"          # optional: limit to an application version (OBS013, QUAL009)
     file: migrations/0042.sql       # optional: limit to a file
     reason: "Export latency is not user-facing; accepted by the data team"
     expires: 2027-03-31             # optional, YYYY-MM-DD

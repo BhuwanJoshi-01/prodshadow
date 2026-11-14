@@ -15,6 +15,7 @@ import (
 type Suppression struct {
 	Rule       string `yaml:"rule" json:"rule"`
 	Scenario   string `yaml:"scenario" json:"scenario,omitempty"`
+	AppVersion string `yaml:"app_version" json:"app_version,omitempty"`
 	File       string `yaml:"file" json:"file,omitempty"`
 	Reason     string `yaml:"reason" json:"reason"`
 	Expires    string `yaml:"expires" json:"expires,omitempty"`
@@ -65,6 +66,9 @@ func (s Suppression) matches(f Finding, now time.Time) bool {
 		return false
 	}
 	if s.Scenario != "" && s.Scenario != f.Scenario {
+		return false
+	}
+	if s.AppVersion != "" && s.AppVersion != f.AppVersion {
 		return false
 	}
 	if s.File != "" && s.File != f.File {

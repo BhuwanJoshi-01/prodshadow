@@ -63,3 +63,17 @@ func mustDate(s string) (t time.Time) {
 	t, _ = time.Parse(time.DateOnly, s)
 	return t
 }
+
+func TestSuppressionByAppVersion(t *testing.T) {
+	now := time.Date(2026, 11, 14, 0, 0, 0, 0, time.UTC)
+	f := Finding{RuleID: "OBS013", AppVersion: "2026.10"}
+	if !(Suppression{Rule: "OBS013", AppVersion: "2026.10", Reason: "retired this week"}).matches(f, now) {
+		t.Error("matching version should suppress")
+	}
+	if (Suppression{Rule: "OBS013", AppVersion: "2026.11", Reason: "retired this week"}).matches(f, now) {
+		t.Error("another version must not be suppressed")
+	}
+	if !(Suppression{Rule: "OBS013", Reason: "retired this week"}).matches(f, now) {
+		t.Error("a suppression without app_version applies to every version")
+	}
+}

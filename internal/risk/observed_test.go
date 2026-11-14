@@ -118,7 +118,7 @@ func TestCompatibilityFindings(t *testing.T) {
 	}
 	a := Evaluate(Input{Config: testConfig(), Result: res})
 	f := byRule(a, "OBS013")
-	if f == nil || f.Severity != evidence.Critical || f.Confidence != evidence.High || *f.Observed != 1 ||
+	if f == nil || f.Severity != evidence.Critical || f.Confidence != evidence.High || *f.Observed != 1 || f.AppVersion != "2026.10" || f.Where("-") != "version 2026.10" ||
 		!strings.Contains(f.Message, "2026.10") || !strings.Contains(f.Message, "legacy_sku (42703") || strings.Contains(f.Message, "by_id") {
 		t.Fatalf("OBS013 = %+v", f)
 	}

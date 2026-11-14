@@ -403,6 +403,7 @@ func compatibilityFindings(cands []experiment.PhaseResult) []Finding {
 		conf, reason := consistency(minHits, runs)
 		f := newFinding("OBS013", conf, reason, fmt.Sprintf("Application version %s stops working once the migration has run; instances of it that are still deployed will fail. Probes that worked before the migration and failed after it: %s.", v, strings.Join(parts, "; ")))
 		f.Observed, f.Unit = ptr(float64(len(keys))), "probes"
+		f.AppVersion = v
 		f.Remediation = "Make the change backward compatible (expand, migrate the code, then contract in a later release), or deploy the migration only after no instance of this version is running."
 		out = append(out, f)
 	}
@@ -413,6 +414,7 @@ func compatibilityFindings(cands []experiment.PhaseResult) []Finding {
 		}
 		f := newFinding("QUAL009", evidence.High, "the probe failed on the unchanged schema",
 			fmt.Sprintf("Compatibility probe %s of version %s failed before the migration ran (%s), so the probe does not match the fixture and that version's compatibility was not checked.", k.probe, k.version, probeFailure(c.BeforeSQLState, c.BeforeError)))
+		f.AppVersion = k.version
 		out = append(out, f)
 	}
 	return out

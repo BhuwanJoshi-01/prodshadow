@@ -113,6 +113,7 @@
         "observed": {"type": "number"},
         "threshold": {"type": "number"},
         "line": {"type": "integer", "minimum": 0},
+        "app_version": {"type": "string"},
         "suppressed": {"type": "boolean"}
       }
     }
