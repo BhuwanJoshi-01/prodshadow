@@ -1,0 +1,30 @@
+# Creating next year's partition with PARTITION OF while an export runs.
+# PARTITION OF locks the partitioned table; attaching a prepared table does not.
+# Expected decision: block (OBS002); the alternative passes.
+version: 1
+project: partition-maintenance
+postgres:
+  version: "17"
+  # Pinned by digest for reproducible runs (PostgreSQL 17.12).
+  image: postgres:17-alpine@sha256:d3244e8ce3f165ee3c93d9c4a4b1d0fe48b3a89e2287b717fdcbbde92d405065
+  isolation:
+    memory_mb: 1024
+    cpus: 2
+fixture:
+  schema: ./fixtures/schema.sql
+  seed_sql: ./fixtures/seed.sql
+workload:
+  file: ./workloads/workload.yaml
+  warmup_seconds: 3
+  measurement_seconds: 15
+  concurrency: 8
+  repeats: 3
+migration:
+  files: [./migrations/0031_events_2027.sql]
+  lock_timeout_ms: 2000
+  start_after_seconds: 4
+policy:
+  fail_on: [critical]
+  max_lock_wait_ms: 2500
+report:
+  formats: [json, markdown, html]

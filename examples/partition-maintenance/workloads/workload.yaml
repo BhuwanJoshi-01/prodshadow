@@ -1,0 +1,27 @@
+version: 1
+name: events-api
+scenarios:
+  - id: recent_events
+    weight: 60
+    mode: read
+    sql: "SELECT kind, at FROM events WHERE account_id = $1 ORDER BY at DESC LIMIT 20"
+    parameters:
+      - {generator: zipf, min: 1, max: 2000, s: 1.2}
+  - id: record_event
+    weight: 40
+    mode: write
+    sql: "INSERT INTO events (id, account_id, kind, at) VALUES ($1::bigint, $2, 'view', '2026-06-01'::timestamptz + ($1::bigint % 1000000) * interval '1 second')"
+    parameters:
+      - {generator: int_range, min: 1000000, max: 1000000000000}
+      - {generator: int_range, min: 1, max: 2000}
+background:
+  # A nightly export reads the whole table in one transaction. It only
+  # holds ACCESS SHARE, which never blocks the API by itself.
+  - id: nightly_export
+    sessions: 1
+    start_after_seconds: 2
+    repeat: true
+    transaction:
+      statements:
+        - "SELECT kind, count(*) FROM events GROUP BY kind"
+      hold_ms: 6000

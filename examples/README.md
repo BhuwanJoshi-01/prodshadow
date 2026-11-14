@@ -15,6 +15,7 @@ prodshadow verify --config examples/<name>/prodshadow.yaml
 | [blocking-index](blocking-index) | `CREATE INDEX` on 800k generated rows | Writers wait for the whole build (`SHARE` lock); reads continue. The `CONCURRENTLY` alternative does not block. | `block` — OBS001 |
 | [backfill-heavy](backfill-heavy) | `UPDATE subscribers SET … ` without `WHERE` | Every row stays locked until the backfill commits; concurrent writers wait. | `block` — OBS001 |
 | [rolling-deploy](rolling-deploy) | `DROP COLUMN legacy_sku` | The previous application version still selects the column and fails. | `block` — OBS007, OBS013 |
+| [partition-maintenance](partition-maintenance) | `CREATE TABLE … PARTITION OF events` | The new partition needs `ACCESS EXCLUSIVE` on the partitioned table; it queues behind an export and every query on every partition queues behind it. Attaching a prepared table does not block. | `block` — OBS002 |
 
 `go test -tags integration -run TestExamples ./tests/integration/` runs all
 of them and checks these outcomes; CI does the same weekly.

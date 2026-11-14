@@ -108,6 +108,7 @@ JUnit XML on request) and exits with:
 | [blocking-index](examples/blocking-index) | `CREATE INDEX` without `CONCURRENTLY` stalls writers | block (OBS001) |
 | [backfill-heavy](examples/backfill-heavy) | Unbatched `UPDATE` holds row locks | block (OBS001) |
 | [rolling-deploy](examples/rolling-deploy) | Dropping a column the old app version still reads | block (OBS007, OBS013) |
+| [partition-maintenance](examples/partition-maintenance) | `PARTITION OF` locks the whole partitioned table | block (OBS002) |
 
 ## In CI
 
