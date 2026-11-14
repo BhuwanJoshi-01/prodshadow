@@ -21,3 +21,6 @@ coverage.*
 *.swp
 *~
 .DS_Store
+
+# Documentation website build output
+/website/.build/

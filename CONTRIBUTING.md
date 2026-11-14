@@ -45,6 +45,23 @@ PRODSHADOW_IT_IMAGE=postgres:16-alpine PRODSHADOW_IT_MAJOR=16 make integration
 The `local` provider tests need PostgreSQL binaries and must run as a
 non-root user (PostgreSQL refuses to start as root).
 
+## Documentation website
+
+The website is built from `docs/`, the example READMEs and the project
+files at the repository root; `website/` only holds its configuration, home
+page and styles. Preview it with:
+
+```bash
+python3 -m pip install -r website/requirements.txt
+python3 website/build.py && mkdocs serve -f website/mkdocs.yml
+```
+
+`website/build.py` rewrites relative links for the site, and links to files
+the site does not contain become links to the repository. Pull requests that
+change documentation run a strict build, which fails on broken links and
+anchors; pushes to `main` publish the site to GitHub Pages
+(`.github/workflows/pages.yml`).
+
 ## Project layout
 
 | Path | Purpose |

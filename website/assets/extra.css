@@ -1,0 +1,89 @@
+/* ProdShadow site styles on top of Material for MkDocs. */
+:root {
+  --ps-hero-from: #283593;
+  --ps-hero-to: #3949ab;
+}
+[data-md-color-scheme="slate"] {
+  --ps-hero-from: #1a1f4d;
+  --ps-hero-to: #283593;
+}
+
+.ps-hero {
+  margin: 0 0 2rem;
+  padding: 2.5rem 2rem 2rem;
+  border-radius: 0.6rem;
+  color: #fff;
+  background: linear-gradient(135deg, var(--ps-hero-from), var(--ps-hero-to));
+}
+.ps-hero h1 {
+  margin: 0 0 1rem;
+  color: #fff;
+  font-weight: 700;
+  font-size: 2.2rem;
+  line-height: 1.2;
+}
+.ps-hero .ps-lead {
+  max-width: 46rem;
+  font-size: 1.05rem;
+  line-height: 1.6;
+  opacity: 0.95;
+}
+.ps-hero .md-button {
+  margin: 0.4rem 0.6rem 0 0;
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.7);
+}
+.ps-hero .md-button--primary {
+  color: #1a1f4d;
+  background: #fff;
+  border-color: #fff;
+}
+.ps-hero .md-button:hover {
+  color: #1a1f4d;
+  background: #ffe0b2;
+  border-color: #ffe0b2;
+}
+
+.ps-steps ol {
+  counter-reset: step;
+  list-style: none;
+  padding-left: 0;
+}
+.ps-steps li {
+  position: relative;
+  min-height: 2rem;
+  margin: 0 0 1rem;
+  padding-left: 2.6rem;
+}
+.ps-steps li::before {
+  counter-increment: step;
+  content: counter(step);
+  position: absolute;
+  left: 0;
+  top: 0.05rem;
+  width: 1.8rem;
+  height: 1.8rem;
+  border-radius: 50%;
+  text-align: center;
+  line-height: 1.8rem;
+  font-weight: 700;
+  color: #fff;
+  background: var(--md-primary-fg-color);
+}
+
+.ps-wide .md-typeset__table,
+.ps-wide table:not([class]) {
+  display: table;
+  width: 100%;
+}
+
+@media screen and (max-width: 44.9375em) {
+  .ps-hero {
+    padding: 1.6rem 1rem 1.4rem;
+    border-radius: 0;
+    margin: 0 -0.8rem 1.5rem;
+  }
+  .ps-hero h1 {
+    font-size: 1.6rem;
+  }
+}

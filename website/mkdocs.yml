@@ -1,0 +1,139 @@
+# Documentation website, built by .github/workflows/pages.yml.
+# Local preview:
+#   python3 -m pip install -r website/requirements.txt
+#   python3 website/build.py && mkdocs serve -f website/mkdocs.yml
+site_name: ProdShadow
+site_description: Rehearse PostgreSQL migrations under concurrent load in a disposable database, never in production.
+site_url: https://bhuwanjoshi-01.github.io/prodshadow/
+site_author: Bhuwan Joshi
+repo_url: https://github.com/BhuwanJoshi-01/prodshadow
+repo_name: BhuwanJoshi-01/prodshadow
+edit_uri: ""
+copyright: Copyright &copy; Bhuwan Joshi. ProdShadow is licensed under Apache-2.0.
+
+docs_dir: .build/docs
+site_dir: .build/site
+
+theme:
+  name: material
+  language: en
+  icon:
+    logo: material/database-clock-outline
+    repo: fontawesome/brands/github
+  favicon: assets/favicon.svg
+  font:
+    text: Inter
+    code: JetBrains Mono
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: deep orange
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: deep orange
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - navigation.indexes
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+
+extra_css:
+  - assets/extra.css
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+
+validation:
+  omitted_files: warn
+  absolute_links: info
+  unrecognized_links: warn
+  anchors: warn
+
+# Rule pages are reached from the rule catalogue, not the navigation.
+not_in_nav: |
+  /rules/*.md
+  /adr/0*.md
+
+nav:
+  - Home: index.md
+  - Get started:
+      - Introduction: introduction.md
+      - CLI reference: cli.md
+      - Configuration: configuration.md
+      - Workload: workload.md
+      - CI: ci.md
+  - Guides:
+      - guides/index.md
+      - Reading a report: guides/reading-a-report.md
+      - Choosing thresholds: guides/choosing-thresholds.md
+      - Safe migration patterns: guides/safe-migration-patterns.md
+      - Locks beyond the named table: guides/locks-beyond-the-named-table.md
+      - Modelling traffic: guides/modelling-traffic.md
+      - Migration tools:
+          - Alembic: guides/alembic.md
+          - Atlas: guides/atlas.md
+          - Django: guides/django.md
+          - Flyway and Liquibase: guides/flyway.md
+          - golang-migrate and goose: guides/go-migration-tools.md
+          - Prisma Migrate: guides/prisma.md
+          - sqitch and dbmate: guides/sqitch-dbmate.md
+  - Rules: rules.md
+  - Examples:
+      - examples/index.md
+      - Safe column addition: examples/safe-add-column.md
+      - Long-running transaction: examples/long-running-transaction.md
+      - Blocking index build: examples/blocking-index.md
+      - Heavy backfill: examples/backfill-heavy.md
+      - Rolling deploy: examples/rolling-deploy.md
+      - Partition maintenance: examples/partition-maintenance.md
+      - Materialized view refresh: examples/matview-refresh.md
+      - Dropping a foreign key: examples/foreign-key-drop.md
+      - Measured results: benchmarks.md
+  - Reference:
+      - Report format: report.md
+      - Glossary: glossary.md
+      - Limitations: limitations.md
+      - Troubleshooting: troubleshooting.md
+      - FAQ: faq.md
+  - Project:
+      - Architecture: architecture.md
+      - Threat model: threat-model.md
+      - Decision records: adr/index.md
+      - Landscape: research/landscape.md
+      - Roadmap: roadmap.md
+      - Changelog: changelog.md
+      - Contributing: contributing.md
+      - Security: security.md
+      - Code of conduct: code-of-conduct.md

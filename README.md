@@ -9,6 +9,8 @@ sessions waited, for how long, behind which lock, and what that did to
 latency, errors and throughput. The result is a JSON/Markdown/HTML report
 and a CI exit code.
 
+**Documentation:** <https://bhuwanjoshi-01.github.io/prodshadow/>
+
 > ProdShadow produces evidence and uncertainty, never a guarantee. A passing
 > result means *no configured threshold was exceeded in this experiment*,
 > not that the migration is safe in production.
