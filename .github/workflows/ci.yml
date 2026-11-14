@@ -70,3 +70,7 @@ jobs:
         run: go test -run XXX -fuzz FuzzSplit -fuzztime 30s ./internal/sqlsplit/
       - name: Fuzz workload drafts from exported statistics
         run: go test -run XXX -fuzz FuzzDraftFromStats -fuzztime 30s ./internal/workload/
+      - name: Fuzz static analysis
+        run: go test -run XXX -fuzz 'FuzzAnalyze$' -fuzztime 30s ./internal/sqlinspect/
+      - name: Fuzz schema catalog resolution
+        run: go test -run XXX -fuzz FuzzCatalogResolve -fuzztime 30s ./internal/sqlinspect/

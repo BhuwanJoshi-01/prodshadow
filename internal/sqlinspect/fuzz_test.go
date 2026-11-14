@@ -34,3 +34,27 @@ func FuzzAnalyze(f *testing.F) {
 		}
 	})
 }
+
+func FuzzCatalogResolve(f *testing.F) {
+	f.Add("CREATE TABLE p (id int PRIMARY KEY) PARTITION BY RANGE (id); CREATE TABLE c PARTITION OF p DEFAULT;",
+		"CREATE TABLE c2 PARTITION OF p FOR VALUES FROM (1) TO (2); ALTER TABLE p DETACH PARTITION c CONCURRENTLY;")
+	f.Add("CREATE TABLE a (id serial PRIMARY KEY); CREATE TABLE b (a_id int REFERENCES a ON DELETE CASCADE); CREATE VIEW v AS SELECT * FROM a;",
+		"DELETE FROM a; ALTER TABLE a DROP COLUMN id; CREATE OR REPLACE VIEW v AS SELECT 1; INSERT INTO a DEFAULT VALUES;")
+	f.Add("CREATE MATERIALIZED VIEW m AS SELECT 1 AS x WITH NO DATA; CREATE UNIQUE INDEX ON m (x);",
+		"REFRESH MATERIALIZED VIEW CONCURRENTLY m; DROP INDEX i; TRUNCATE a CASCADE;")
+	f.Fuzz(func(t *testing.T, schema, migration string) {
+		s, err := ParseSources([]Source{{Path: "s.sql", Content: schema}})
+		if err != nil {
+			return
+		}
+		m, err := ParseSources([]Source{{Path: "m.sql", Content: migration}})
+		if err != nil {
+			return
+		}
+		NewCatalog(s).Resolve(m)
+		Analyze(m, Options{Catalog: NewCatalog(s)})
+		for _, st := range m {
+			PredictConflicts(m, st)
+		}
+	})
+}
