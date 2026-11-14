@@ -48,8 +48,17 @@ versioning; the report schema (`schema_version`) is versioned separately.
   commit), PS129 (persistent setting changes), PS130 (sequence resets),
   PS131 (server-side file access), PS132 (unnamed concurrent indexes),
   PS133 (foreign keys without an index), PS134 (unbalanced transaction
-  control) and PS135 (`statement_timeout` disabled). PS109 and PS110 also
-  cover views, functions, types, schemas and enum values.
+  control), PS135 (`statement_timeout` disabled), PS136 (validated in the
+  same transaction), PS137 (constraint left `NOT VALID`), PS138 (revoked
+  privileges), PS139 (plain-text passwords), PS140 (blocking `DETACH
+  PARTITION`), PS141 (`PARTITION OF` locks the parent), PS142 (autovacuum
+  disabled), PS143 (unlogged tables), PS144 (row-level security disabled),
+  PS145 (grants to `PUBLIC`), PS146 (`SECURITY DEFINER` without
+  `search_path`) and PS147 (replica identity changes). PS109 and PS110 also
+  cover views, functions, types, schemas, extensions and enum values; PS111
+  covers unbounded `SELECT ... FOR UPDATE`; PS106 recognises a validated
+  `CHECK (col IS NOT NULL)`; PS105 uses `USING` clauses and type limits for
+  its confidence.
 - Application-version compatibility probes: the workload's `compatibility`
   section lists the queries each deployed release depends on; they run
   before and after the migration (`OBS013`, `QUAL009`). Report schema 1.1.0
@@ -58,7 +67,18 @@ versioning; the report schema (`schema_version`) is versioned separately.
 - `prodshadow history` summarises stored reports as a timeline;
   `prodshadow completion` prints bash, zsh and fish completion;
   `prodshadow rules ID...` shows rule details; `inspect --migration -`
-  reads standard input; `version --short`.
+  reads standard input; `version --short`; `prodshadow locks` explains
+  lock modes; `inspect --format junit` and `inspect --quiet`;
+  `history --markdown`; `doctor` checks the engine's memory and CPUs;
+  `validate` warns about an unreachable `max_queued_sessions`.
+- Report schema 1.2.0: `findings[].app_version`; suppressions can be
+  limited to an application version; rule IDs link to their pages in
+  Markdown, HTML and GitHub annotations; compatibility probes appear in the
+  HTML report and in `plan`.
+- Per-scenario `think_time_ms`; JSON Schema for suppression files
+  (`prodshadow schema suppressions`); GitHub Action input `args`.
+- Built-in redaction of SQL `PASSWORD '...'` clauses and Stripe and Google
+  API keys.
 - Every rule has a documentation page under `docs/rules/`, linked from
   SARIF results.
 - Guides for Alembic, Django, Prisma, Flyway/Liquibase and
@@ -72,6 +92,9 @@ versioning; the report schema (`schema_version`) is versioned separately.
   statements that cannot run in a transaction block.
 - Relations created by `CREATE TABLE AS`, `CREATE MATERIALIZED VIEW` and
   `CREATE SEQUENCE` count as new, like `CREATE TABLE`.
+- `SELECT` statements, and the tables read by `INSERT ... SELECT`,
+  `UPDATE ... FROM` and `DELETE ... USING`, now record their locks.
+- `on` and `off` in storage parameters are read correctly.
 - The disposable server is stopped gracefully before removal, and socket
   files owned by the container are cleaned up on non-root CI runners.
 
