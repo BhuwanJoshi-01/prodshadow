@@ -10,3 +10,4 @@ supersedes it.
 | [0002](0002-no-production-connections.md) | Never connect to a database ProdShadow did not create | accepted |
 | [0003](0003-parse-statements-with-postgres-grammar.md) | Split statements ourselves, parse each with PostgreSQL's grammar | accepted |
 | [0004](0004-inconclusive-is-not-a-pass.md) | An inconclusive result is never a pass | accepted |
+| [0005](0005-report-schema-is-the-contract.md) | The JSON report is a versioned contract | accepted |
