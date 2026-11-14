@@ -60,6 +60,24 @@ func (c *Catalog) IsPartitioned(table string) bool {
 	return c != nil && c.partitioned[catalogKey(table)]
 }
 
+// TablesUsingSequence returns the columns ("table.column") filled from a
+// sequence by default, or nil.
+func (c *Catalog) TablesUsingSequence(seq string) []string {
+	if c == nil {
+		return nil
+	}
+	var out []string
+	for table, cols := range c.sequences {
+		for _, cs := range cols {
+			if catalogKey(cs.sequence) == catalogKey(seq) {
+				out = append(out, table+"."+cs.column)
+			}
+		}
+	}
+	slices.Sort(out)
+	return out
+}
+
 // Partitions returns every partition of a partitioned table, including
 // partitions of partitions, or nil.
 func (c *Catalog) Partitions(table string) []string {

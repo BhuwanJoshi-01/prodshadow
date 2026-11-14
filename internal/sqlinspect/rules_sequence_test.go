@@ -1,6 +1,9 @@
 package sqlinspect
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestPS130SequenceReset(t *testing.T) {
 	cases := []struct {
@@ -23,5 +26,16 @@ func TestPS130SequenceReset(t *testing.T) {
 		if got := findings(t, "PS130", Options{}, tc.sql); len(got) != tc.want {
 			t.Errorf("%q: expected %d findings, got %d: %+v", tc.sql, tc.want, len(got), got)
 		}
+	}
+}
+
+func TestPS156SequenceChangeBlocksInserts(t *testing.T) {
+	expectCount(t, findings(t, "PS156", Options{}, "ALTER SEQUENCE invoice_numbers INCREMENT BY 10;"), 1)
+	expectCount(t, findings(t, "PS156", Options{}, "CREATE SEQUENCE s;\nALTER SEQUENCE s OWNED BY orders.id;"), 0)
+	expectCount(t, findings(t, "PS156", Options{}, "SELECT nextval('invoice_numbers');"), 0)
+	catalog := NewCatalog(parse(t, "CREATE TABLE tickets (id bigserial, title text);"))
+	got := findings(t, "PS156", Options{Catalog: catalog}, "ALTER SEQUENCE tickets_id_seq CACHE 20;")
+	if len(got) != 1 || !strings.Contains(got[0].Message, "inserts into tickets.id") {
+		t.Fatalf("PS156 with the schema should name the table: %+v", got)
 	}
 }

@@ -18,7 +18,7 @@ migration, because nothing else uses them yet.
 
 ## Static rules by topic
 
-* **Locks that block traffic:** [PS101](rules/PS101.md), [PS103](rules/PS103.md), [PS105](rules/PS105.md), [PS106](rules/PS106.md), [PS107](rules/PS107.md), [PS108](rules/PS108.md), [PS112](rules/PS112.md), [PS113](rules/PS113.md), [PS118](rules/PS118.md), [PS119](rules/PS119.md), [PS122](rules/PS122.md), [PS123](rules/PS123.md), [PS140](rules/PS140.md), [PS141](rules/PS141.md)
+* **Locks that block traffic:** [PS101](rules/PS101.md), [PS103](rules/PS103.md), [PS105](rules/PS105.md), [PS106](rules/PS106.md), [PS107](rules/PS107.md), [PS108](rules/PS108.md), [PS112](rules/PS112.md), [PS113](rules/PS113.md), [PS118](rules/PS118.md), [PS119](rules/PS119.md), [PS122](rules/PS122.md), [PS123](rules/PS123.md), [PS140](rules/PS140.md), [PS141](rules/PS141.md), [PS156](rules/PS156.md)
 * **Lock timeouts and transaction scope:** [PS102](rules/PS102.md), [PS114](rules/PS114.md), [PS115](rules/PS115.md), [PS120](rules/PS120.md), [PS128](rules/PS128.md), [PS134](rules/PS134.md), [PS135](rules/PS135.md), [PS136](rules/PS136.md), [PS155](rules/PS155.md)
 * **Data loss and running application code:** [PS104](rules/PS104.md), [PS109](rules/PS109.md), [PS110](rules/PS110.md), [PS111](rules/PS111.md), [PS124](rules/PS124.md), [PS125](rules/PS125.md), [PS130](rules/PS130.md)
 * **Indexes and constraints:** [PS121](rules/PS121.md), [PS132](rules/PS132.md), [PS133](rules/PS133.md), [PS137](rules/PS137.md), [PS151](rules/PS151.md), [PS154](rules/PS154.md)
@@ -86,6 +86,7 @@ migration, because nothing else uses them yet.
 | [`PS153`](rules/PS153.md) | table-without-primary-key | info | A new table has no primary key, which logical replication and many tools need. |
 | [`PS154`](rules/PS154.md) | concurrent-index-on-partitioned-table | critical | `CREATE INDEX CONCURRENTLY` on a partitioned table is not supported and fails. |
 | [`PS155`](rules/PS155.md) | not-rerunnable | info | A file whose statements commit one by one cannot be re-run after a partial failure. |
+| [`PS156`](rules/PS156.md) | sequence-change-blocks-inserts | warning | ALTER SEQUENCE waits for and blocks inserts that call nextval() on the sequence. |
 
 ## Observed rules
 
