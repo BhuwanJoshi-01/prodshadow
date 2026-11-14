@@ -51,3 +51,12 @@ func TestDraftFromStats(t *testing.T) {
 		t.Errorf("draft lacks hints:\n%s", buf.String())
 	}
 }
+
+func TestDraftTreatsWritableCTEsAsWrites(t *testing.T) {
+	d := DraftFromStats([]StatRecord{
+		{Query: "WITH paid AS (UPDATE orders SET status = 'paid' WHERE id = $1 RETURNING id) SELECT count(*) FROM paid", Calls: 10},
+	}, DraftOptions{})
+	if len(d.Scenarios) != 1 || d.Scenarios[0].Mode != "write" {
+		t.Fatalf("a SELECT with a data-modifying WITH clause writes: %+v", d.Scenarios)
+	}
+}

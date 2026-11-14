@@ -62,6 +62,8 @@ func TestClassifyLocks(t *testing.T) {
 		{"CREATE TABLE archived_orders (archived_at timestamptz) INHERITS (orders)", KindCreateTable, "orders", pglock.ShareUpdateExclusive, TxnAny},
 		{"UPDATE orders SET status = 'x' WHERE id = 1", KindUpdate, "orders", pglock.RowExclusive, TxnAny},
 		{"DELETE FROM orders", KindDelete, "orders", pglock.RowExclusive, TxnAny},
+		{"WITH paid AS (UPDATE orders SET status = 'paid' WHERE id = 2 RETURNING id) SELECT count(*) FROM paid", KindSelect, "orders", pglock.RowExclusive, TxnAny},
+		{"WITH moved AS (DELETE FROM staging RETURNING *) INSERT INTO orders SELECT * FROM moved", KindInsert, "staging", pglock.RowExclusive, TxnAny},
 		{"MERGE INTO orders o USING staging s ON s.id = o.id WHEN MATCHED THEN UPDATE SET status = s.status", KindMerge, "orders", pglock.RowExclusive, TxnAny},
 		{"MERGE INTO orders o USING staging s ON s.id = o.id WHEN NOT MATCHED THEN DO NOTHING", KindMerge, "staging", pglock.AccessShare, TxnAny},
 		{"CREATE STATISTICS orders_stats (dependencies) ON customer_id, status FROM orders", KindOtherDDL, "orders", pglock.ShareUpdateExclusive, TxnAny},

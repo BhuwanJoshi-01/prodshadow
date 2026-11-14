@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/BhuwanJoshi-01/Open-Source-1/internal/pglock"
 	"github.com/BhuwanJoshi-01/Open-Source-1/internal/sqlinspect"
 )
 
@@ -73,8 +74,10 @@ func DraftFromStats(records []StatRecord, opts DraftOptions) Draft {
 		if opts.Top > 0 && len(d.Scenarios) >= opts.Top {
 			break
 		}
+		// Only plain reads count as reads: SELECT ... FOR UPDATE and
+		// SELECTs with data-modifying WITH clauses take row locks.
 		mode := "write"
-		if st.Kind == sqlinspect.KindSelect && !strings.Contains(st.Tag, "FOR ") {
+		if st.Kind == sqlinspect.KindSelect && st.StrongestLock() <= pglock.AccessShare {
 			mode = "read"
 		}
 		d.Scenarios = append(d.Scenarios, DraftScenario{ID: scenarioID(st, ids), Mode: mode, Weight: r.Calls, SQL: oneLine(q, 0), Params: st.MaxParam()})

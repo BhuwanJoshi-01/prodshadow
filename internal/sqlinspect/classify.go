@@ -476,6 +476,22 @@ func addReadLocks(s *Statement, root proto.Message, mode pglock.Mode) {
 		s.addLock(relName(rv), mode)
 		return true
 	})
+	// Data-modifying statements nested in WITH clauses write to their
+	// target: WITH moved AS (DELETE FROM a ...) SELECT ... takes ROW
+	// EXCLUSIVE on a even though the outer statement is a SELECT.
+	walk(root, func(m protoreflect.Message) bool {
+		switch n := m.Interface().(type) {
+		case *pg_query.InsertStmt:
+			s.addLock(relName(n.Relation), pglock.RowExclusive)
+		case *pg_query.UpdateStmt:
+			s.addLock(relName(n.Relation), pglock.RowExclusive)
+		case *pg_query.DeleteStmt:
+			s.addLock(relName(n.Relation), pglock.RowExclusive)
+		case *pg_query.MergeStmt:
+			s.addLock(relName(n.Relation), pglock.RowExclusive)
+		}
+		return true
+	})
 }
 
 // lockingStrength names the row lock of a SELECT's first locking clause.

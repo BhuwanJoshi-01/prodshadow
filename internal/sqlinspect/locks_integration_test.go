@@ -132,6 +132,8 @@ var oracleStatements = []string{
 	"MERGE INTO orders o USING staging s ON s.id = o.id WHEN MATCHED THEN UPDATE SET status = s.status",
 	"DELETE FROM orders o USING staging s WHERE s.id = o.id",
 	"SELECT * FROM orders WHERE id = 1 FOR KEY SHARE",
+	"WITH paid AS (UPDATE orders SET status = 'paid' WHERE id = 2 RETURNING id) SELECT count(*) FROM paid",
+	"WITH moved AS (DELETE FROM staging RETURNING *) INSERT INTO orders SELECT * FROM moved",
 	"CREATE INDEX events_id_idx ON events (id)",
 	"DROP INDEX orders_status_idx",
 	"LOCK TABLE ONLY events IN ACCESS EXCLUSIVE MODE",
