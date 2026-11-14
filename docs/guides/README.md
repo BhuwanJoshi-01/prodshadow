@@ -14,6 +14,11 @@ migration (for the fixture) and the migration itself.
 * [Prisma Migrate](prisma.md)
 * [sqitch and dbmate](sqitch-dbmate.md)
 
+## Results
+
+* [Reading a report](reading-a-report.md): what each section of the report
+  means and what to look at first
+
 ## Patterns
 
 * [Safe migration patterns](safe-migration-patterns.md): recipes for common
