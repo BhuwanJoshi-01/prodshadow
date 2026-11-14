@@ -43,7 +43,10 @@ jobs:
       - name: Build
         run: go build -trimpath -o bin/prodshadow ./cmd/prodshadow && ./bin/prodshadow version
 
+  # macOS minutes are billed at ten times the Linux rate on private
+  # repositories; platform differences are rare, so check nightly.
   macos:
+    if: github.event_name != 'pull_request'
     runs-on: macos-15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -56,6 +59,7 @@ jobs:
         run: go build -trimpath -o bin/prodshadow ./cmd/prodshadow && ./bin/prodshadow version
 
   fuzz:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
