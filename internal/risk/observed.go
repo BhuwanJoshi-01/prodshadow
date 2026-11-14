@@ -175,6 +175,7 @@ func observedFindings(cfg *config.Config, res *experiment.Result, comps []Compar
 	}
 
 	out = append(out, migrationFindings(cfg, cands, stmts, blockers)...)
+	out = append(out, walFindings(cfg, res)...)
 	out = append(out, compatibilityFindings(cands)...)
 	out = append(out, regressionFindings(cfg, comps, len(cands))...)
 
@@ -456,5 +457,48 @@ func retryFindings(cfg *config.Config, cands []experiment.PhaseResult, stmts []*
 	f.Observed, f.Unit = ptr(float64(most)), "retries"
 	locate(&f, stmts, first.Retries[0].StatementID)
 	f.Remediation = "Keep lock_timeout short so each attempt's stall stays small, and schedule the migration away from long-running jobs so it succeeds on the first attempt."
+	return []Finding{f}
+}
+
+// walFindings compares the WAL each candidate phase wrote with its paired
+// baseline (same repeat). The extra WAL is what the migration added: a
+// rewrite or index build writes the whole table, and replicas and backups
+// have to receive all of it (OBS015, only with policy.max_extra_wal_mb).
+func walFindings(cfg *config.Config, res *experiment.Result) []Finding {
+	limit := cfg.Policy.MaxExtraWALMB
+	if limit == nil {
+		return nil
+	}
+	baseline := map[int]int64{}
+	for _, ph := range res.Phases {
+		if ph.Kind == experiment.Baseline {
+			baseline[ph.Repeat] = ph.Counters.WALBytes
+		}
+	}
+	var extra []float64
+	hits := 0
+	for _, ph := range res.Phases {
+		b, ok := baseline[ph.Repeat]
+		if ph.Kind != experiment.Candidate || !ok {
+			continue
+		}
+		mb := float64(ph.Counters.WALBytes-b) / (1 << 20)
+		extra = append(extra, mb)
+		if mb > *limit {
+			hits++
+		}
+	}
+	if len(extra) == 0 {
+		return nil
+	}
+	med := stats.Median(extra)
+	if med <= *limit {
+		return nil
+	}
+	conf, reason := consistency(hits, len(extra))
+	reason += "; median of candidate minus paired baseline WAL"
+	f := newFinding("OBS015", conf, reason, fmt.Sprintf("Candidate phases wrote %.1f MiB more WAL than their baselines (median), above the %.1f MiB budget. Replicas, WAL archiving and logical decoding must process all of it, so replication lag grows while the migration runs; on production data the volume scales with the table size.", med, *limit))
+	f.Observed, f.Threshold, f.Unit = ptr(med), ptr(*limit), "MiB"
+	f.Remediation = "Avoid rewrites (see PS103, PS105, PS113), build indexes concurrently in their own step, and batch backfills so replicas can keep up."
 	return []Finding{f}
 }

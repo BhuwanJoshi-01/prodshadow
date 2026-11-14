@@ -151,6 +151,9 @@ type PolicyConfig struct {
 	// MaxQueuedSessions bounds how many workload sessions may queue behind
 	// the migration's lock request at once.
 	MaxQueuedSessions *int `yaml:"max_queued_sessions" json:"max_queued_sessions,omitempty"`
+	// MaxExtraWALMB bounds the WAL a candidate phase writes beyond its
+	// paired baseline, a proxy for replication lag.
+	MaxExtraWALMB *float64 `yaml:"max_extra_wal_mb" json:"max_extra_wal_mb,omitempty"`
 
 	// Rules overrides the severity of individual rules, or disables them
 	// with "off". Keys are rule IDs such as "PS101".

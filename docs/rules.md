@@ -90,6 +90,7 @@ migration, because nothing else uses them yet.
 | [`OBS012`](rules/OBS012.md) | queued-session-budget | critical | More sessions queued behind the migration at once than `policy.max_queued_sessions` (optional). |
 | [`OBS013`](rules/OBS013.md) | app-version-incompatible | critical | A deployed application version's compatibility probe worked before the migration and failed after it. |
 | [`OBS014`](rules/OBS014.md) | migration-lock-retried | info | The migration timed out on a lock and only succeeded after retries (`migration.lock_retries`). |
+| [`OBS015`](rules/OBS015.md) | extra-wal-budget | critical | The migration wrote more WAL beyond its paired baseline than `policy.max_extra_wal_mb` (optional). |
 
 Confidence of observed findings is `high` when every one of at least three
 candidate repeats shows the effect, `medium` for a majority, `low` otherwise,

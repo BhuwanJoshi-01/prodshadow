@@ -90,6 +90,7 @@ inconclusive.
 | `max_p99_latency_ratio` | — | Optional p99 ratio (`OBS006`). |
 | `max_throughput_drop_pct` | — | Optional throughput drop (`OBS008`). |
 | `max_migration_seconds` | — | Optional migration duration budget (`OBS009`). |
+| `max_extra_wal_mb` | — | Optional limit on the WAL a candidate phase writes beyond its paired baseline, in MiB (`OBS015`); large WAL bursts make replicas fall behind. |
 | `max_queued_sessions` | — | Optional limit on workload sessions queued behind the migration's lock request at once (`OBS012`); set it below your connection pool size. |
 | `rules` | `{}` | Per-rule severity override or `off`, e.g. `{PS116: info}`. |
 | `suppressions` | — | Audited suppression file ([format](rules.md#suppressions)). |

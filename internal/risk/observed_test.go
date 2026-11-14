@@ -162,3 +162,28 @@ func TestLockRetries(t *testing.T) {
 		t.Fatal("a migration that never succeeded is not OBS014")
 	}
 }
+
+func TestExtraWALBudget(t *testing.T) {
+	res := quietResult()
+	for i := range res.Phases {
+		res.Phases[i].Counters.WALBytes = 1 << 20
+		if res.Phases[i].Kind == experiment.Candidate {
+			res.Phases[i].Counters.WALBytes = 65 << 20
+		}
+	}
+	cfg := testConfig()
+	limit := 32.0
+	cfg.Policy.MaxExtraWALMB = &limit
+	a := Evaluate(Input{Config: cfg, Result: res})
+	f := byRule(a, "OBS015")
+	if f == nil || *f.Observed != 64 || *f.Threshold != 32 || f.Severity != evidence.Critical || f.Confidence != evidence.High {
+		t.Fatalf("OBS015 = %+v", f)
+	}
+	limit = 100
+	if byRule(Evaluate(Input{Config: cfg, Result: res}), "OBS015") != nil {
+		t.Fatal("within budget")
+	}
+	if byRule(Evaluate(Input{Config: testConfig(), Result: res}), "OBS015") != nil {
+		t.Fatal("the budget must be opt-in")
+	}
+}

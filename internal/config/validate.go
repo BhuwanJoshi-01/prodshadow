@@ -322,6 +322,7 @@ func (c *Config) validatePolicy(ps *Problems) {
 	nonNegative(ps, "policy.max_error_rate_increase_pct_points", p.MaxErrorRateIncreasePctPoints)
 	nonNegative(ps, "policy.max_lock_wait_ms", p.MaxLockWaitMS)
 	nonNegative(ps, "policy.max_migration_seconds", p.MaxMigrationSeconds)
+	nonNegative(ps, "policy.max_extra_wal_mb", p.MaxExtraWALMB)
 	if v := p.MaxQueuedSessions; v != nil && *v < 0 {
 		ps.errorf("policy.max_queued_sessions", "must not be negative")
 	}

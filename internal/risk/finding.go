@@ -84,6 +84,7 @@ var ObservedRules = []ObservedRule{
 	{"OBS012", "queued-session-budget", "More workload sessions queued behind the migration than policy.max_queued_sessions", evidence.Critical},
 	{"OBS013", "app-version-incompatible", "A compatibility probe of a deployed application version worked before the migration and failed after it", evidence.Critical},
 	{"OBS014", "migration-lock-retried", "The migration timed out on a lock and only succeeded after retries", evidence.Info},
+	{"OBS015", "extra-wal-budget", "The migration wrote more WAL than policy.max_extra_wal_mb", evidence.Critical},
 	{"QUAL001", "insufficient-samples", "Too few successful operations to compare latency", evidence.Inconclusive},
 	{"QUAL002", "unstable-baseline", "Baseline latency varied too much between repeats to judge a regression", evidence.Inconclusive},
 	{"QUAL003", "representativeness", "The fixture's relation to production data", evidence.Info},
