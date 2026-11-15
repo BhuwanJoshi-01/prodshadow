@@ -1,44 +1,58 @@
 ---
 title: Rehearse PostgreSQL migrations under load
 description: ProdShadow runs your migration in a disposable PostgreSQL server while your workload keeps querying it, and reports who waited, for how long, and why.
+template: home.html
 hide:
   - navigation
   - toc
 ---
 
-<div class="ps-hero" markdown>
+<div class="ps-split" markdown>
 
-# Rehearse PostgreSQL migrations under concurrent load
+<div markdown>
 
-<p class="ps-lead">ProdShadow runs your migration in a disposable PostgreSQL server while a
-workload you define keeps querying it, compares the result with an identical
-run without the migration, and tells you which sessions waited, for how long,
-and behind which lock. Never in production.</p>
-
-[Get started](introduction.md){ .md-button .md-button--primary }
-[See it catch an outage](examples/long-running-transaction.md){ .md-button }
-
-</div>
+<span class="ps-eyebrow">The problem</span>
 
 ## The outage a linter cannot show you
 
 A statement that takes a millisecond, such as `ALTER TABLE ... ADD COLUMN`,
 needs an `ACCESS EXCLUSIVE` lock. If one long transaction holds any lock on the
 table, the `ALTER TABLE` waits, and **every query that arrives after it waits
-behind it**. A linter can tell you the lock mode; it cannot show you the queue.
-ProdShadow reproduces the queue on purpose and measures what it does to
-everyone else:
+behind it**.
+
+A linter can tell you the lock mode; it cannot show you the queue. ProdShadow
+reproduces the queue on purpose and measures what it does to everyone else.
+
+</div>
+
+<div markdown>
 
 ```text
-  sec      ops  errors      p95       max        <- candidate run, 8 sessions
+  sec      ops  errors      p95       max
      3    15538       0   1.2 ms    6.6 ms
      4    16050       0   1.2 ms    5.8 ms
-M    5       63       0  1504 ms   1504 ms        <- ALTER TABLE waiting for its lock
+M    5       63       0  1504 ms   1504 ms   <- ALTER TABLE waits
 M    6     7232       0   1.2 ms    9.4 ms
      7    14844       0   1.3 ms    7.1 ms
 ```
 
-## What it does
+<p class="ps-caption">The candidate phase of an experiment, 8 sessions. <code>M</code> marks the
+seconds in which the migration ran.</p>
+
+</div>
+
+</div>
+
+<div class="ps-section-head" markdown>
+
+<span class="ps-eyebrow">What it does</span>
+
+## Evidence, not opinions
+
+Static analysis tells you what a statement locks. ProdShadow also runs it,
+under your workload, and shows what that lock does to everyone else.
+
+</div>
 
 <div class="grid cards" markdown>
 
@@ -105,48 +119,126 @@ M    6     7232       0   1.2 ms    9.4 ms
 
 </div>
 
-## How it works
+<div class="ps-section-head" markdown>
+
+<span class="ps-eyebrow">How it works</span>
+
+## From SQL file to decision
+
+</div>
 
 <div class="ps-steps" markdown>
 
-1. **Inspect.** Every statement is parsed with the PostgreSQL grammar; its
+1. **Inspect** Every statement is parsed with the PostgreSQL grammar; its
    locks and the hazards visible in the SQL are reported in seconds, without
    a database.
-2. **Plan.** With your fixture schema, ProdShadow predicts which scenarios of
+2. **Plan** With your fixture schema, ProdShadow predicts which scenarios of
    your workload each statement will block.
-3. **Verify.** A disposable server is seeded from your fixture, and baseline
+3. **Verify** A disposable server is seeded from your fixture, and baseline
    and candidate phases run your workload, the candidate with the migration
    started part-way through.
-4. **Decide.** Waits, latency, errors and throughput are compared against
+4. **Decide** Waits, latency, errors and throughput are compared against
    your policy, and the report says what happened and why.
 
 </div>
 
+<div class="ps-split" markdown>
+
+<div markdown>
+
+<span class="ps-eyebrow">Quick start</span>
+
+## Three commands to a first result
+
+`init` writes a starter configuration, fixture, workload and migration.
+`plan` needs no database at all. `verify` runs the full experiment in a
+sealed container. See the [introduction](introduction.md) for requirements
+and the [CLI reference](cli.md) for every flag.
+
+</div>
+
+<div markdown>
+
 ```bash
 go install github.com/BhuwanJoshi-01/prodshadow/cmd/prodshadow@latest
 
-prodshadow init      # starter configuration, fixture, workload and migration
-prodshadow plan      # predicted locks and conflicts, no database needed
-prodshadow verify    # the full experiment
+prodshadow init     # a starter project
+prodshadow plan     # predicted locks, no database
+prodshadow verify   # the full experiment
 ```
+
+</div>
+
+</div>
+
+<div class="ps-section-head" markdown>
+
+<span class="ps-eyebrow">Examples</span>
 
 ## Measured on real migrations
 
-Every example is a complete project with its documented outcome, run against
-PostgreSQL 17 in CI.
+Every example is a complete project with its documented outcome, run
+against PostgreSQL 17 in CI.
 
-<div class="ps-wide" markdown>
+</div>
 
-| Example | What happens | Decision |
-|---|---|---|
-| [Long-running transaction](examples/long-running-transaction.md) | `ADD COLUMN` queues behind a report; every query queues behind it | block |
-| [Blocking index build](examples/blocking-index.md) | `CREATE INDEX` stalls writers; `CONCURRENTLY` does not | block |
-| [Heavy backfill](examples/backfill-heavy.md) | One unbatched `UPDATE` holds every row lock | block |
-| [Rolling deploy](examples/rolling-deploy.md) | The previous release still reads a dropped column | block |
-| [Partition maintenance](examples/partition-maintenance.md) | `PARTITION OF` locks the parent; attaching does not | block |
-| [Materialized view refresh](examples/matview-refresh.md) | A plain refresh blocks every reader for seconds | block |
-| [Dropping a foreign key](examples/foreign-key-drop.md) | The drop locks the referenced table too | block |
-| [Safe column addition](examples/safe-add-column.md) | A brief lock with a `lock_timeout` | pass |
+<div class="ps-card-grid" markdown>
+
+<div class="ps-example" markdown>
+<span class="ps-badge ps-badge--block">block</span>
+[Long-running transaction](examples/long-running-transaction.md){ .ps-example__link }
+
+`ADD COLUMN` queues behind a report; every query queues behind it.
+</div>
+
+<div class="ps-example" markdown>
+<span class="ps-badge ps-badge--block">block</span>
+[Blocking index build](examples/blocking-index.md){ .ps-example__link }
+
+`CREATE INDEX` stalls writers; `CONCURRENTLY` does not.
+</div>
+
+<div class="ps-example" markdown>
+<span class="ps-badge ps-badge--block">block</span>
+[Heavy backfill](examples/backfill-heavy.md){ .ps-example__link }
+
+One unbatched `UPDATE` holds every row lock.
+</div>
+
+<div class="ps-example" markdown>
+<span class="ps-badge ps-badge--block">block</span>
+[Rolling deploy](examples/rolling-deploy.md){ .ps-example__link }
+
+The previous release still reads a dropped column.
+</div>
+
+<div class="ps-example" markdown>
+<span class="ps-badge ps-badge--block">block</span>
+[Partition maintenance](examples/partition-maintenance.md){ .ps-example__link }
+
+`PARTITION OF` locks the parent; attaching does not.
+</div>
+
+<div class="ps-example" markdown>
+<span class="ps-badge ps-badge--block">block</span>
+[Materialized view refresh](examples/matview-refresh.md){ .ps-example__link }
+
+A plain refresh blocks every reader for seconds.
+</div>
+
+<div class="ps-example" markdown>
+<span class="ps-badge ps-badge--block">block</span>
+[Dropping a foreign key](examples/foreign-key-drop.md){ .ps-example__link }
+
+The drop locks the referenced table too.
+</div>
+
+<div class="ps-example" markdown>
+<span class="ps-badge ps-badge--pass">pass</span>
+[Safe column addition](examples/safe-add-column.md){ .ps-example__link }
+
+A brief lock with a `lock_timeout`.
+</div>
 
 </div>
 
@@ -156,3 +248,15 @@ PostgreSQL 17 in CI.
     configured threshold was exceeded in this experiment, not that the
     migration is safe in production. Read the
     [limitations](limitations.md) before trusting one.
+
+<div class="ps-cta" markdown>
+
+## Rehearse your next migration
+
+Point ProdShadow at your schema, describe your traffic, and see what your
+migration does to it, before your users do. Free and open source.
+
+[Get started](introduction.md){ .md-button .md-button--primary }
+[View on GitHub](https://github.com/BhuwanJoshi-01/prodshadow){ .md-button }
+
+</div>

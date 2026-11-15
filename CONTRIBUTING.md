@@ -48,8 +48,9 @@ non-root user (PostgreSQL refuses to start as root).
 ## Documentation website
 
 The website is built from `docs/`, the example READMEs and the project
-files at the repository root; `website/` only holds its configuration, home
-page and styles. Preview it with:
+files at the repository root; `website/` only holds its configuration, the
+landing page (`home.md`, laid out by `overrides/home.html`), styles and the
+logo. Preview it with:
 
 ```bash
 python3 -m pip install -r website/requirements.txt

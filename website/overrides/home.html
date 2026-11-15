@@ -1,0 +1,94 @@
+{#- Landing page: a full-width hero with a terminal excerpt, then the page's
+    own Markdown (website/home.md). Selected with `template: home.html`. -#}
+{% extends "main.html" %}
+
+{% block tabs %}
+  {{ super() }}
+  <section class="ps-hero" aria-labelledby="ps-hero-title">
+    <div class="md-grid ps-hero__inner">
+      <div class="ps-hero__copy">
+        <span class="ps-pill">PostgreSQL migration rehearsal</span>
+        <h1 id="ps-hero-title">
+          Rehearse migrations
+          <span class="ps-gradient-text">under load</span>,
+          not in production
+        </h1>
+        <p class="ps-hero__lead">
+          ProdShadow runs your migration in a disposable PostgreSQL server while
+          a workload you define keeps querying it, and tells you which sessions
+          waited, for how long, and behind which lock.
+        </p>
+        <div class="ps-hero__actions">
+          <a class="ps-btn ps-btn--primary" href="{{ 'introduction/' | url }}">
+            Get started
+            {% include ".icons/material/arrow-right.svg" %}
+          </a>
+          <a class="ps-btn ps-btn--ghost" href="{{ config.repo_url }}">
+            {% include ".icons/fontawesome/brands/github.svg" %}
+            View on GitHub
+          </a>
+        </div>
+        <div class="ps-install">
+          <span class="ps-install__prompt" aria-hidden="true">$</span>
+          <code>go install github.com/BhuwanJoshi-01/prodshadow/cmd/prodshadow@latest</code>
+          <button class="ps-copy" type="button" title="Copy to clipboard"
+            data-ps-copy="go install github.com/BhuwanJoshi-01/prodshadow/cmd/prodshadow@latest">
+            {% include ".icons/material/content-copy.svg" %}
+          </button>
+        </div>
+      </div>
+
+      <figure class="ps-terminal" aria-label="prodshadow plan and verify on the foreign key example">
+        <div class="ps-terminal__bar" aria-hidden="true">
+          <span></span><span></span><span></span>
+          <em>examples/foreign-key-drop</em>
+        </div>
+        <div class="ps-terminal__body">
+          <div class="t-line" style="--i:0"><b class="t-prompt">$</b> prodshadow plan</div>
+          <div class="t-line" style="--i:1"><b class="t-key">Migration</b>  lock_timeout 2000 ms</div>
+          <div class="t-line" style="--i:2">  1.1  0052_drop_invoice_customer_fk.sql:4  ALTER TABLE</div>
+          <div class="t-line" style="--i:3">       <i class="t-lock">ACCESS EXCLUSIVE</i> on invoices</div>
+          <div class="t-line" style="--i:4">       <i class="t-lock">ACCESS EXCLUSIVE</i> on customers <i class="t-dim">(via foreign key)</i></div>
+          <div class="t-line" style="--i:5"><b class="t-key">Conflicts</b>  <i class="t-dim">whichever comes second waits</i></div>
+          <div class="t-line" style="--i:6">  customer_profile   conflicts with 1.1 <i class="t-dim">(customers)</i></div>
+          <div class="t-line" style="--i:7">  issue_invoice      conflicts with 1.1 <i class="t-dim">(invoices, customers)</i></div>
+          <div class="t-line" style="--i:8"> </div>
+          <div class="t-line" style="--i:9"><b class="t-prompt">$</b> prodshadow verify</div>
+          <div class="t-line" style="--i:10">ProdShadow: <b class="t-bad">BLOCK</b> (exit 2) — Blocking findings: OBS002.</div>
+          <div class="t-line" style="--i:11">  <b class="t-bad">critical</b>  OBS002 migration-lock-timeout</div>
+          <div class="t-line" style="--i:12">    could not acquire its lock within lock_timeout (2000 ms):</div>
+          <div class="t-line" style="--i:13">    customer_export held a conflicting lock</div>
+          <div class="t-line" style="--i:14">  <i class="t-dim">during the migration (longest operation):</i></div>
+          <div class="t-line" style="--i:15">    customer_profile    <b class="t-num">2001 ms</b></div>
+          <div class="t-line" style="--i:16">    customer_invoices   <b class="t-num">2002 ms</b></div>
+          <div class="t-line" style="--i:17">    issue_invoice       <b class="t-num">2003 ms</b><span class="t-cursor" aria-hidden="true"></span></div>
+        </div>
+      </figure>
+    </div>
+
+    <div class="md-grid ps-stats">
+      <div class="ps-stat">
+        <span class="ps-stat__value">93</span>
+        <span class="ps-stat__label">rules, each with a confidence and a reason</span>
+      </div>
+      <div class="ps-stat">
+        <span class="ps-stat__value">168</span>
+        <span class="ps-stat__label">statements checked against <code>pg_locks</code> by the lock oracle</span>
+      </div>
+      <div class="ps-stat">
+        <span class="ps-stat__value">15–18</span>
+        <span class="ps-stat__label">PostgreSQL versions the oracle runs on</span>
+      </div>
+      <div class="ps-stat">
+        <span class="ps-stat__value">0</span>
+        <span class="ps-stat__label">connections to production: everything runs in a sealed container</span>
+      </div>
+    </div>
+  </section>
+{% endblock %}
+
+{% block content %}
+  <div class="ps-home">
+    {{ page.content }}
+  </div>
+{% endblock %}

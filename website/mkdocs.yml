@@ -16,9 +16,10 @@ site_dir: .build/site
 
 theme:
   name: material
+  custom_dir: overrides
   language: en
+  logo: assets/logo.svg
   icon:
-    logo: material/database-clock-outline
     repo: fontawesome/brands/github
   favicon: assets/favicon.svg
   font:
@@ -27,31 +28,48 @@ theme:
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
-      primary: indigo
-      accent: deep orange
+      primary: custom
+      accent: custom
       toggle:
         icon: material/weather-night
         name: Switch to dark mode
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
-      primary: indigo
-      accent: deep orange
+      primary: custom
+      accent: custom
       toggle:
         icon: material/weather-sunny
         name: Switch to light mode
   features:
-    - navigation.tabs
-    - navigation.sections
-    - navigation.top
+    - announce.dismiss
+    - content.code.annotate
+    - content.code.copy
+    - content.tabs.link
     - navigation.footer
     - navigation.indexes
-    - toc.follow
-    - search.suggest
+    - navigation.instant
+    - navigation.instant.progress
+    - navigation.sections
+    - navigation.tabs
+    - navigation.top
+    - navigation.tracking
     - search.highlight
-    - content.code.copy
+    - search.share
+    - search.suggest
+    - toc.follow
 
 extra_css:
   - assets/extra.css
+
+extra_javascript:
+  - assets/extra.js
+
+extra:
+  generator: false
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/BhuwanJoshi-01/prodshadow
+      name: ProdShadow on GitHub
 
 markdown_extensions:
   - admonition
