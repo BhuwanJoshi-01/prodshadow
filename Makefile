@@ -7,12 +7,16 @@ LDFLAGS   := -s -w -X github.com/BhuwanJoshi-01/prodshadow/internal/version.Vers
 
 export CGO_ENABLED = 1
 
-.PHONY: all build test race integration examples lint fmt vet tidy fuzz clean
+.PHONY: all build dist test race integration examples lint fmt vet tidy fuzz clean
 
 all: lint test build
 
 build:
 	$(GO) build -trimpath -ldflags '$(LDFLAGS)' -o $(BIN) ./cmd/prodshadow
+
+# Release archive for this machine's platform, built as the release workflow builds it.
+dist:
+	scripts/release/build.sh $(VERSION) $$($(GO) env GOOS) $$($(GO) env GOARCH)
 
 test:
 	$(GO) test $(PKGS)

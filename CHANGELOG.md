@@ -5,6 +5,14 @@ versioning; the report schema (`schema_version`) is versioned separately.
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.1.0] - 2026-11-15
+
+The first release: static analysis, conflict prediction and the paired
+experiment, with 93 rules, eight example projects and reports for people and
+CI.
+
 ### Added
 
 - `prodshadow init`, `validate`, `inspect`, `verify`, `report`, `doctor`,
@@ -180,6 +188,9 @@ versioning; the report schema (`schema_version`) is versioned separately.
   golang-migrate/goose and sqitch/dbmate, reading a report and choosing
   policy thresholds; static rules indexed by topic; ADRs 0007 to 0010; troubleshooting guide, glossary and architecture
   decision records.
+- Release archives for Linux (amd64 and arm64, statically linked) and macOS
+  (arm64 and amd64) with checksums, build provenance and a Homebrew formula;
+  `make dist` builds the same archive locally. See `RELEASING.md`.
 
 ### Fixed
 
@@ -217,3 +228,6 @@ versioning; the report schema (`schema_version`) is versioned separately.
 - Integration tests pass on PostgreSQL 15, 16, 17 and 18 (`postgres:*-alpine`).
 - Every example reproduces its documented decision; see
   [docs/benchmarks.md](docs/benchmarks.md).
+
+[Unreleased]: https://github.com/BhuwanJoshi-01/prodshadow/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/BhuwanJoshi-01/prodshadow/releases/tag/v0.1.0

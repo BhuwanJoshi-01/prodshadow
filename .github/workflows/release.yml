@@ -1,7 +1,10 @@
 name: Release
 
-# Builds release binaries on native runners (the SQL parser needs cgo, so
-# cross-compiling is avoided), with checksums and embedded build metadata.
+# Pushing a tag v* builds the release archives on native runners (the SQL
+# parser needs cgo, so nothing is cross-compiled), checks them, and creates
+# a draft GitHub release with the archives, SHA256SUMS, a Homebrew formula,
+# and the CHANGELOG section as notes. Publishing the draft triggers the npm
+# and container image workflows. See RELEASING.md.
 on:
   push:
     tags: ["v*"]
@@ -11,13 +14,20 @@ permissions:
 
 jobs:
   build:
+    name: Build ${{ matrix.goos }}/${{ matrix.goarch }}
     strategy:
+      fail-fast: true
       matrix:
         include:
           - {os: ubuntu-24.04, goos: linux, goarch: amd64}
           - {os: ubuntu-24.04-arm, goos: linux, goarch: arm64}
           - {os: macos-15, goos: darwin, goarch: arm64}
+          - {os: macos-15-intel, goos: darwin, goarch: amd64}
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -26,38 +36,50 @@ jobs:
       - name: Test
         run: go test ./...
       - name: Build
-        env:
-          CGO_ENABLED: "1"
-          VERSION: ${{ github.ref_name }}
+        run: scripts/release/build.sh "${GITHUB_REF_NAME}" "${{ matrix.goos }}" "${{ matrix.goarch }}"
+      - name: Check the binary
         run: |
           set -euo pipefail
-          name="prodshadow_${VERSION#v}_${{ matrix.goos }}_${{ matrix.goarch }}"
-          mkdir -p "dist/$name"
-          go build -trimpath \
-            -ldflags "-s -w -X github.com/BhuwanJoshi-01/prodshadow/internal/version.Version=${VERSION} -X github.com/BhuwanJoshi-01/prodshadow/internal/version.Commit=${GITHUB_SHA} -X github.com/BhuwanJoshi-01/prodshadow/internal/version.Date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-            -o "dist/$name/prodshadow" ./cmd/prodshadow
-          cp LICENSE NOTICE README.md "dist/$name/"
-          go version -m "dist/$name/prodshadow" > "dist/$name/BUILDINFO.txt"
-          tar -C dist -czf "dist/$name.tar.gz" "$name"
+          bin=$(ls -d dist/prodshadow_*/ | head -1)prodshadow
+          "$bin" version | grep -F "prodshadow ${GITHUB_REF_NAME} "
+          "$bin" inspect --migration examples/foreign-key-drop/migrations/0052_drop_invoice_customer_fk.sql \
+            --schema examples/foreign-key-drop/fixtures/schema.sql | grep "via foreign key" > /dev/null
+          if [ "${{ matrix.goos }}" = linux ]; then
+            file "$bin" | grep "statically linked"
+          fi
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: dist/*.tar.gz
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dist-${{ matrix.goos }}-${{ matrix.goarch }}
           path: dist/*.tar.gz
 
   publish:
+    name: Draft the release
     needs: build
     runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           path: dist
           merge-multiple: true
       - name: Checksums
-        run: cd dist && sha256sum *.tar.gz > SHA256SUMS
-      - name: Create release
+        run: cd dist && sha256sum prodshadow_*.tar.gz > SHA256SUMS && cat SHA256SUMS
+      - name: Homebrew formula
+        run: packaging/homebrew/formula.sh "${GITHUB_REF_NAME}" dist/SHA256SUMS > dist/prodshadow.rb
+      - name: Release notes
+        run: scripts/release/notes.sh "${GITHUB_REF_NAME}" > dist/NOTES.md
+      - name: Create the draft release
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_name }}
-        run: gh release create "$TAG" dist/* --repo "$GITHUB_REPOSITORY" --title "$TAG" --notes "See CHANGELOG.md for details." --draft
+        run: |
+          set -euo pipefail
+          prerelease=()
+          case "${GITHUB_REF_NAME}" in *-*) prerelease=(--prerelease) ;; esac
+          gh release create "${GITHUB_REF_NAME}" dist/*.tar.gz dist/SHA256SUMS dist/prodshadow.rb \
+            --repo "${GITHUB_REPOSITORY}" --title "ProdShadow ${GITHUB_REF_NAME}" \
+            --notes-file dist/NOTES.md --draft --verify-tag "${prerelease[@]}"

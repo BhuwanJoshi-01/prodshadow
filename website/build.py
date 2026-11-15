@@ -30,6 +30,7 @@ ROOT_PAGES = {
     "CONTRIBUTING.md": "contributing.md",
     "SECURITY.md": "security.md",
     "CODE_OF_CONDUCT.md": "code-of-conduct.md",
+    "RELEASING.md": "releasing.md",
 }
 
 LINK = re.compile(r"(?<!!)\[([^\]]*)\]\(([^)\s]+)((?:\s+\"[^\"]*\")?)\)")

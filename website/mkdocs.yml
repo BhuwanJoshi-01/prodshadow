@@ -153,5 +153,6 @@ nav:
       - Roadmap: roadmap.md
       - Changelog: changelog.md
       - Contributing: contributing.md
+      - Releasing: releasing.md
       - Security: security.md
       - Code of conduct: code-of-conduct.md
