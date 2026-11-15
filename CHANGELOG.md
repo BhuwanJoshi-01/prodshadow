@@ -194,6 +194,10 @@ CI.
 - npm packages: `npm install prodshadow` runs the native binary for Linux
   and macOS from a per-platform optional dependency, without install
   scripts; published from each release by the npm workflow.
+- `install.sh` installs the latest (or a pinned) release after checking it
+  against `SHA256SUMS`; a distroless container image
+  (`ghcr.io/bhuwanjoshi-01/prodshadow`, linux/amd64 and linux/arm64) runs
+  the commands that need no database. See `docs/install.md`.
 
 ### Fixed
 

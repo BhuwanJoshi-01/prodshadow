@@ -31,7 +31,9 @@ release.
    section as notes.
 6. **Review and publish the draft** on the Releases page. Tags with a
    hyphen (`v0.2.0-rc.1`) are marked as pre-releases. Publishing starts the
-   **npm** workflow, which publishes the npm packages (see below).
+   **npm** workflow, which publishes the npm packages, and the **Container
+   image** workflow, which pushes `ghcr.io/bhuwanjoshi-01/prodshadow` (see
+   below). The install script picks the new release up by itself.
 7. **Update the Homebrew tap**: copy `prodshadow.rb` from the release to
    `Formula/prodshadow.rb` in `BhuwanJoshi-01/homebrew-tap` (see below).
 
@@ -111,3 +113,27 @@ packaging/npm/publish.sh dist/npm --dry-run   # check, then run without --dry-ru
 
 Once the packages exist, npm's trusted publishing (configured per package
 on npmjs.com for this repository and `npm.yml`) can replace the token.
+
+## Container image
+
+The Container image workflow builds `packaging/docker/Dockerfile` from the
+release's static Linux binaries (no compilation, so arm64 needs no
+emulation) and pushes `ghcr.io/bhuwanjoshi-01/prodshadow` with the tags
+`X.Y.Z`, `X.Y` and, for stable releases, `latest`, plus an SBOM and
+provenance. It uses the workflow's own token; nothing to set up, except
+that after the first push the package is private: make it public once under
+the repository's Packages → prodshadow → Package settings → Change
+visibility. To build the image locally from archives in `dist/`:
+
+```bash
+packaging/docker/context.sh dist build/docker
+docker build -t prodshadow:dev build/docker
+```
+
+## Install script
+
+`install.sh` at the repository root downloads the latest release (or
+`PRODSHADOW_VERSION`) for the machine, checks it against `SHA256SUMS` and
+installs it. It needs no change per release. `PRODSHADOW_DOWNLOAD_URL`
+points it at another server with the same layout, which the Packaging
+workflow uses to test it.

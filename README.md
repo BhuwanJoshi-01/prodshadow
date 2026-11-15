@@ -1,5 +1,11 @@
 # ProdShadow
 
+[![CI](https://github.com/BhuwanJoshi-01/prodshadow/actions/workflows/ci.yml/badge.svg)](https://github.com/BhuwanJoshi-01/prodshadow/actions/workflows/ci.yml)
+[![Integration](https://github.com/BhuwanJoshi-01/prodshadow/actions/workflows/integration.yml/badge.svg)](https://github.com/BhuwanJoshi-01/prodshadow/actions/workflows/integration.yml)
+[![Documentation](https://img.shields.io/badge/docs-bhuwanjoshi--01.github.io%2Fprodshadow-4f46e5)](https://bhuwanjoshi-01.github.io/prodshadow/)
+[![Go Reference](https://pkg.go.dev/badge/github.com/BhuwanJoshi-01/prodshadow.svg)](https://pkg.go.dev/github.com/BhuwanJoshi-01/prodshadow)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](https://github.com/BhuwanJoshi-01/prodshadow/blob/main/LICENSE)
+
 **Rehearse PostgreSQL migrations under concurrent load — in a disposable database, never in production.**
 
 ProdShadow runs your migration in an isolated, throwaway PostgreSQL server
@@ -73,16 +79,30 @@ strong_migrations, and to clone-based checkers such as DBLab.
    your policy. Unstable baselines, too few samples or missing inputs give
    `inconclusive` — never `pass`.
 
-## Quick start
-
-Requirements: Go 1.26+, a C compiler (the SQL parser uses cgo), and Docker or
-Podman on Linux. On macOS use `network: loopback`. Without a container
-engine, the `local` provider runs installed PostgreSQL binaries (without
-resource limits).
+## Install
 
 ```bash
-go install github.com/BhuwanJoshi-01/prodshadow/cmd/prodshadow@latest
+npm install -g prodshadow                       # Linux and macOS, via npm
+brew install BhuwanJoshi-01/tap/prodshadow      # Homebrew
+curl -fsSL https://raw.githubusercontent.com/BhuwanJoshi-01/prodshadow/main/install.sh | sh
+go install github.com/BhuwanJoshi-01/prodshadow/cmd/prodshadow@latest   # from source
+```
 
+Prebuilt binaries cover Linux (x86-64 and arm64, statically linked) and
+macOS (Apple silicon and Intel); the release channels start with v0.1.0.
+There is also a container image, `ghcr.io/bhuwanjoshi-01/prodshadow`, for
+the commands that need no database. See
+[docs/install.md](docs/install.md) for every option and how to verify a
+download.
+
+## Quick start
+
+Requirements: Docker or Podman for `verify` (on macOS use
+`network: loopback`); without a container engine, the `local` provider
+runs installed PostgreSQL binaries (without resource limits). Building from
+source needs Go 1.26+ and a C compiler (the SQL parser uses cgo).
+
+```bash
 prodshadow init            # starter config, fixture, workload and migration
 prodshadow doctor          # check Docker and the configuration
 prodshadow inspect --config prodshadow.yaml   # static analysis, no database

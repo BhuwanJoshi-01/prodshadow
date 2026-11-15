@@ -2,16 +2,19 @@ name: Packaging
 
 # Exercises the release path on pull requests that change it, without
 # publishing anything: builds the Linux archive with the release script,
-# renders the release notes and the Homebrew formula, and stages, installs
-# and runs the npm packages.
+# renders the release notes and the Homebrew formula, stages, installs and
+# runs the npm packages, runs the install script against a local copy of the
+# release, and builds and runs the container image.
 on:
   pull_request:
     paths:
       - "scripts/release/**"
       - "packaging/**"
+      - "install.sh"
       - "CHANGELOG.md"
       - ".github/workflows/release.yml"
       - ".github/workflows/npm.yml"
+      - ".github/workflows/container.yml"
       - ".github/workflows/packaging.yml"
   workflow_dispatch:
 
@@ -24,7 +27,7 @@ concurrency:
 
 jobs:
   packaging:
-    name: Release archive, notes, formula and npm
+    name: Archive, notes, formula, npm, install script and image
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -44,8 +47,8 @@ jobs:
         run: |
           set -euo pipefail
           version=$(grep -m1 -oE '^## \[[0-9]+\.[0-9]+\.[0-9]+[^]]*\]' CHANGELOG.md | tr -d '#[] ')
-          scripts/release/notes.sh "v$version" | tee notes.md
-          test -s notes.md
+          scripts/release/notes.sh "v$version" | tee dist/NOTES.md
+          test -s dist/NOTES.md
       - name: Homebrew formula
         run: |
           set -euo pipefail
@@ -54,8 +57,8 @@ jobs:
           for p in darwin_arm64 darwin_amd64 linux_arm64; do
             echo "$(printf '%064d' 0)  prodshadow_0.0.0-ci_$p.tar.gz" >> "$sums"
           done
-          packaging/homebrew/formula.sh v0.0.0-ci "$sums" | tee prodshadow.rb
-          ruby -c prodshadow.rb
+          packaging/homebrew/formula.sh v0.0.0-ci "$sums" | tee dist/prodshadow.rb
+          ruby -c dist/prodshadow.rb
       - name: npm packages
         run: |
           set -euo pipefail
@@ -72,3 +75,20 @@ jobs:
           test "$status" -eq 3
       - name: Publish dry run
         run: packaging/npm/publish.sh dist/npm --dry-run
+      - name: Install script
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/release/download/v0.0.0-ci
+          cp dist/prodshadow_0.0.0-ci_linux_amd64.tar.gz dist/SHA256SUMS /tmp/release/download/v0.0.0-ci/
+          python3 -m http.server 8799 --bind 127.0.0.1 --directory /tmp/release > /dev/null 2>&1 &
+          sleep 1
+          PRODSHADOW_DOWNLOAD_URL=http://127.0.0.1:8799 PRODSHADOW_VERSION=v0.0.0-ci \
+            PRODSHADOW_INSTALL_DIR=/tmp/release/bin sh install.sh
+          /tmp/release/bin/prodshadow version | grep -F "prodshadow v0.0.0-ci "
+      - name: Container image
+        run: |
+          set -euo pipefail
+          packaging/docker/context.sh dist build/docker
+          docker build -t prodshadow:ci build/docker
+          docker run --rm prodshadow:ci version | grep -F "prodshadow v0.0.0-ci "
+          docker run --rm -v "$PWD/examples/foreign-key-drop:/work:ro" prodshadow:ci plan | grep "via foreign key"
