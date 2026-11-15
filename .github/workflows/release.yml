@@ -5,12 +5,20 @@ name: Release
 # a draft GitHub release with the archives, SHA256SUMS, a Homebrew formula,
 # and the CHANGELOG section as notes. Publishing the draft triggers the npm
 # and container image workflows. See RELEASING.md.
+#
+# Run by hand (Actions → Release → Run workflow), it is a dry run: the same
+# builds and checks under a v0.0.0-dev.N version, kept as workflow artifacts,
+# with no attestation and no release.
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
 
 permissions:
   contents: read
+
+env:
+  VERSION: ${{ github.ref_type == 'tag' && github.ref_name || format('v0.0.0-dev.{0}', github.run_number) }}
 
 jobs:
   build:
@@ -36,18 +44,19 @@ jobs:
       - name: Test
         run: go test ./...
       - name: Build
-        run: scripts/release/build.sh "${GITHUB_REF_NAME}" "${{ matrix.goos }}" "${{ matrix.goarch }}"
+        run: scripts/release/build.sh "${VERSION}" "${{ matrix.goos }}" "${{ matrix.goarch }}"
       - name: Check the binary
         run: |
           set -euo pipefail
           bin=$(ls -d dist/prodshadow_*/ | head -1)prodshadow
-          "$bin" version | grep -F "prodshadow ${GITHUB_REF_NAME} "
+          "$bin" version | grep -F "prodshadow ${VERSION} "
           "$bin" inspect --migration examples/foreign-key-drop/migrations/0052_drop_invoice_customer_fk.sql \
             --schema examples/foreign-key-drop/fixtures/schema.sql | grep "via foreign key" > /dev/null
           if [ "${{ matrix.goos }}" = linux ]; then
             file "$bin" | grep "statically linked"
           fi
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        if: github.ref_type == 'tag'
         with:
           subject-path: dist/*.tar.gz
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -58,6 +67,7 @@ jobs:
   publish:
     name: Draft the release
     needs: build
+    if: github.ref_type == 'tag'
     runs-on: ubuntu-24.04
     permissions:
       contents: write

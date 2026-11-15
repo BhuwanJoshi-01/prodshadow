@@ -41,6 +41,13 @@ release.
 as soon as the tag is pushed; pkg.go.dev picks the version up on its first
 request. The documentation site deploys from `main` on its own.
 
+## Dry run
+
+Actions → Release → Run workflow builds and checks all four platforms from
+the chosen branch under a `v0.0.0-dev.N` version and keeps the archives as
+workflow artifacts, without attestations or a release. Run it before tagging
+when the build or the runners changed.
+
 ## Building a release archive locally
 
 ```bash
