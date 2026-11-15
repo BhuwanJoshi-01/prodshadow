@@ -1,0 +1,73 @@
+name: npm
+
+# Publishes the npm packages when a release is published: prodshadow, whose
+# launcher runs the native binary, and one prodshadow-<os>-<cpu> package per
+# platform, built from the release's archives (checked against SHA256SUMS).
+# Needs the NPM_TOKEN secret; see RELEASING.md. Re-running it skips versions
+# that are already on the registry.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to publish, e.g. v0.1.0
+        required: true
+      dry-run:
+        description: Pack and check, but do not publish
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: npm-${{ github.event.release.tag_name || inputs.tag }}
+
+jobs:
+  publish:
+    name: Publish to npm
+    runs-on: ubuntu-24.04
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TAG }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+          registry-url: https://registry.npmjs.org
+      - name: Download the release archives
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir dist \
+            --pattern 'prodshadow_*.tar.gz' --pattern SHA256SUMS
+          (cd dist && sha256sum --check SHA256SUMS)
+      - name: Stage the packages
+        run: node packaging/npm/stage.mjs --version "$TAG" --dist dist --out dist/npm --sums dist/SHA256SUMS
+      - name: Install and run the Linux package
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/smoke/packs /tmp/smoke/app
+          (cd dist/npm/prodshadow-linux-x64 && npm pack --pack-destination /tmp/smoke/packs)
+          (cd dist/npm/prodshadow && npm pack --pack-destination /tmp/smoke/packs)
+          cd /tmp/smoke/app
+          npm init -y > /dev/null
+          npm install --no-audit --no-fund /tmp/smoke/packs/*.tgz
+          npx --no-install prodshadow version | grep -F "prodshadow ${TAG} "
+      - name: Publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          DRY_RUN: ${{ inputs.dry-run && '--dry-run' || '' }}
+        run: |
+          if [ -z "$NODE_AUTH_TOKEN" ] && [ -z "$DRY_RUN" ]; then
+            echo "::error::The NPM_TOKEN secret is not set; see RELEASING.md."
+            exit 1
+          fi
+          packaging/npm/publish.sh dist/npm $DRY_RUN

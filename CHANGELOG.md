@@ -191,6 +191,9 @@ CI.
 - Release archives for Linux (amd64 and arm64, statically linked) and macOS
   (arm64 and amd64) with checksums, build provenance and a Homebrew formula;
   `make dist` builds the same archive locally. See `RELEASING.md`.
+- npm packages: `npm install prodshadow` runs the native binary for Linux
+  and macOS from a per-platform optional dependency, without install
+  scripts; published from each release by the npm workflow.
 
 ### Fixed
 

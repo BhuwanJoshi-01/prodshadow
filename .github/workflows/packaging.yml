@@ -1,0 +1,74 @@
+name: Packaging
+
+# Exercises the release path on pull requests that change it, without
+# publishing anything: builds the Linux archive with the release script,
+# renders the release notes and the Homebrew formula, and stages, installs
+# and runs the npm packages.
+on:
+  pull_request:
+    paths:
+      - "scripts/release/**"
+      - "packaging/**"
+      - "CHANGELOG.md"
+      - ".github/workflows/release.yml"
+      - ".github/workflows/npm.yml"
+      - ".github/workflows/packaging.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: packaging-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  packaging:
+    name: Release archive, notes, formula and npm
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+      - name: Release archive
+        run: |
+          set -euo pipefail
+          scripts/release/build.sh v0.0.0-ci linux amd64
+          file dist/prodshadow_0.0.0-ci_linux_amd64/prodshadow | grep "statically linked"
+          (cd dist && sha256sum prodshadow_*.tar.gz > SHA256SUMS)
+      - name: Release notes for the newest CHANGELOG version
+        run: |
+          set -euo pipefail
+          version=$(grep -m1 -oE '^## \[[0-9]+\.[0-9]+\.[0-9]+[^]]*\]' CHANGELOG.md | tr -d '#[] ')
+          scripts/release/notes.sh "v$version" | tee notes.md
+          test -s notes.md
+      - name: Homebrew formula
+        run: |
+          set -euo pipefail
+          sums=$(mktemp)
+          cp dist/SHA256SUMS "$sums"
+          for p in darwin_arm64 darwin_amd64 linux_arm64; do
+            echo "$(printf '%064d' 0)  prodshadow_0.0.0-ci_$p.tar.gz" >> "$sums"
+          done
+          packaging/homebrew/formula.sh v0.0.0-ci "$sums" | tee prodshadow.rb
+          ruby -c prodshadow.rb
+      - name: npm packages
+        run: |
+          set -euo pipefail
+          node packaging/npm/stage.mjs --version v0.0.0-ci --dist dist --out dist/npm \
+            --sums dist/SHA256SUMS --allow-missing
+          mkdir -p /tmp/smoke/packs /tmp/smoke/app
+          for pkg in dist/npm/*/; do (cd "$pkg" && npm pack --pack-destination /tmp/smoke/packs); done
+          cd /tmp/smoke/app
+          npm init -y > /dev/null
+          npm install --no-audit --no-fund /tmp/smoke/packs/*.tgz
+          npx --no-install prodshadow version | grep -F "prodshadow v0.0.0-ci "
+          status=0
+          npx --no-install prodshadow inspect --migration missing.sql > /dev/null 2>&1 || status=$?
+          test "$status" -eq 3
+      - name: Publish dry run
+        run: packaging/npm/publish.sh dist/npm --dry-run

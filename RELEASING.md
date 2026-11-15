@@ -30,7 +30,8 @@ release.
    `SHA256SUMS`, a Homebrew formula (`prodshadow.rb`) and the changelog
    section as notes.
 6. **Review and publish the draft** on the Releases page. Tags with a
-   hyphen (`v0.2.0-rc.1`) are marked as pre-releases.
+   hyphen (`v0.2.0-rc.1`) are marked as pre-releases. Publishing starts the
+   **npm** workflow, which publishes the npm packages (see below).
 7. **Update the Homebrew tap**: copy `prodshadow.rb` from the release to
    `Formula/prodshadow.rb` in `BhuwanJoshi-01/homebrew-tap` (see below).
 
@@ -66,3 +67,47 @@ brew install BhuwanJoshi-01/tap/prodshadow
 For each later release, replace `Formula/prodshadow.rb` with the new
 release's `prodshadow.rb`. `brew test prodshadow` and
 `brew audit --strict prodshadow` check it locally.
+
+## npm
+
+`npm install prodshadow` installs two packages: `prodshadow`, a small
+launcher, and the one `prodshadow-<os>-<cpu>` package that matches the
+machine (npm's `os` and `cpu` fields pick it), which holds the native
+binary. No install scripts run and nothing is downloaded from GitHub.
+`packaging/npm/stage.mjs` builds all five packages from a release's
+archives; `packaging/npm/publish.sh` publishes them, platform packages
+first, skipping versions already on the registry and using the `next`
+dist-tag for pre-releases.
+
+**One-time setup:**
+
+1. Sign in to npmjs.com with the account that will own the packages
+   (`prodshadow`, `prodshadow-darwin-arm64`, `prodshadow-darwin-x64`,
+   `prodshadow-linux-arm64`, `prodshadow-linux-x64`; all were unclaimed on
+   2026-11-15).
+2. Create a granular access token with read and write access to packages
+   (allowed to bypass two-factor authentication, since CI cannot answer a
+   prompt).
+3. Add it to the repository as the Actions secret `NPM_TOKEN` (Settings →
+   Secrets and variables → Actions). The workflow runs in the `npm`
+   environment, so you can require an approval before each publish
+   (Settings → Environments → npm).
+
+**Each release:** publishing the GitHub release runs the workflow. It
+downloads the archives, checks them against `SHA256SUMS`, stages the
+packages, installs and runs the Linux one, and publishes with provenance.
+To try it without publishing, run the workflow by hand with *dry-run*
+(Actions → npm → Run workflow).
+
+**By hand**, for example from your own machine:
+
+```bash
+gh release download vX.Y.Z --repo BhuwanJoshi-01/prodshadow --dir dist \
+  --pattern 'prodshadow_*.tar.gz' --pattern SHA256SUMS
+node packaging/npm/stage.mjs --version vX.Y.Z --sums dist/SHA256SUMS
+npm login
+packaging/npm/publish.sh dist/npm --dry-run   # check, then run without --dry-run
+```
+
+Once the packages exist, npm's trusted publishing (configured per package
+on npmjs.com for this repository and `npm.yml`) can replace the token.

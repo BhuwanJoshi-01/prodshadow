@@ -1,0 +1,43 @@
+{
+  "name": "prodshadow",
+  "version": "0.0.0-dev",
+  "description": "Rehearse PostgreSQL migrations under load in a disposable database, never in production.",
+  "keywords": [
+    "postgresql",
+    "postgres",
+    "migrations",
+    "schema-migration",
+    "database",
+    "locks",
+    "zero-downtime",
+    "ci",
+    "devops",
+    "sql"
+  ],
+  "homepage": "https://bhuwanjoshi-01.github.io/prodshadow/",
+  "bugs": {
+    "url": "https://github.com/BhuwanJoshi-01/prodshadow/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/BhuwanJoshi-01/prodshadow.git",
+    "directory": "packaging/npm/prodshadow"
+  },
+  "license": "Apache-2.0",
+  "author": "Bhuwan Joshi",
+  "bin": {
+    "prodshadow": "bin/prodshadow.js"
+  },
+  "files": [
+    "bin/prodshadow.js"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "optionalDependencies": {
+    "prodshadow-darwin-arm64": "0.0.0-dev",
+    "prodshadow-darwin-x64": "0.0.0-dev",
+    "prodshadow-linux-arm64": "0.0.0-dev",
+    "prodshadow-linux-x64": "0.0.0-dev"
+  }
+}
